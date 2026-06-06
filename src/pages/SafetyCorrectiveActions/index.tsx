@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { CheckCircle, Plus } from 'lucide-react';
+import { CheckCircle, Plus, AlertCircle } from 'lucide-react';
 import { supabase, SafetyCorrectiveAction } from '../../lib/supabase';
+import { useToast } from '../../lib/toast';
 import ActionFormModal from './ActionFormModal';
 import ActionViewModal from './ActionViewModal';
 
@@ -44,21 +45,29 @@ function StatCard({ label, value, variant = 'default' }: { label: string; value:
 }
 
 export default function SafetyCorrectiveActions() {
+  const { addToast } = useToast();
   const [actions, setActions] = useState<SafetyCorrectiveAction[]>([]);
   const [filters, setFilters] = useState<FilterState>({ search: '', source_type: '', priority: '', status: '' });
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isViewOpen, setIsViewOpen] = useState(false);
   const [selectedAction, setSelectedAction] = useState<SafetyCorrectiveAction | null>(null);
   const [statusTab, setStatusTab] = useState('All');
+  const [loadError, setLoadError] = useState('');
 
   useEffect(() => { load(); }, []);
 
   async function load() {
-    const { data, error } = await supabase
-      .from('safety_corrective_actions')
-      .select('*')
-      .order('created_at', { ascending: false });
-    if (!error && data) setActions(data);
+    try {
+      setLoadError('');
+      const { data, error } = await supabase
+        .from('safety_corrective_actions')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      setActions(data || []);
+    } catch (err: unknown) {
+      setLoadError(err instanceof Error ? err.message : 'Failed to load corrective actions. Please try again.');
+    }
   }
 
   const today = new Date();
@@ -92,6 +101,12 @@ export default function SafetyCorrectiveActions() {
   return (
     <div className="min-h-screen bg-gray-50 p-4 sm:p-8">
       <div className="max-w-7xl mx-auto">
+        {loadError && (
+          <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3 mb-6 flex items-center justify-between">
+            <span className="flex items-center gap-2"><AlertCircle size={15} />{loadError}</span>
+            <button onClick={load} className="text-red-600 hover:text-red-800 font-medium text-xs underline">Retry</button>
+          </div>
+        )}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-0 mb-6 sm:mb-8">
           <div className="flex items-center gap-3">
             <CheckCircle className="w-8 h-8 text-gray-900 flex-shrink-0" />
@@ -158,6 +173,34 @@ export default function SafetyCorrectiveActions() {
         </div>
 
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+          {filteredActions.length === 0 && (
+            <div className="py-14 text-center">
+              {actions.length === 0 ? (
+                <>
+                  <CheckCircle className="w-8 h-8 mx-auto text-gray-300 mb-3" />
+                  <p className="text-sm font-medium text-gray-500">No corrective actions yet</p>
+                  <p className="text-xs text-gray-400 mt-1">Create actions from incidents, inspections, or risk assessments.</p>
+                  <button
+                    onClick={() => { setSelectedAction(null); setIsAddOpen(true); }}
+                    className="mt-4 text-sm text-gray-700 hover:text-gray-900 font-medium"
+                  >
+                    + New Action
+                  </button>
+                </>
+              ) : (
+                <>
+                  <CheckCircle className="w-8 h-8 mx-auto text-gray-300 mb-2" />
+                  <p className="text-sm text-gray-400">No actions match your filters.</p>
+                  <button
+                    onClick={() => { setFilters({ search: '', source_type: '', priority: '', status: '' }); setStatusTab('All'); }}
+                    className="mt-2 text-xs text-gray-500 underline"
+                  >
+                    Clear filters
+                  </button>
+                </>
+              )}
+            </div>
+          )}
           <div className="hidden md:block overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gray-50 border-b border-gray-200">
@@ -215,7 +258,7 @@ export default function SafetyCorrectiveActions() {
         </div>
       </div>
 
-      {isAddOpen && <ActionFormModal onClose={() => setIsAddOpen(false)} onSave={load} />}
+      {isAddOpen && <ActionFormModal onClose={() => setIsAddOpen(false)} onSave={() => { addToast('Action saved'); load(); }} />}
       {isViewOpen && selectedAction && <ActionViewModal action={selectedAction} onClose={() => setIsViewOpen(false)} />}
     </div>
   );

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Wrench, AlertTriangle, CheckCircle, Package, ChevronRight, Calendar, Settings } from 'lucide-react';
+import { Wrench, AlertTriangle, CheckCircle, Package, ChevronRight, Calendar, Settings, RefreshCw } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { Equipment, Part, MaintenanceHistory } from '../lib/supabase';
 import { equipmentStatusColors as STATUS_COLORS, maintenanceTypeColors as TYPE_COLORS } from '../lib/badgeColors';
@@ -11,22 +11,35 @@ export default function MaintenanceDashboard() {
   const [parts, setParts] = useState<Part[]>([]);
   const [history, setHistory] = useState<MaintenanceHistory[]>([]);
   const [loading, setLoading] = useState(true);
+  const [lastFetched, setLastFetched] = useState<Date | null>(null);
+
+  async function load() {
+    setLoading(true);
+    const [eq, pt, ht] = await Promise.all([
+      supabase.from('equipment').select('*').order('name'),
+      supabase.from('parts').select('*'),
+      supabase.from('maintenance_history').select('*').order('service_date', { ascending: false }).limit(50),
+    ]);
+    setEquipment(eq.data || []);
+    setParts(pt.data || []);
+    setHistory(ht.data || []);
+    setLastFetched(new Date());
+    setLoading(false);
+  }
+
+  useEffect(() => { load(); }, []);
 
   useEffect(() => {
-    async function load() {
-      setLoading(true);
-      const [eq, pt, ht] = await Promise.all([
-        supabase.from('equipment').select('*').order('name'),
-        supabase.from('parts').select('*'),
-        supabase.from('maintenance_history').select('*').order('service_date', { ascending: false }).limit(50),
-      ]);
-      setEquipment(eq.data || []);
-      setParts(pt.data || []);
-      setHistory(ht.data || []);
-      setLoading(false);
-    }
-    load();
+    const t = setInterval(() => setLastFetched(d => d ? new Date(d) : d), 60000);
+    return () => clearInterval(t);
   }, []);
+
+  function timeSince(d: Date) {
+    const mins = Math.floor((Date.now() - d.getTime()) / 60000);
+    if (mins < 1) return 'just now';
+    if (mins === 1) return '1 min ago';
+    return `${mins} mins ago`;
+  }
 
   const operational = equipment.filter(e => e.status === 'Operational').length;
   const underMaintenance = equipment.filter(e => e.status === 'Under Maintenance').length;
@@ -95,9 +108,19 @@ export default function MaintenanceDashboard() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Maintenance Dashboard</h1>
-        <p className="text-sm text-gray-500 mt-1">Plant equipment status, spare parts, and service history</p>
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Maintenance Dashboard</h1>
+          <p className="text-sm text-gray-500 mt-1">Plant equipment status, spare parts, and service history</p>
+        </div>
+        {lastFetched && (
+          <span className="text-xs text-gray-400 flex items-center gap-1.5 sm:mt-1">
+            Updated {timeSince(lastFetched)}
+            <button onClick={load} title="Refresh" className="text-gray-400 hover:text-gray-600 transition-colors">
+              <RefreshCw size={12} />
+            </button>
+          </span>
+        )}
       </div>
 
       {/* KPI Cards */}

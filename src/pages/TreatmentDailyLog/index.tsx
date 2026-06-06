@@ -1,9 +1,11 @@
 import { useEffect, useState, useMemo } from 'react';
 import { Plus, Search, ChevronDown, AlertTriangle } from 'lucide-react';
 import { supabase, TreatmentDailyLog as TDL, Employee } from '../../lib/supabase';
+import { useToast } from '../../lib/toast';
 import DailyLogFormModal from './DailyLogFormModal';
 
 export default function TreatmentDailyLog() {
+  const { addToast } = useToast();
   const [logs, setLogs] = useState<TDL[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
@@ -241,7 +243,7 @@ export default function TreatmentDailyLog() {
         <DailyLogFormModal
           log={editLog}
           onClose={() => { setShowForm(false); setEditLog(null); }}
-          onSave={() => { setShowForm(false); setEditLog(null); loadLogs(); }}
+          onSave={() => { setShowForm(false); setEditLog(null); addToast('Log saved'); loadLogs(); }}
         />
       )}
     </div>

@@ -5,6 +5,8 @@ import {
 } from 'lucide-react';
 import { supabase, UserProfile, AppRole, ROLE_LABELS } from '../../lib/supabase';
 import { useUser } from '../../lib/UserContext';
+import { useToast } from '../../lib/toast';
+import DeleteConfirmModal from '../../components/DeleteConfirmModal';
 import CreateUserModal from './CreateUserModal';
 import EditUserModal from './EditUserModal';
 
@@ -48,7 +50,9 @@ export default function AdminUsers() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [showCreate, setShowCreate] = useState(false);
+  const { addToast } = useToast();
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ user: UserProfile; label: string } | null>(null);
   const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
   const [opError, setOpError] = useState('');
 
@@ -69,10 +73,14 @@ export default function AdminUsers() {
     load();
   }
 
-  async function handleDelete(user: UserProfile) {
+  function handleDelete(user: UserProfile) {
     if (user.auth_user_id === myProfile?.auth_user_id) return;
-    if (!confirm(`Delete user "${user.display_name}"? This cannot be undone.`)) return;
+    setDeleteTarget({ user, label: user.display_name });
+  }
 
+  async function handleDeleteConfirm() {
+    if (!deleteTarget) return;
+    const { user } = deleteTarget;
     setDeletingId(user.id);
     const { data: { session } } = await supabase.auth.getSession();
     await fetch(
@@ -88,6 +96,8 @@ export default function AdminUsers() {
       }
     );
     setDeletingId(null);
+    setDeleteTarget(null);
+    addToast('User deleted');
     load();
   }
 
@@ -246,7 +256,7 @@ export default function AdminUsers() {
                               <button
                                 onClick={() => handleDelete(user)}
                                 disabled={deletingId === user.id}
-                                className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition disabled:opacity-50"
+                                className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition disabled:opacity-50"
                               >
                                 {deletingId === user.id ? <Loader size={14} className="animate-spin" /> : <Trash2 size={14} />}
                               </button>
@@ -307,7 +317,7 @@ export default function AdminUsers() {
                           <button
                             onClick={() => handleDelete(user)}
                             disabled={deletingId === user.id}
-                            className="px-3 py-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition disabled:opacity-50"
+                            className="px-3 py-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition disabled:opacity-50"
                           >
                             {deletingId === user.id ? <Loader size={14} className="animate-spin" /> : <Trash2 size={14} />}
                           </button>
@@ -329,8 +339,16 @@ export default function AdminUsers() {
         </div>
       </div>
 
-      {showCreate && <CreateUserModal onClose={() => setShowCreate(false)} onSave={() => { setShowCreate(false); load(); }} />}
-      {editingUser && <EditUserModal user={editingUser} onClose={() => setEditingUser(null)} onSave={() => { setEditingUser(null); load(); }} />}
+      {showCreate && <CreateUserModal onClose={() => setShowCreate(false)} onSave={() => { setShowCreate(false); addToast('User created'); load(); }} />}
+      {editingUser && <EditUserModal user={editingUser} onClose={() => setEditingUser(null)} onSave={() => { setEditingUser(null); addToast('User updated'); load(); }} />}
+      {deleteTarget && (
+        <DeleteConfirmModal
+          label={deleteTarget.label}
+          onConfirm={handleDeleteConfirm}
+          onClose={() => setDeleteTarget(null)}
+          deleting={deletingId !== null}
+        />
+      )}
     </div>
   );
 }

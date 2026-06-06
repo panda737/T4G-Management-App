@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import {
   Factory, Beaker, Clock, TrendingUp, AlertTriangle,
-  Calendar, User, Pencil, Trash2,
+  Calendar, User, Pencil, Trash2, RefreshCw,
 } from 'lucide-react';
 import { PageSpinner } from '../../components/Spinner';
 import { supabase, TreatmentDailyLog, TreatmentMonthlySummary, Employee } from '../../lib/supabase';
@@ -42,8 +42,14 @@ export default function TreatmentDashboard() {
   const [deletingLandfill, setDeletingLandfill] = useState<TreatmentMonthlySummary | null>(null);
   const [deletingLandfillBusy, setDeletingLandfillBusy] = useState(false);
   const [opError, setOpError] = useState('');
+  const [lastFetched, setLastFetched] = useState<Date | null>(null);
 
   useEffect(() => { loadData(); }, []);
+
+  useEffect(() => {
+    const t = setInterval(() => setLastFetched(d => d ? new Date(d) : d), 60000);
+    return () => clearInterval(t);
+  }, []);
 
   useEffect(() => {
     if (logs.length === 0) return;
@@ -62,7 +68,15 @@ export default function TreatmentDashboard() {
     setLogs((logRes.data || []) as TreatmentDailyLog[]);
     setMonthlySummaries(sumRes.data || []);
     setEmployees(empRes.data || []);
+    setLastFetched(new Date());
     setLoading(false);
+  }
+
+  function timeSince(d: Date) {
+    const mins = Math.floor((Date.now() - d.getTime()) / 60000);
+    if (mins < 1) return 'just now';
+    if (mins === 1) return '1 min ago';
+    return `${mins} mins ago`;
   }
 
   async function handleDeleteLog() {
@@ -298,6 +312,14 @@ export default function TreatmentDashboard() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Treatment Plant Dashboard</h1>
           <p className="text-sm text-gray-500 mt-1">Cold chemical treatment -- Peracetic acid & hydrogen peroxide</p>
+          {lastFetched && (
+            <span className="text-xs text-gray-400 flex items-center gap-1.5 mt-1">
+              Updated {timeSince(lastFetched)}
+              <button onClick={loadData} title="Refresh" className="text-gray-400 hover:text-gray-600 transition-colors">
+                <RefreshCw size={12} />
+              </button>
+            </span>
+          )}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <div className="flex bg-gray-100 rounded-lg p-0.5 flex-shrink-0">

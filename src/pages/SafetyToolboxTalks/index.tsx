@@ -3,6 +3,8 @@ import {
   Users, Plus, Eye, Trash2, Search, Calendar, AlertCircle,
   ClipboardList, Library,
 } from 'lucide-react';
+import { useToast } from '../../lib/toast';
+import DeleteConfirmModal from '../../components/DeleteConfirmModal';
 import { Spinner } from '../../components/Spinner';
 import { supabase, SafetyToolboxTalk, ToolboxTalkTopic } from '../../lib/supabase';
 import Modal from '../../components/Modal';
@@ -32,7 +34,10 @@ export default function SafetyToolboxTalks() {
   const [selectedSubcategory, setSelectedSubcategory] = useState('');
   const [librarySearch, setLibrarySearch] = useState('');
   const [formData, setFormData] = useState<FormData>({ ...EMPTY_FORM, talk_date: new Date().toISOString().split('T')[0] });
+  const { addToast } = useToast();
   const [opError, setOpError] = useState('');
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; label: string } | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => { loadData(); }, []);
   useEffect(() => { filterTalks(); }, [talks, searchTerm, monthFilter, sortConfig]);
@@ -125,16 +130,25 @@ export default function SafetyToolboxTalks() {
       }
     }
 
+    addToast('Toolbox talk saved');
     setShowAddModal(false);
     loadData();
     resetForm();
   }
 
-  async function handleDelete(id: string) {
-    if (!confirm('Are you sure you want to delete this talk record?')) return;
+  function handleDelete(id: string, label: string) {
+    setDeleteTarget({ id, label });
+  }
+
+  async function handleDeleteConfirm() {
+    if (!deleteTarget) return;
+    setDeleting(true);
     setOpError('');
-    const { error } = await supabase.from('safety_toolbox_talks').delete().eq('id', id);
+    const { error } = await supabase.from('safety_toolbox_talks').delete().eq('id', deleteTarget.id);
+    setDeleting(false);
+    setDeleteTarget(null);
     if (error) { setOpError(error.message); return; }
+    addToast('Talk deleted');
     loadData();
   }
 
@@ -253,9 +267,19 @@ export default function SafetyToolboxTalks() {
               {loading ? (
                 <div className="p-8 text-center flex justify-center"><Spinner color="gray" /></div>
               ) : filteredTalks.length === 0 ? (
-                <div className="p-12 text-center">
-                  <Users className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                  <p className="text-gray-500">No talks found</p>
+                <div className="py-14 text-center">
+                  <Users className="w-8 h-8 text-gray-300 mx-auto mb-3" />
+                  {talks.length === 0 ? (
+                    <>
+                      <p className="text-sm font-medium text-gray-500">No toolbox talks recorded yet</p>
+                      <p className="text-xs text-gray-400 mt-1">Record your first safety toolbox talk.</p>
+                      <button onClick={() => setShowAddModal(true)} className="mt-4 text-sm text-green-700 hover:text-green-800 font-medium">+ Record Talk</button>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-sm text-gray-400">No talks match your filters.</p>
+                    </>
+                  )}
                 </div>
               ) : (
                 <>
@@ -298,7 +322,7 @@ export default function SafetyToolboxTalks() {
                             <td className="px-4 py-3 text-sm flex gap-2">
                               <button onClick={() => { setSelectedTalk(talk); setShowViewModal(true); }} className="text-gray-600 hover:text-gray-900 transition"><Eye className="w-4 h-4" /></button>
                               <button onClick={() => { setSelectedTalk(talk); setShowAttendanceModal(true); }} className="text-sky-600 hover:text-sky-800 transition" title="Attendance Register"><ClipboardList className="w-4 h-4" /></button>
-                              <button onClick={() => handleDelete(talk.id)} className="text-red-600 hover:text-red-700 transition"><Trash2 className="w-4 h-4" /></button>
+                              <button onClick={() => handleDelete(talk.id, talk.talk_number || 'this talk')} className="text-red-600 hover:text-red-700 transition"><Trash2 className="w-4 h-4" /></button>
                             </td>
                           </tr>
                         ))}
@@ -325,7 +349,7 @@ export default function SafetyToolboxTalks() {
                         <div className="flex justify-end gap-2 pt-2 border-t border-gray-100">
                           <button onClick={() => { setSelectedTalk(talk); setShowViewModal(true); }} className="p-2 text-gray-600 hover:bg-gray-50 rounded"><Eye className="w-4 h-4" /></button>
                           <button onClick={() => { setSelectedTalk(talk); setShowAttendanceModal(true); }} className="p-2 text-sky-600 hover:bg-sky-50 rounded" title="Attendance Register"><ClipboardList className="w-4 h-4" /></button>
-                          <button onClick={() => handleDelete(talk.id)} className="p-2 text-red-600 hover:bg-red-50 rounded"><Trash2 className="w-4 h-4" /></button>
+                          <button onClick={() => handleDelete(talk.id, talk.talk_number || 'this talk')} className="p-2 text-red-600 hover:bg-red-50 rounded"><Trash2 className="w-4 h-4" /></button>
                         </div>
                       </div>
                     ))}
@@ -465,6 +489,15 @@ export default function SafetyToolboxTalks() {
             filteredTopics={filteredTopics} onSelect={selectTopicFromLibrary}
           />
         </Modal>
+      )}
+
+      {deleteTarget && (
+        <DeleteConfirmModal
+          label={deleteTarget.label}
+          onConfirm={handleDeleteConfirm}
+          onClose={() => setDeleteTarget(null)}
+          deleting={deleting}
+        />
       )}
     </div>
   );

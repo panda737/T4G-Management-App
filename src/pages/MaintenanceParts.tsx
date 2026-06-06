@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { Plus, Search, X, Save, Package, ChevronDown, AlertTriangle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { useToast } from '../lib/toast';
 import type { Part, Equipment } from '../lib/supabase';
 import Modal from '../components/Modal';
 
@@ -13,6 +14,7 @@ export default function MaintenanceParts() {
   const [filterEquipment, setFilterEquipment] = useState('');
   const [filterLow, setFilterLow] = useState(false);
 
+  const { addToast } = useToast();
   const [showModal, setShowModal] = useState(false);
   const [editPart, setEditPart] = useState<Part | null>(null);
 
@@ -112,9 +114,20 @@ export default function MaintenanceParts() {
             <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-orange-500" />
           </div>
         ) : filtered.length === 0 ? (
-          <div className="py-12 text-center">
-            <Package size={28} className="mx-auto text-gray-300 mb-2" />
-            <p className="text-sm text-gray-400">No parts found</p>
+          <div className="py-14 text-center">
+            <Package size={28} className="mx-auto text-gray-300 mb-3" />
+            {parts.length === 0 ? (
+              <>
+                <p className="text-sm font-medium text-gray-500">No spare parts catalogued yet</p>
+                <p className="text-xs text-gray-400 mt-1">Add parts and link them to your equipment.</p>
+                <button onClick={() => { setEditPart(null); setShowModal(true); }} className="mt-4 text-sm text-orange-600 hover:text-orange-700 font-medium">+ Add Part</button>
+              </>
+            ) : (
+              <>
+                <p className="text-sm text-gray-400">No parts match your filters.</p>
+                <button onClick={() => { setSearch(''); setFilterEquipment(''); setFilterLow(false); }} className="mt-2 text-xs text-gray-500 underline">Clear filters</button>
+              </>
+            )}
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -158,7 +171,7 @@ export default function MaintenanceParts() {
                       <td className="px-3 py-3 text-center">
                         <button
                           onClick={ev => { ev.stopPropagation(); setEditPart(p); setShowModal(true); }}
-                          className="text-xs text-gray-400 hover:text-orange-600 font-medium"
+                          className="text-xs text-gray-500 hover:text-orange-600 font-medium"
                         >
                           Edit
                         </button>
@@ -177,7 +190,7 @@ export default function MaintenanceParts() {
           part={editPart}
           equipment={equipment}
           onClose={() => { setShowModal(false); setEditPart(null); }}
-          onSave={() => { setShowModal(false); setEditPart(null); load(); }}
+          onSave={() => { setShowModal(false); setEditPart(null); addToast('Part saved'); load(); }}
         />
       )}
     </div>

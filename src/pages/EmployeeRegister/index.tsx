@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, Plus, ChevronDown, Phone, User, Truck } from 'lucide-react';
+import { Search, Plus, ChevronDown, Phone, User, Truck, AlertCircle } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { useToast } from '../../lib/toast';
 import type { Employee } from '../../lib/supabase';
 import { HS_ROLE_LABELS, HS_ROLE_COLORS } from '../../lib/supabase';
 import type { EmployeeHsRole } from '../../lib/supabase';
@@ -14,6 +15,7 @@ export default function EmployeeRegister() {
   const { isAdmin, isManagement } = useUser();
   const canEdit = isAdmin || isManagement;
 
+  const { addToast } = useToast();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -22,17 +24,25 @@ export default function EmployeeRegister() {
   const [hsRoleFilter, setHsRoleFilter] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editEmployee, setEditEmployee] = useState<Employee | null>(null);
+  const [loadError, setLoadError] = useState('');
 
   useEffect(() => { loadEmployees(); }, []);
 
   async function loadEmployees() {
     setLoading(true);
-    const { data } = await supabase
-      .from('employees')
-      .select('*')
-      .order('surname', { ascending: true });
-    setEmployees(data || []);
-    setLoading(false);
+    setLoadError('');
+    try {
+      const { data, error } = await supabase
+        .from('employees')
+        .select('*')
+        .order('surname', { ascending: true });
+      if (error) throw error;
+      setEmployees(data || []);
+    } catch (err: unknown) {
+      setLoadError(err instanceof Error ? err.message : 'Failed to load employees. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   }
 
   const filtered = employees.filter(e => {
@@ -57,6 +67,12 @@ export default function EmployeeRegister() {
 
   return (
     <div className="space-y-5">
+      {loadError && (
+        <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3 flex items-center justify-between">
+          <span className="flex items-center gap-2"><AlertCircle size={15} />{loadError}</span>
+          <button onClick={loadEmployees} className="text-red-600 hover:text-red-800 font-medium text-xs underline">Retry</button>
+        </div>
+      )}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Employee Register</h1>
@@ -144,8 +160,31 @@ export default function EmployeeRegister() {
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
         {loading ? (
           <div className="flex justify-center py-12"><Spinner /></div>
+        ) : employees.length === 0 ? (
+          <div className="py-14 text-center">
+            <User size={32} className="mx-auto text-gray-300 mb-3" />
+            <p className="text-sm font-medium text-gray-500">No employees registered yet</p>
+            <p className="text-xs text-gray-400 mt-1">Get started by adding your first employee.</p>
+            {canEdit && (
+              <button
+                onClick={() => { setEditEmployee(null); setShowForm(true); }}
+                className="mt-4 text-sm text-emerald-600 hover:text-emerald-700 font-medium"
+              >
+                + Add Employee
+              </button>
+            )}
+          </div>
         ) : filtered.length === 0 ? (
-          <div className="text-center py-12 text-sm text-gray-400">No employees found</div>
+          <div className="py-14 text-center">
+            <Search size={28} className="mx-auto text-gray-300 mb-2" />
+            <p className="text-sm text-gray-400">No employees match your filters.</p>
+            <button
+              onClick={() => { setSearch(''); setPositionFilter(''); setStatusFilter('active'); setHsRoleFilter(''); }}
+              className="mt-2 text-xs text-gray-500 underline"
+            >
+              Clear filters
+            </button>
+          </div>
         ) : (
           <>
             {/* Desktop Table */}
@@ -277,7 +316,7 @@ export default function EmployeeRegister() {
         <EmployeeFormModal
           employee={editEmployee}
           onClose={() => { setShowForm(false); setEditEmployee(null); }}
-          onSave={() => { setShowForm(false); setEditEmployee(null); loadEmployees(); }}
+          onSave={() => { setShowForm(false); setEditEmployee(null); addToast('Employee saved'); loadEmployees(); }}
         />
       )}
     </div>

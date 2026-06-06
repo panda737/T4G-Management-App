@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from 'react';
-import { Plus, Search, CreditCard as Edit2, AlertCircle, ChevronDown, ChevronRight, ArrowDownCircle, ArrowUpCircle, Package } from 'lucide-react';
+import { Plus, Search, Edit2, AlertCircle, ChevronDown, ChevronRight, ArrowDownCircle, ArrowUpCircle, Package } from 'lucide-react';
 import { supabase, StockItem, getStockStatus } from '../../lib/supabase';
+import { useToast } from '../../lib/toast';
 import StatusBadge from '../../components/StatusBadge';
 import QuickMovementModal from './QuickMovementModal';
 import ItemFormModal from './ItemFormModal';
@@ -10,6 +11,7 @@ const STATUSES = ['All', 'In Stock', 'Low Stock', 'Out of Stock'];
 const CATEGORY_ORDER = ['Liners', 'Sharps', 'External Customer Containers', 'Anatomical (Specibins)', 'Pharmaceutical', 'Box Sets', 'Other'];
 
 export default function StockMasterList() {
+  const { addToast } = useToast();
   const [items, setItems] = useState<StockItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -205,7 +207,7 @@ export default function StockMasterList() {
                                 <td className="px-3 py-2 text-center">
                                   <button
                                     onClick={() => setEditItem(item)}
-                                    className="p-1 rounded hover:bg-blue-100 text-gray-400 hover:text-blue-600 transition-colors"
+                                    className="p-1 rounded hover:bg-blue-100 text-gray-500 hover:text-blue-600 transition-colors"
                                     title="Edit item"
                                   >
                                     <Edit2 size={13} />
@@ -263,6 +265,7 @@ export default function StockMasterList() {
           onSave={async (data) => {
             const { error } = await supabase.from('stock_items').insert(data);
             if (error) { setOpError(error.message); return; }
+            addToast('Item added');
             setShowAdd(false);
             load();
           }}
@@ -278,6 +281,7 @@ export default function StockMasterList() {
           onSave={async (data) => {
             const { error } = await supabase.from('stock_items').update({ ...data, updated_at: new Date().toISOString() }).eq('id', editItem.id);
             if (error) { setOpError(error.message); return; }
+            addToast('Item updated');
             setEditItem(null);
             load();
           }}
@@ -289,7 +293,7 @@ export default function StockMasterList() {
           direction={globalMovement}
           items={items}
           onClose={() => setGlobalMovement(null)}
-          onSave={() => { setGlobalMovement(null); load(); }}
+          onSave={() => { setGlobalMovement(null); addToast('Movement recorded'); load(); }}
         />
       )}
     </div>

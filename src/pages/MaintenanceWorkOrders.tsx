@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { Plus, Search, X, Save, Calendar, ChevronDown } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { useToast } from '../lib/toast';
 import type { MaintenanceHistory, Equipment } from '../lib/supabase';
 import Modal from '../components/Modal';
 import { maintenanceTypeColors as TYPE_COLORS } from '../lib/badgeColors';
@@ -16,6 +17,7 @@ export default function MaintenanceWorkOrders() {
   const [filterEquipment, setFilterEquipment] = useState('');
   const [filterType, setFilterType] = useState('');
 
+  const { addToast } = useToast();
   const [showModal, setShowModal] = useState(false);
   const [editItem, setEditItem] = useState<MaintenanceHistory | null>(null);
 
@@ -100,9 +102,20 @@ export default function MaintenanceWorkOrders() {
             <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-orange-500" />
           </div>
         ) : filtered.length === 0 ? (
-          <div className="py-12 text-center">
-            <Calendar size={28} className="mx-auto text-gray-300 mb-2" />
-            <p className="text-sm text-gray-400">No service records found</p>
+          <div className="py-14 text-center">
+            <Calendar size={28} className="mx-auto text-gray-300 mb-3" />
+            {history.length === 0 ? (
+              <>
+                <p className="text-sm font-medium text-gray-500">No service records yet</p>
+                <p className="text-xs text-gray-400 mt-1">Log your first maintenance or service event.</p>
+                <button onClick={() => { setEditItem(null); setShowModal(true); }} className="mt-4 text-sm text-orange-600 hover:text-orange-700 font-medium">+ Log Service</button>
+              </>
+            ) : (
+              <>
+                <p className="text-sm text-gray-400">No records match your filters.</p>
+                <button onClick={() => { setSearch(''); setFilterEquipment(''); setFilterType(''); }} className="mt-2 text-xs text-gray-500 underline">Clear filters</button>
+              </>
+            )}
           </div>
         ) : (
           <>
@@ -145,7 +158,7 @@ export default function MaintenanceWorkOrders() {
                       <td className="px-3 py-3 text-center">
                         <button
                           onClick={ev => { ev.stopPropagation(); setEditItem(h); setShowModal(true); }}
-                          className="text-xs text-gray-400 hover:text-orange-600 font-medium"
+                          className="text-xs text-gray-500 hover:text-orange-600 font-medium"
                         >
                           Edit
                         </button>
@@ -185,7 +198,7 @@ export default function MaintenanceWorkOrders() {
           item={editItem}
           equipment={equipment}
           onClose={() => { setShowModal(false); setEditItem(null); }}
-          onSave={() => { setShowModal(false); setEditItem(null); load(); }}
+          onSave={() => { setShowModal(false); setEditItem(null); addToast('Service record saved'); load(); }}
         />
       )}
     </div>

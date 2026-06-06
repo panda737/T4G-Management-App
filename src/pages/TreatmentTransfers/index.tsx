@@ -10,9 +10,11 @@ import TransferFormModal from './TransferFormModal';
 import LandfillFormModal from './LandfillFormModal';
 import DeleteConfirmModal from '../../components/DeleteConfirmModal';
 import { useUser } from '../../lib/UserContext';
+import { useToast } from '../../lib/toast';
 
 export default function TreatmentTransfers() {
   const { isAdmin } = useUser();
+  const { addToast } = useToast();
   const [activeTab, setActiveTab] = useState<ActiveTab>('Transfers');
   const [transfers, setTransfers] = useState<TransferWithDate[]>([]);
   const [landfillRecords, setLandfillRecords] = useState<TreatmentMonthlySummary[]>([]);
@@ -51,6 +53,7 @@ export default function TreatmentTransfers() {
     setDeletingTransferBusy(false);
     if (error) { setOpError(error.message); return; }
     setDeletingTransfer(null);
+    addToast('Transfer deleted');
     loadData();
   }
 
@@ -190,7 +193,7 @@ export default function TreatmentTransfers() {
           transfer={editTransfer}
           dailyLogs={dailyLogs}
           onClose={() => { setShowTransferForm(false); setEditTransfer(null); }}
-          onSave={() => { setShowTransferForm(false); setEditTransfer(null); loadData(); }}
+          onSave={() => { setShowTransferForm(false); setEditTransfer(null); addToast('Transfer saved'); loadData(); }}
         />
       )}
 
@@ -213,7 +216,7 @@ export default function TreatmentTransfers() {
         <LandfillFormModal
           record={editLandfill}
           onClose={() => { setShowLandfillForm(false); setEditLandfill(null); }}
-          onSave={() => { setShowLandfillForm(false); setEditLandfill(null); loadData(); }}
+          onSave={() => { setShowLandfillForm(false); setEditLandfill(null); addToast('Landfill record saved'); loadData(); }}
         />
       )}
     </div>

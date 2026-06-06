@@ -202,14 +202,14 @@ export default function TransfersContent({
                           <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity justify-end">
                             <button
                               onClick={() => onEdit?.(t)}
-                              className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded transition-colors"
+                              className="p-1.5 text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 rounded transition-colors"
                               title="Edit"
                             >
                               <Pencil size={13} />
                             </button>
                             <button
                               onClick={() => onDelete?.(t)}
-                              className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                              className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
                               title="Delete"
                             >
                               <Trash2 size={13} />
@@ -234,10 +234,10 @@ export default function TransfersContent({
                       <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-emerald-100 text-emerald-700">Transfer Out</span>
                       {isAdmin && (
                         <div className="flex items-center gap-1">
-                          <button onClick={() => onEdit?.(t)} className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded transition-colors">
+                          <button onClick={() => onEdit?.(t)} className="p-1.5 text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 rounded transition-colors">
                             <Pencil size={13} />
                           </button>
-                          <button onClick={() => onDelete?.(t)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors">
+                          <button onClick={() => onDelete?.(t)} className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded transition-colors">
                             <Trash2 size={13} />
                           </button>
                         </div>

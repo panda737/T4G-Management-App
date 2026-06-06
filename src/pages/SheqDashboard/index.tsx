@@ -7,6 +7,7 @@ import {
   Clock,
   Users,
   Siren,
+  RefreshCw,
 } from 'lucide-react';
 import {
   supabase,
@@ -42,9 +43,15 @@ export default function SheqDashboard() {
   const [talks, setTalks] = useState<SafetyToolboxTalk[]>([]);
   const [risks, setRisks] = useState<SafetyRiskAssessment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [lastFetched, setLastFetched] = useState<Date | null>(null);
 
   useEffect(() => {
     load();
+  }, []);
+
+  useEffect(() => {
+    const t = setInterval(() => setLastFetched(d => d ? new Date(d) : d), 60000);
+    return () => clearInterval(t);
   }, []);
 
   async function load() {
@@ -110,7 +117,15 @@ export default function SheqDashboard() {
     setDrills(allDrills);
     setTalks(allTalks);
     setRisks(allRisks);
+    setLastFetched(new Date());
     setLoading(false);
+  }
+
+  function timeSince(d: Date) {
+    const mins = Math.floor((Date.now() - d.getTime()) / 60000);
+    if (mins < 1) return 'just now';
+    if (mins === 1) return '1 min ago';
+    return `${mins} mins ago`;
   }
 
   const incidentsByMonth = useMemo(() => {
@@ -239,6 +254,14 @@ export default function SheqDashboard() {
         <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
           <ShieldAlert size={28} className="text-amber-600" />
           <h1 className="text-2xl font-bold text-gray-900">SHEQ Dashboard</h1>
+          {lastFetched && (
+            <span className="text-xs text-gray-400 flex items-center gap-1.5 sm:ml-auto">
+              Updated {timeSince(lastFetched)}
+              <button onClick={load} title="Refresh" className="text-gray-400 hover:text-gray-600 transition-colors">
+                <RefreshCw size={12} />
+              </button>
+            </span>
+          )}
         </div>
         <p className="text-sm text-gray-500 mt-1">Health, Safety, Environment & Quality overview</p>
       </div>

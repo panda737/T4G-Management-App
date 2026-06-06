@@ -1,6 +1,8 @@
 import { useEffect, useState, useMemo } from 'react';
-import { CalendarDays, Plus, Search, Eye, CreditCard as Edit2, Trash2 } from 'lucide-react';
+import { CalendarDays, Plus, Search, Eye, Edit2, Trash2 } from 'lucide-react';
 import { supabase, TrainingSchedule, TrainingCourse } from '../../lib/supabase';
+import { useToast } from '../../lib/toast';
+import DeleteConfirmModal from '../../components/DeleteConfirmModal';
 import SessionFormModal, { SessionFormData, SESSION_STATUS_COLORS } from './SessionFormModal';
 import SessionViewModal from './SessionViewModal';
 
@@ -28,6 +30,9 @@ export default function TrainingSchedulePage() {
   const [showForm, setShowForm] = useState(false);
   const [showView, setShowView] = useState(false);
   const [selectedSession, setSelectedSession] = useState<TrainingSchedule | null>(null);
+  const { addToast } = useToast();
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; label: string } | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState<SessionFormData>(EMPTY_FORM);
   const [opError, setOpError] = useState('');
@@ -84,23 +89,49 @@ export default function TrainingSchedulePage() {
       if (error) { setOpError(error.message); return; }
       sessionId = inserted?.id ?? null;
       if (sessionId && formData.selected_attendee_ids.length > 0) {
-        await supabase.from('training_session_attendees').insert(
-          formData.selected_attendee_ids.map(empId => ({ session_id: sessionId, employee_id: empId }))
-        );
+        const sid = sessionId;
+        const { data: empData } = await supabase
+          .from('employees')
+          .select('id, first_name, surname')
+          .in('id', formData.selected_attendee_ids);
+        const empMap = new Map((empData || []).map(e => [e.id, `${e.first_name} ${e.surname}`]));
+        await Promise.all([
+          supabase.from('training_session_attendees').insert(
+            formData.selected_attendee_ids.map(empId => ({ session_id: sid, employee_id: empId }))
+          ),
+          supabase.from('training_attendance').insert(
+            formData.selected_attendee_ids.map(empId => ({
+              reference_type: 'training_session' as const,
+              reference_id: sid,
+              employee_id: empId,
+              employee_name: empMap.get(empId) || '',
+              status: 'Present',
+            }))
+          ),
+        ]);
       }
     }
 
+    addToast('Session saved');
     setShowForm(false);
     setEditingId(null);
     setFormData(EMPTY_FORM);
     load();
   }
 
-  async function handleDelete(id: string) {
-    if (!confirm('Delete this session?')) return;
+  function handleDelete(id: string, label: string) {
+    setDeleteTarget({ id, label });
+  }
+
+  async function handleDeleteConfirm() {
+    if (!deleteTarget) return;
+    setDeleting(true);
     setOpError('');
-    const { error } = await supabase.from('training_schedule').delete().eq('id', id);
+    const { error } = await supabase.from('training_schedule').delete().eq('id', deleteTarget.id);
+    setDeleting(false);
+    setDeleteTarget(null);
     if (error) { setOpError(error.message); return; }
+    addToast('Session deleted');
     load();
   }
 
@@ -256,13 +287,13 @@ export default function TrainingSchedulePage() {
                 </td>
                 <td className="px-4 py-2.5">
                   <div className="flex items-center gap-1">
-                    <button onClick={() => { setSelectedSession(session); setShowView(true); }} className="p-1.5 text-gray-400 hover:text-gray-600 transition">
+                    <button onClick={() => { setSelectedSession(session); setShowView(true); }} className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors">
                       <Eye size={14} />
                     </button>
-                    <button onClick={() => openEdit(session)} className="p-1.5 text-gray-400 hover:text-emerald-600 transition">
+                    <button onClick={() => openEdit(session)} className="p-1.5 text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 rounded transition-colors">
                       <Edit2 size={14} />
                     </button>
-                    <button onClick={() => handleDelete(session.id)} className="p-1.5 text-gray-400 hover:text-red-600 transition">
+                    <button onClick={() => handleDelete(session.id, session.course_name)} className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded transition-colors">
                       <Trash2 size={14} />
                     </button>
                   </div>
@@ -285,6 +316,15 @@ export default function TrainingSchedulePage() {
       )}
       {showView && selectedSession && (
         <SessionViewModal session={selectedSession} onClose={() => setShowView(false)} />
+      )}
+
+      {deleteTarget && (
+        <DeleteConfirmModal
+          label={deleteTarget.label}
+          onConfirm={handleDeleteConfirm}
+          onClose={() => setDeleteTarget(null)}
+          deleting={deleting}
+        />
       )}
     </div>
   );

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Package, Factory, ShieldCheck, ShieldAlert, Users } from 'lucide-react';
+import { Package, Factory, ShieldCheck, ShieldAlert, Users, RefreshCw } from 'lucide-react';
 import { PageSpinner } from '../../components/Spinner';
 import { supabase } from '../../lib/supabase';
 import type { MonthlyTreatment, RecentMovement, UpcomingEvent } from './constants';
@@ -30,8 +30,14 @@ export default function GlobalDashboard() {
   const [outOfStockItems, setOutOfStockItems] = useState<StockAlertItem[]>([]);
   const [belowMinItems, setBelowMinItems] = useState<StockAlertItem[]>([]);
   const [upcomingEvents, setUpcomingEvents] = useState<UpcomingEvent[]>([]);
+  const [lastFetched, setLastFetched] = useState<Date | null>(null);
 
   useEffect(() => { loadData(); }, []);
+
+  useEffect(() => {
+    const t = setInterval(() => setLastFetched(d => d ? new Date(d) : d), 60000);
+    return () => clearInterval(t);
+  }, []);
 
   async function loadData() {
     setLoading(true);
@@ -202,7 +208,15 @@ export default function GlobalDashboard() {
     setUpcomingEvents(events);
 
     void movCountRes;
+    setLastFetched(new Date());
     setLoading(false);
+  }
+
+  function timeSince(d: Date) {
+    const mins = Math.floor((Date.now() - d.getTime()) / 60000);
+    if (mins < 1) return 'just now';
+    if (mins === 1) return '1 min ago';
+    return `${mins} mins ago`;
   }
 
   if (loading) return <PageSpinner layout="h64" />;
@@ -236,9 +250,19 @@ export default function GlobalDashboard() {
           <h1 className="text-2xl font-bold text-gray-900">Management Dashboard</h1>
           <p className="text-sm text-gray-500 mt-1">Overview of all Tech4Green operations</p>
         </div>
-        <p className="hidden sm:block text-xs text-gray-400">
-          {now.toLocaleDateString('en-ZA', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-        </p>
+        <div className="hidden sm:flex items-center gap-3">
+          <p className="text-xs text-gray-400">
+            {now.toLocaleDateString('en-ZA', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+          </p>
+          {lastFetched && (
+            <span className="text-xs text-gray-400 flex items-center gap-1.5">
+              · Updated {timeSince(lastFetched)}
+              <button onClick={loadData} title="Refresh" className="text-gray-400 hover:text-gray-600 transition-colors">
+                <RefreshCw size={12} />
+              </button>
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Alert Banner — only renders when issues exist */}

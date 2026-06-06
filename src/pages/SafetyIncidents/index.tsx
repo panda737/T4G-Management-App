@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react';
-import { AlertTriangle, Plus, Eye, Trash2, Search, Calendar } from 'lucide-react';
+import { AlertTriangle, Plus, Eye, Trash2, Search, Calendar, AlertCircle, Download } from 'lucide-react';
 import { supabase, SafetyIncident } from '../../lib/supabase';
+import { useToast } from '../../lib/toast';
+import { downloadCSV } from '../../lib/csvExport';
+import DeleteConfirmModal from '../../components/DeleteConfirmModal';
 import { severityColors, incidentStatusColors, badgeColor } from '../../lib/badgeColors';
 import { generateSequentialNumber } from '../../lib/numberGenerator';
 import IncidentFormModal, { IncidentFormData } from './IncidentFormModal';
@@ -58,7 +61,11 @@ export default function SafetyIncidents() {
     key: 'incident_date',
     ascending: false,
   });
+  const { addToast } = useToast();
   const [formData, setFormData] = useState<IncidentFormData>(EMPTY_FORM);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; label: string } | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [loadError, setLoadError] = useState('');
 
   useEffect(() => {
     loadIncidents();
@@ -67,14 +74,15 @@ export default function SafetyIncidents() {
   const loadIncidents = async () => {
     try {
       setLoading(true);
+      setLoadError('');
       const { data, error } = await supabase
         .from('safety_incidents')
         .select('*')
         .order('incident_date', { ascending: false });
       if (error) throw error;
       setIncidents(data || []);
-    } catch (error) {
-      console.error('Error loading incidents:', error);
+    } catch (err: unknown) {
+      setLoadError(err instanceof Error ? err.message : 'Failed to load incidents. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -114,6 +122,7 @@ export default function SafetyIncidents() {
       const incident_number = await generateSequentialNumber('safety_incidents', 'incident_number', 'INC');
       const { error } = await supabase.from('safety_incidents').insert([{ ...formData, incident_number }]);
       if (error) throw error;
+      addToast('Incident saved');
       setShowAddModal(false);
       loadIncidents();
     } catch (error) {
@@ -121,14 +130,23 @@ export default function SafetyIncidents() {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this incident?')) return;
+  const handleDelete = (id: string, label: string) => {
+    setDeleteTarget({ id, label });
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
     try {
-      const { error } = await supabase.from('safety_incidents').delete().eq('id', id);
+      const { error } = await supabase.from('safety_incidents').delete().eq('id', deleteTarget.id);
       if (error) throw error;
+      addToast('Incident deleted');
       loadIncidents();
     } catch (error) {
       console.error('Error deleting incident:', error);
+    } finally {
+      setDeleting(false);
+      setDeleteTarget(null);
     }
   };
 
@@ -147,6 +165,12 @@ export default function SafetyIncidents() {
   return (
     <div className="min-h-screen bg-gray-50 p-4 sm:p-8">
       <div className="max-w-7xl mx-auto">
+        {loadError && (
+          <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3 mb-6 flex items-center justify-between">
+            <span className="flex items-center gap-2"><AlertCircle size={15} />{loadError}</span>
+            <button onClick={loadIncidents} className="text-red-600 hover:text-red-800 font-medium text-xs underline">Retry</button>
+          </div>
+        )}
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 sm:gap-0 mb-6 sm:mb-8">
           <div className="flex items-center gap-3">
@@ -156,14 +180,33 @@ export default function SafetyIncidents() {
               <p className="text-gray-600 mt-1">Log and manage workplace safety incidents</p>
             </div>
           </div>
-          <button
-            onClick={openAddModal}
-            className="flex items-center gap-2 px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition w-full sm:w-auto justify-center sm:justify-start"
-          >
-            <Plus className="w-5 h-5" />
-            <span className="hidden sm:inline">Report Incident</span>
-            <span className="sm:hidden">Report</span>
-          </button>
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <button
+              onClick={() => downloadCSV(filteredIncidents.map(i => ({
+                'Incident No': i.incident_number || '',
+                Type: i.incident_type,
+                Severity: i.severity,
+                Status: i.status,
+                Date: i.incident_date,
+                Time: i.incident_time || '',
+                Location: i.location || '',
+                'Reported By': i.reported_by || '',
+                Description: i.description || '',
+              })), 'safety-incidents')}
+              className="flex items-center gap-1.5 text-sm border border-amber-200 bg-white text-amber-700 hover:bg-amber-50 px-3 py-2 rounded-lg font-medium transition-colors shadow-sm"
+              title="Export to CSV"
+            >
+              <Download size={14} /> <span className="hidden sm:inline">Export</span>
+            </button>
+            <button
+              onClick={openAddModal}
+              className="flex items-center gap-2 px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition flex-1 sm:flex-none justify-center sm:justify-start"
+            >
+              <Plus className="w-5 h-5" />
+              <span className="hidden sm:inline">Report Incident</span>
+              <span className="sm:hidden">Report</span>
+            </button>
+          </div>
         </div>
 
         {/* Status Tabs */}
@@ -305,7 +348,7 @@ export default function SafetyIncidents() {
                             <Eye className="w-4 h-4" />
                           </button>
                           <button
-                            onClick={() => handleDelete(incident.id)}
+                            onClick={() => handleDelete(incident.id, incident.incident_number || 'this incident')}
                             className="text-red-600 hover:text-red-700 transition"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -347,7 +390,7 @@ export default function SafetyIncidents() {
                           <Eye className="w-4 h-4" />
                         </button>
                         <button
-                          onClick={() => handleDelete(incident.id)}
+                          onClick={() => handleDelete(incident.id, incident.incident_number || 'this incident')}
                           className="p-2 text-red-600 hover:bg-red-50 rounded"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -375,6 +418,15 @@ export default function SafetyIncidents() {
         <IncidentViewModal
           incident={selectedIncident}
           onClose={() => setShowViewModal(false)}
+        />
+      )}
+
+      {deleteTarget && (
+        <DeleteConfirmModal
+          label={deleteTarget.label}
+          onConfirm={handleDeleteConfirm}
+          onClose={() => setDeleteTarget(null)}
+          deleting={deleting}
         />
       )}
     </div>

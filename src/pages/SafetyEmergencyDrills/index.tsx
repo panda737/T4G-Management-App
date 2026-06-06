@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Siren, Plus, Search, Flame, Droplets, Heart, Lock, AlertCircle, Eye, CreditCard as Edit2, Trash2, CheckCircle, XCircle } from 'lucide-react';
+import { Siren, Plus, Search, Flame, Droplets, Heart, Lock, AlertCircle, Eye, Edit2, Trash2, CheckCircle, XCircle } from 'lucide-react';
 import { supabase, SafetyEmergencyDrill } from '../../lib/supabase';
+import { useToast } from '../../lib/toast';
+import DeleteConfirmModal from '../../components/DeleteConfirmModal';
 import { drillStatusColors, badgeColor } from '../../lib/badgeColors';
 import { generateSequentialNumber } from '../../lib/numberGenerator';
 import DrillFormModal, { DrillFormData } from './DrillFormModal';
@@ -52,7 +54,11 @@ export default function SafetyEmergencyDrills() {
   const [editingDrill, setEditingDrill] = useState<SafetyEmergencyDrill | null>(null);
   const [viewingDrill, setViewingDrill] = useState<SafetyEmergencyDrill | null>(null);
   const [formData, setFormData] = useState<DrillFormData>(EMPTY_FORM);
+  const { addToast } = useToast();
   const [opError, setOpError] = useState('');
+  const [loadError, setLoadError] = useState('');
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; label: string } | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => { load(); }, []);
 
@@ -69,9 +75,16 @@ export default function SafetyEmergencyDrills() {
 
   async function load() {
     setLoading(true);
-    const { data } = await supabase.from('safety_emergency_drills').select('*').order('drill_date', { ascending: false });
-    setDrills(data || []);
-    setLoading(false);
+    setLoadError('');
+    try {
+      const { data, error } = await supabase.from('safety_emergency_drills').select('*').order('drill_date', { ascending: false });
+      if (error) throw error;
+      setDrills(data || []);
+    } catch (err: unknown) {
+      setLoadError(err instanceof Error ? err.message : 'Failed to load drills. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   }
 
   const handleSaveDrill = async () => {
@@ -90,17 +103,25 @@ export default function SafetyEmergencyDrills() {
       : await supabase.from('safety_emergency_drills').insert([payload]);
     if (error) { setOpError(error.message); return; }
 
+    addToast('Drill saved');
     load();
     handleCloseModal();
   };
 
-  const handleDelete = async (id: string) => {
-    if (confirm('Delete this drill record?')) {
-      setOpError('');
-      const { error } = await supabase.from('safety_emergency_drills').delete().eq('id', id);
-      if (error) { setOpError(error.message); return; }
-      load();
-    }
+  const handleDelete = (id: string, label: string) => {
+    setDeleteTarget({ id, label });
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    setOpError('');
+    const { error } = await supabase.from('safety_emergency_drills').delete().eq('id', deleteTarget.id);
+    setDeleting(false);
+    setDeleteTarget(null);
+    if (error) { setOpError(error.message); return; }
+    addToast('Drill deleted');
+    load();
   };
 
   const handleOpenEdit = (drill: SafetyEmergencyDrill) => {
@@ -140,6 +161,12 @@ export default function SafetyEmergencyDrills() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {loadError && (
+        <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3 mx-4 mt-4 flex items-center justify-between">
+          <span className="flex items-center gap-2"><AlertCircle size={15} />{loadError}</span>
+          <button onClick={load} className="text-red-600 hover:text-red-800 font-medium text-xs underline">Retry</button>
+        </div>
+      )}
       {opError && (
         <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-2.5 mx-4 mt-4 rounded-lg">
           {opError}
@@ -288,13 +315,13 @@ export default function SafetyEmergencyDrills() {
                         </span>
                       </td>
                       <td className="px-6 py-4 text-sm flex gap-2">
-                        <button onClick={() => { setViewingDrill(drill); setShowViewModal(true); }} className="p-1 hover:bg-gray-100 rounded">
+                        <button onClick={() => { setViewingDrill(drill); setShowViewModal(true); }} className="p-2 hover:bg-gray-100 rounded">
                           <Eye className="w-4 h-4 text-gray-600" />
                         </button>
-                        <button onClick={() => handleOpenEdit(drill)} className="p-1 hover:bg-gray-100 rounded">
+                        <button onClick={() => handleOpenEdit(drill)} className="p-2 hover:bg-gray-100 rounded">
                           <Edit2 className="w-4 h-4 text-gray-600" />
                         </button>
-                        <button onClick={() => handleDelete(drill.id)} className="p-1 hover:bg-gray-100 rounded">
+                        <button onClick={() => handleDelete(drill.id, drill.drill_number || drill.drill_type)} className="p-2 hover:bg-gray-100 rounded">
                           <Trash2 className="w-4 h-4 text-red-600" />
                         </button>
                       </td>
@@ -346,7 +373,7 @@ export default function SafetyEmergencyDrills() {
                     <button onClick={() => handleOpenEdit(drill)} className="p-2 text-gray-600 hover:bg-gray-50 rounded">
                       <Edit2 className="w-4 h-4" />
                     </button>
-                    <button onClick={() => handleDelete(drill.id)} className="p-2 text-red-600 hover:bg-red-50 rounded">
+                    <button onClick={() => handleDelete(drill.id, drill.drill_number || drill.drill_type)} className="p-2 text-red-600 hover:bg-red-50 rounded">
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
@@ -371,6 +398,15 @@ export default function SafetyEmergencyDrills() {
         <DrillViewModal
           drill={viewingDrill}
           onClose={() => setShowViewModal(false)}
+        />
+      )}
+
+      {deleteTarget && (
+        <DeleteConfirmModal
+          label={deleteTarget.label}
+          onConfirm={handleDeleteConfirm}
+          onClose={() => setDeleteTarget(null)}
+          deleting={deleting}
         />
       )}
     </div>

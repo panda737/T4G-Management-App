@@ -4,6 +4,7 @@ import { Menu, XCircle } from 'lucide-react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from './lib/supabase';
 import { UserProvider } from './lib/UserContext';
+import { ToastProvider } from './lib/toast';
 import Sidebar from './components/Sidebar';
 import Login from './pages/Login';
 import GlobalDashboard from './pages/GlobalDashboard';
@@ -81,6 +82,7 @@ function AuthenticatedLayout({ session }: { session: Session }) {
 
   return (
     <UserProvider session={session}>
+    <ToastProvider>
     <div className="min-h-screen bg-gray-50 flex">
       <div className="print:hidden">
         <Sidebar
@@ -172,6 +174,7 @@ function AuthenticatedLayout({ session }: { session: Session }) {
         </div>
       </main>
     </div>
+    </ToastProvider>
     </UserProvider>
   );
 }

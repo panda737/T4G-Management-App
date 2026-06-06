@@ -1,6 +1,9 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Award, Plus, Eye, CreditCard as Edit2, Trash2, Search } from 'lucide-react';
+import { Award, Plus, Eye, Edit2, Trash2, Search, Download } from 'lucide-react';
 import { supabase, TrainingCertificate } from '../../lib/supabase';
+import { useToast } from '../../lib/toast';
+import { downloadCSV } from '../../lib/csvExport';
+import DeleteConfirmModal from '../../components/DeleteConfirmModal';
 import { generateSequentialNumber } from '../../lib/numberGenerator';
 import CertFormModal, { CertFormData } from './CertFormModal';
 import CertViewModal from './CertViewModal';
@@ -64,6 +67,9 @@ export default function TrainingCertificates() {
   const [showView, setShowView] = useState(false);
   const [selectedCert, setSelectedCert] = useState<TrainingCertificate | null>(null);
   const [formData, setFormData] = useState<CertFormData>(EMPTY_FORM);
+  const { addToast } = useToast();
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; label: string } | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [opError, setOpError] = useState('');
 
   useEffect(() => { load(); }, []);
@@ -108,16 +114,25 @@ export default function TrainingCertificates() {
       ? await supabase.from('training_certificates').update(formData).eq('id', selectedCert.id)
       : await supabase.from('training_certificates').insert([formData]);
     if (error) { setOpError(error.message); return; }
+    addToast('Certificate saved');
     if (selectedCert) setShowEdit(false); else setShowAdd(false);
     setSelectedCert(null);
     load();
   }
 
-  async function handleDelete(id: string) {
-    if (!confirm('Delete this certificate?')) return;
+  function handleDelete(id: string, label: string) {
+    setDeleteTarget({ id, label });
+  }
+
+  async function handleDeleteConfirm() {
+    if (!deleteTarget) return;
+    setDeleting(true);
     setOpError('');
-    const { error } = await supabase.from('training_certificates').delete().eq('id', id);
+    const { error } = await supabase.from('training_certificates').delete().eq('id', deleteTarget.id);
+    setDeleting(false);
+    setDeleteTarget(null);
     if (error) { setOpError(error.message); return; }
+    addToast('Certificate deleted');
     load();
   }
 
@@ -153,14 +168,31 @@ export default function TrainingCertificates() {
             <p className="text-sm text-gray-500 mt-0.5">{filtered.length} certificate{filtered.length !== 1 ? 's' : ''}</p>
           </div>
         </div>
-        <button
-          onClick={handleAddClick}
-          className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition text-sm font-medium shadow-sm w-full sm:w-auto justify-center"
-        >
-          <Plus size={16} />
-          <span className="hidden sm:inline">Add Certificate</span>
-          <span className="sm:hidden">Add</span>
-        </button>
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <button
+            onClick={() => downloadCSV(filtered.map(c => ({
+              Employee: c.employee_name,
+              Course: c.course_name,
+              'Certificate No': c.certificate_number,
+              'Issuing Body': c.issuing_body,
+              'Issue Date': c.issue_date || '',
+              'Expiry Date': c.expiry_date || '',
+              Status: c.status,
+            })), 'training-certificates')}
+            className="flex items-center gap-1.5 text-sm border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 px-3 py-2 rounded-lg font-medium transition-colors shadow-sm"
+            title="Export to CSV"
+          >
+            <Download size={14} /> <span className="hidden sm:inline">Export</span>
+          </button>
+          <button
+            onClick={handleAddClick}
+            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition text-sm font-medium shadow-sm flex-1 sm:flex-none justify-center"
+          >
+            <Plus size={16} />
+            <span className="hidden sm:inline">Add Certificate</span>
+            <span className="sm:hidden">Add</span>
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -272,7 +304,7 @@ export default function TrainingCertificates() {
                       <button onClick={() => handleEditClick(cert)} className="p-1.5 hover:bg-gray-100 rounded transition">
                         <Edit2 size={14} className="text-gray-500" />
                       </button>
-                      <button onClick={() => handleDelete(cert.id)} className="p-1.5 hover:bg-red-50 rounded transition">
+                      <button onClick={() => handleDelete(cert.id, `${cert.employee_name} — ${cert.course_name}`)} className="p-1.5 hover:bg-red-50 rounded transition">
                         <Trash2 size={14} className="text-red-500" />
                       </button>
                     </div>
@@ -306,6 +338,15 @@ export default function TrainingCertificates() {
 
       {showView && selectedCert && (
         <CertViewModal cert={selectedCert} onClose={() => setShowView(false)} />
+      )}
+
+      {deleteTarget && (
+        <DeleteConfirmModal
+          label={deleteTarget.label}
+          onConfirm={handleDeleteConfirm}
+          onClose={() => setDeleteTarget(null)}
+          deleting={deleting}
+        />
       )}
     </div>
   );

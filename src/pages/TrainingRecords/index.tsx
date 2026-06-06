@@ -1,6 +1,9 @@
 import { useEffect, useState, useMemo } from 'react';
-import { ClipboardList, Plus, Eye, CreditCard as Edit2, Trash2, User, BookOpen } from 'lucide-react';
+import { ClipboardList, Plus, Eye, Edit2, Trash2, User, BookOpen, AlertCircle, Download } from 'lucide-react';
 import { supabase, TrainingRecord, TrainingCourse, TrainingModule, TrainingAssessment, Employee } from '../../lib/supabase';
+import { useToast } from '../../lib/toast';
+import { downloadCSV } from '../../lib/csvExport';
+import DeleteConfirmModal from '../../components/DeleteConfirmModal';
 import { trainingResultColors, trainingStatusColors, badgeColor } from '../../lib/badgeColors';
 import RecordFormModal, { RecordFormData } from './RecordFormModal';
 import RecordViewModal from './RecordViewModal';
@@ -37,25 +40,36 @@ export default function TrainingRecords() {
   const [showViewModal, setShowViewModal] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState<TrainingRecord | null>(null);
   const [formData, setFormData] = useState<RecordFormData>(EMPTY_FORM);
+  const { addToast } = useToast();
   const [opError, setOpError] = useState('');
+  const [loadError, setLoadError] = useState('');
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; label: string } | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => { load(); }, []);
 
   async function load() {
     setLoading(true);
-    const [recordsRes, coursesRes, modulesRes, assessmentsRes, empRes] = await Promise.all([
-      supabase.from('training_records').select('*').order('created_at', { ascending: false }),
-      supabase.from('training_courses').select('*'),
-      supabase.from('training_modules').select('*').eq('status', 'Active').order('category'),
-      supabase.from('training_assessments').select('*').order('taken_at', { ascending: false }),
-      supabase.from('employees').select('*').eq('status', 'active').order('first_name'),
-    ]);
-    setRecords(recordsRes.data || []);
-    setCourses(coursesRes.data || []);
-    setModules(modulesRes.data || []);
-    setAssessments(assessmentsRes.data || []);
-    setEmployees(empRes.data || []);
-    setLoading(false);
+    setLoadError('');
+    try {
+      const [recordsRes, coursesRes, modulesRes, assessmentsRes, empRes] = await Promise.all([
+        supabase.from('training_records').select('*').order('created_at', { ascending: false }),
+        supabase.from('training_courses').select('*'),
+        supabase.from('training_modules').select('*').eq('status', 'Active').order('category'),
+        supabase.from('training_assessments').select('*').order('taken_at', { ascending: false }),
+        supabase.from('employees').select('*').eq('status', 'active').order('first_name'),
+      ]);
+      if (recordsRes.error) throw recordsRes.error;
+      setRecords(recordsRes.data || []);
+      setCourses(coursesRes.data || []);
+      setModules(modulesRes.data || []);
+      setAssessments(assessmentsRes.data || []);
+      setEmployees(empRes.data || []);
+    } catch (err: unknown) {
+      setLoadError(err instanceof Error ? err.message : 'Failed to load training records. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   }
 
   const filtered = useMemo(() => {
@@ -100,6 +114,7 @@ export default function TrainingRecords() {
       ? await supabase.from('training_records').update(data).eq('id', selectedRecord.id)
       : await supabase.from('training_records').insert([data]);
     if (error) { setOpError(error.message); return; }
+    addToast('Record saved');
     setShowAddModal(false);
     setFormData(EMPTY_FORM);
     setSelectedRecord(null);
@@ -123,11 +138,19 @@ export default function TrainingRecords() {
     setShowAddModal(true);
   }
 
-  async function handleDelete(id: string) {
-    if (!confirm('Delete this training record?')) return;
+  function handleDelete(id: string, label: string) {
+    setDeleteTarget({ id, label });
+  }
+
+  async function handleDeleteConfirm() {
+    if (!deleteTarget) return;
+    setDeleting(true);
     setOpError('');
-    const { error } = await supabase.from('training_records').delete().eq('id', id);
+    const { error } = await supabase.from('training_records').delete().eq('id', deleteTarget.id);
+    setDeleting(false);
+    setDeleteTarget(null);
     if (error) { setOpError(error.message); return; }
+    addToast('Record deleted');
     load();
   }
 
@@ -137,6 +160,12 @@ export default function TrainingRecords() {
 
   return (
     <div className="space-y-6 bg-gray-50 min-h-screen p-6">
+      {loadError && (
+        <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3 flex items-center justify-between">
+          <span className="flex items-center gap-2"><AlertCircle size={15} />{loadError}</span>
+          <button onClick={load} className="text-red-600 hover:text-red-800 font-medium text-xs underline">Retry</button>
+        </div>
+      )}
       {opError && <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-2.5">{opError}</div>}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-center gap-3">
@@ -146,12 +175,30 @@ export default function TrainingRecords() {
             <p className="text-sm text-gray-500 mt-1">Manage employee training, assessments, and compliance</p>
           </div>
         </div>
-        <button
-          onClick={() => { setFormData(EMPTY_FORM); setSelectedRecord(null); setShowAddModal(true); }}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition w-full sm:w-auto justify-center"
-        >
-          <Plus size={18} /> <span className="hidden sm:inline">Add Record</span><span className="sm:hidden">Add</span>
-        </button>
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <button
+            onClick={() => downloadCSV(filtered.map(r => ({
+              Employee: r.employee_name,
+              Course: r.course_name,
+              'Completion Date': r.completion_date || '',
+              'Expiry Date': r.expiry_date || '',
+              Score: r.score ?? '',
+              Result: r.result,
+              Instructor: r.instructor || '',
+              Status: r.status,
+            })), 'training-records')}
+            className="flex items-center gap-1.5 text-sm border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 px-3 py-2 rounded-lg font-medium transition-colors shadow-sm"
+            title="Export to CSV"
+          >
+            <Download size={14} /> <span className="hidden sm:inline">Export</span>
+          </button>
+          <button
+            onClick={() => { setFormData(EMPTY_FORM); setSelectedRecord(null); setShowAddModal(true); }}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition flex-1 sm:flex-none justify-center"
+          >
+            <Plus size={18} /> <span className="hidden sm:inline">Add Record</span><span className="sm:hidden">Add</span>
+          </button>
+        </div>
       </div>
 
       <div className="flex gap-1 bg-gray-100 rounded-lg p-0.5 w-fit">
@@ -236,7 +283,20 @@ export default function TrainingRecords() {
                 </thead>
                 <tbody className="divide-y divide-gray-200">
                   {filtered.length === 0 ? (
-                    <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-500">No training records found</td></tr>
+                    <tr><td colSpan={8} className="px-4 py-12 text-center">
+                      {records.length === 0 ? (
+                        <div>
+                          <ClipboardList size={28} className="mx-auto text-gray-300 mb-2" />
+                          <p className="text-sm font-medium text-gray-500">No training records yet</p>
+                          <button onClick={() => { setFormData(EMPTY_FORM); setSelectedRecord(null); setShowAddModal(true); }} className="mt-3 text-sm text-emerald-600 hover:text-emerald-700 font-medium">+ Add Record</button>
+                        </div>
+                      ) : (
+                        <div>
+                          <p className="text-sm text-gray-400">No records match your search or filters.</p>
+                          <button onClick={() => { setSearch(''); setFilterResult('All'); setFilterStatus('All'); }} className="mt-2 text-xs text-gray-500 underline">Clear filters</button>
+                        </div>
+                      )}
+                    </td></tr>
                   ) : filtered.map(record => (
                     <tr key={record.id} className="hover:bg-gray-50 transition">
                       <td className="px-4 py-3 text-sm font-medium text-gray-900">{record.employee_name}</td>
@@ -249,7 +309,7 @@ export default function TrainingRecords() {
                       <td className="px-4 py-3 text-sm flex gap-2">
                         <button onClick={() => { setSelectedRecord(record); setShowViewModal(true); }} className="p-1.5 hover:bg-gray-100 rounded transition"><Eye size={16} className="text-gray-600" /></button>
                         <button onClick={() => openEdit(record)} className="p-1.5 hover:bg-gray-100 rounded transition"><Edit2 size={16} className="text-gray-600" /></button>
-                        <button onClick={() => handleDelete(record.id)} className="p-1.5 hover:bg-red-50 rounded transition"><Trash2 size={16} className="text-red-600" /></button>
+                        <button onClick={() => handleDelete(record.id, `${record.employee_name} — ${record.course_name}`)} className="p-1.5 hover:bg-red-50 rounded transition"><Trash2 size={16} className="text-red-600" /></button>
                       </td>
                     </tr>
                   ))}
@@ -281,6 +341,15 @@ export default function TrainingRecords() {
 
       {showViewModal && selectedRecord && (
         <RecordViewModal record={selectedRecord} onClose={() => setShowViewModal(false)} />
+      )}
+
+      {deleteTarget && (
+        <DeleteConfirmModal
+          label={deleteTarget.label}
+          onConfirm={handleDeleteConfirm}
+          onClose={() => setDeleteTarget(null)}
+          deleting={deleting}
+        />
       )}
     </div>
   );

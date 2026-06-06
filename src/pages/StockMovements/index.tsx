@@ -1,6 +1,8 @@
 import { useEffect, useState, useMemo } from 'react';
-import { Plus, Search, ChevronRight, Package, ArrowLeftRight, ClipboardCheck } from 'lucide-react';
+import { Plus, Search, ChevronRight, Package, ArrowLeftRight, ClipboardCheck, Download } from 'lucide-react';
 import { supabase, StockItem } from '../../lib/supabase';
+import { useToast } from '../../lib/toast';
+import { downloadCSV } from '../../lib/csvExport';
 import { MOVEMENT_TYPES, INCREASE_TYPES, DECREASE_TYPES, EITHER_TYPES, MovementWithItem, OrderGroup, buildGroups, directionColor } from './constants';
 import { MovementIcon } from './MovementIcon';
 import OrderDetail from './OrderDetail';
@@ -14,6 +16,7 @@ function GroupTypeIcon({ type }: { type: string }) {
 }
 
 export default function StockMovements() {
+  const { addToast } = useToast();
   const [movements, setMovements] = useState<MovementWithItem[]>([]);
   const [items, setItems] = useState<StockItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -84,12 +87,34 @@ export default function StockMovements() {
           <h1 className="text-2xl font-bold text-gray-900">Stock Movements</h1>
           <p className="text-sm text-gray-500 mt-1">{filtered.length} order{filtered.length !== 1 ? 's' : ''}</p>
         </div>
-        <button
-          onClick={() => setShowAdd(true)}
-          className="flex items-center justify-center sm:justify-start gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm"
-        >
-          <Plus size={16} /> <span className="hidden sm:inline">Record Movement</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => downloadCSV(
+              filtered.flatMap(g => g.lines.map(l => ({
+                Date: l.movement_date,
+                'Stock Item': l.stock_items?.stock_item || '',
+                'Stock Code': l.stock_code || '',
+                Type: l.movement_type,
+                Quantity: l.quantity,
+                Reference: l.reference_number || '',
+                'Supplier/Client': l.supplier_client_department || '',
+                'Captured By': l.captured_by || '',
+                Notes: l.notes || '',
+              }))),
+              'stock-movements'
+            )}
+            className="flex items-center gap-1.5 text-sm border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 px-3 py-2 rounded-lg font-medium transition-colors shadow-sm"
+            title="Export to CSV"
+          >
+            <Download size={14} /> <span className="hidden sm:inline">Export</span>
+          </button>
+          <button
+            onClick={() => setShowAdd(true)}
+            className="flex items-center justify-center sm:justify-start gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm"
+          >
+            <Plus size={16} /> <span className="hidden sm:inline">Record Movement</span>
+          </button>
+        </div>
       </div>
 
       <div className="flex items-center gap-1.5 flex-wrap">
@@ -206,7 +231,7 @@ export default function StockMovements() {
         <MovementFormModal
           items={items}
           onClose={() => setShowAdd(false)}
-          onSave={() => { setShowAdd(false); load(); }}
+          onSave={() => { setShowAdd(false); addToast('Movement recorded'); load(); }}
         />
       )}
     </div>

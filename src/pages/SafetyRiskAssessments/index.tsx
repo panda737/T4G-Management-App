@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Shield, Plus, Search, Eye, CreditCard as Edit, Trash2 } from 'lucide-react';
+import { Shield, Plus, Search, Eye, Edit2, Trash2 } from 'lucide-react';
 import { supabase, SafetyRiskAssessment } from '../../lib/supabase';
+import { useToast } from '../../lib/toast';
+import DeleteConfirmModal from '../../components/DeleteConfirmModal';
 import { getRiskRatingColor, riskLevelColors, riskAssessmentStatusColors } from '../../lib/badgeColors';
 import { generateSequentialNumber } from '../../lib/numberGenerator';
 import { STATUS_TABS, EMPTY_FORM, calculateRiskRating, getRiskLevel } from './constants';
@@ -18,6 +20,9 @@ export default function SafetyRiskAssessments() {
   const [showViewModal, setShowViewModal] = useState(false);
   const [selectedAssessment, setSelectedAssessment] = useState<SafetyRiskAssessment | null>(null);
   const [formData, setFormData] = useState<Partial<SafetyRiskAssessment>>(EMPTY_FORM);
+  const { addToast } = useToast();
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; label: string } | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => { load(); }, []);
 
@@ -57,6 +62,7 @@ export default function SafetyRiskAssessments() {
         });
         if (error) throw error;
       }
+      addToast('Assessment saved');
       load();
       setShowModal(false);
       setSelectedAssessment(null);
@@ -66,14 +72,23 @@ export default function SafetyRiskAssessments() {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!window.confirm('Delete this assessment?')) return;
+  const handleDelete = (id: string, label: string) => {
+    setDeleteTarget({ id, label });
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
     try {
-      const { error } = await supabase.from('safety_risk_assessments').delete().eq('id', id);
+      const { error } = await supabase.from('safety_risk_assessments').delete().eq('id', deleteTarget.id);
       if (error) throw error;
+      addToast('Assessment deleted');
       load();
     } catch (error) {
       console.error('Error deleting assessment:', error);
+    } finally {
+      setDeleting(false);
+      setDeleteTarget(null);
     }
   };
 
@@ -255,9 +270,9 @@ export default function SafetyRiskAssessments() {
                           <Eye className="w-4 h-4" />
                         </button>
                         <button onClick={() => openEditModal(assessment)} className="text-gray-600 hover:text-gray-900" title="Edit">
-                          <Edit className="w-4 h-4" />
+                          <Edit2 className="w-4 h-4" />
                         </button>
-                        <button onClick={() => handleDelete(assessment.id)} className="text-gray-600 hover:text-red-600" title="Delete">
+                        <button onClick={() => handleDelete(assessment.id, `${assessment.area} — ${assessment.activity}`)} className="text-gray-600 hover:text-red-600" title="Delete">
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </td>
@@ -302,9 +317,9 @@ export default function SafetyRiskAssessments() {
                         <Eye className="w-4 h-4" />
                       </button>
                       <button onClick={() => openEditModal(assessment)} className="p-2 text-gray-600 hover:bg-gray-50 rounded">
-                        <Edit className="w-4 h-4" />
+                        <Edit2 className="w-4 h-4" />
                       </button>
-                      <button onClick={() => handleDelete(assessment.id)} className="p-2 text-red-600 hover:bg-red-50 rounded">
+                      <button onClick={() => handleDelete(assessment.id, `${assessment.area} — ${assessment.activity}`)} className="p-2 text-red-600 hover:bg-red-50 rounded">
                         <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
@@ -331,6 +346,15 @@ export default function SafetyRiskAssessments() {
           assessment={selectedAssessment}
           onClose={() => setShowViewModal(false)}
           onEdit={() => { setShowViewModal(false); openEditModal(selectedAssessment); }}
+        />
+      )}
+
+      {deleteTarget && (
+        <DeleteConfirmModal
+          label={deleteTarget.label}
+          onConfirm={handleDeleteConfirm}
+          onClose={() => setDeleteTarget(null)}
+          deleting={deleting}
         />
       )}
     </div>

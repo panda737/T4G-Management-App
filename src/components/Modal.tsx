@@ -74,7 +74,7 @@ export default function Modal({ title, onClose, children, footer, size = 'md', a
         {/* Fixed header */}
         <div className={`flex items-center justify-between px-5 py-3.5 border-b border-gray-200 ${a.headerBg} flex-shrink-0`}>
           <h2 id="modal-title" className={`text-base font-semibold ${a.titleColor}`}>{title}</h2>
-          <button onClick={onClose} aria-label="Close" className="p-1 -mr-1 text-gray-400 hover:text-gray-600 transition-colors rounded-md hover:bg-black/5">
+          <button onClick={onClose} aria-label="Close" className="p-2 -mr-2 text-gray-400 hover:text-gray-600 transition-colors rounded-md hover:bg-black/5">
             <X size={20} />
           </button>
         </div>

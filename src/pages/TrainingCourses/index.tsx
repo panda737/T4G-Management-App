@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
-import { BookOpen, Plus, Eye, CreditCard as Edit2, Trash2, Search } from 'lucide-react';
+import { BookOpen, Plus, Eye, Edit2, Trash2, Search } from 'lucide-react';
 import { supabase, TrainingCourse } from '../../lib/supabase';
+import { useToast } from '../../lib/toast';
+import DeleteConfirmModal from '../../components/DeleteConfirmModal';
 import CourseFormModal, { CourseFormData } from './CourseFormModal';
 import CourseViewModal from './CourseViewModal';
 
@@ -11,6 +13,13 @@ const CATEGORY_COLORS: Record<string, string> = {
   Operational: 'sky',
   Regulatory: 'teal',
   'Soft Skills': 'rose',
+};
+
+const CATEGORY_DOT_COLORS: Record<string, string> = {
+  Safety: 'bg-amber-400',
+  Operational: 'bg-sky-400',
+  Regulatory: 'bg-teal-400',
+  'Soft Skills': 'bg-rose-400',
 };
 
 const CATEGORY_PREFIXES: Record<string, string> = {
@@ -44,7 +53,10 @@ export default function TrainingCourses() {
   const [showView, setShowView] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
   const [formData, setFormData] = useState<CourseFormData>(EMPTY_FORM);
+  const { addToast } = useToast();
   const [opError, setOpError] = useState('');
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; label: string } | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => { load(); }, []);
 
@@ -78,16 +90,25 @@ export default function TrainingCourses() {
       ? await supabase.from('training_courses').update(payload).eq('id', selectedCourse.id)
       : await supabase.from('training_courses').insert([payload]);
     if (error) { setOpError(error.message); return; }
+    addToast('Course saved');
     if (selectedCourse) setShowEdit(false); else setShowAdd(false);
     setSelectedCourse(null);
     load();
   }
 
-  async function handleDelete(courseId: string) {
-    if (!confirm('Are you sure?')) return;
+  function handleDelete(id: string, label: string) {
+    setDeleteTarget({ id, label });
+  }
+
+  async function handleDeleteConfirm() {
+    if (!deleteTarget) return;
+    setDeleting(true);
     setOpError('');
-    const { error } = await supabase.from('training_courses').delete().eq('id', courseId);
+    const { error } = await supabase.from('training_courses').delete().eq('id', deleteTarget.id);
+    setDeleting(false);
+    setDeleteTarget(null);
     if (error) { setOpError(error.message); return; }
+    addToast('Course deleted');
     load();
   }
 
@@ -207,7 +228,7 @@ export default function TrainingCourses() {
                 <td className="px-4 py-2.5 text-xs text-gray-900 font-medium">{course.course_name}</td>
                 <td className="px-4 py-2.5 text-xs">
                   <span className="flex items-center gap-1.5">
-                    <span className={`w-2 h-2 rounded-full bg-${CATEGORY_COLORS[course.category] || 'gray'}-400`} />
+                    <span className={`w-2 h-2 rounded-full ${CATEGORY_DOT_COLORS[course.category] ?? 'bg-gray-400'}`} />
                     {course.category}
                   </span>
                 </td>
@@ -246,7 +267,7 @@ export default function TrainingCourses() {
                     }} className="p-1.5 hover:bg-gray-100 rounded transition">
                       <Edit2 size={14} className="text-gray-500" />
                     </button>
-                    <button onClick={() => handleDelete(course.id!)} className="p-1.5 hover:bg-red-50 rounded transition">
+                    <button onClick={() => handleDelete(course.id!, course.course_name)} className="p-1.5 hover:bg-red-50 rounded transition">
                       <Trash2 size={14} className="text-red-500" />
                     </button>
                   </div>
@@ -265,6 +286,15 @@ export default function TrainingCourses() {
       )}
       {showView && selectedCourse && (
         <CourseViewModal course={selectedCourse} onClose={() => setShowView(false)} />
+      )}
+
+      {deleteTarget && (
+        <DeleteConfirmModal
+          label={deleteTarget.label}
+          onConfirm={handleDeleteConfirm}
+          onClose={() => setDeleteTarget(null)}
+          deleting={deleting}
+        />
       )}
     </div>
   );

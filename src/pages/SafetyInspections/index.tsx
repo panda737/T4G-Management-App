@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { ClipboardCheck, Plus, Search, Eye, CreditCard as Edit2, Trash2, AlertCircle, CheckCircle2, HardHat, Shield, Zap, Flame, Truck } from 'lucide-react';
+import { ClipboardCheck, Plus, Search, Eye, Edit2, Trash2, AlertCircle, CheckCircle2, HardHat, Shield, Zap, Flame, Truck } from 'lucide-react';
 import { supabase, SafetyInspection } from '../../lib/supabase';
+import { useToast } from '../../lib/toast';
+import DeleteConfirmModal from '../../components/DeleteConfirmModal';
 import { inspectionStatusColors, badgeColor } from '../../lib/badgeColors';
 import { generateSequentialNumber } from '../../lib/numberGenerator';
 import InspectionFormModal from './InspectionFormModal';
@@ -33,6 +35,10 @@ export default function SafetyInspections() {
     items_checked: 0,
     items_passed: 0,
   });
+  const { addToast } = useToast();
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; label: string } | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [loadError, setLoadError] = useState('');
 
   useEffect(() => {
     loadInspections();
@@ -40,14 +46,16 @@ export default function SafetyInspections() {
 
   const loadInspections = async () => {
     try {
+      setLoading(true);
+      setLoadError('');
       const { data, error } = await supabase
         .from('safety_inspections')
         .select('*')
         .order('inspection_date', { ascending: false });
       if (error) throw error;
       setInspections(data || []);
-    } catch (error) {
-      console.error('Error loading inspections:', error);
+    } catch (err: unknown) {
+      setLoadError(err instanceof Error ? err.message : 'Failed to load inspections. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -77,6 +85,7 @@ export default function SafetyInspections() {
         if (error) throw error;
       }
 
+      addToast('Inspection saved');
       setShowAddModal(false);
       setEditingId(null);
       setFormData({ inspection_date: new Date().toISOString().split('T')[0] });
@@ -86,14 +95,23 @@ export default function SafetyInspections() {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Delete this inspection?')) return;
+  const handleDelete = (id: string, label: string) => {
+    setDeleteTarget({ id, label });
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
     try {
-      const { error } = await supabase.from('safety_inspections').delete().eq('id', id);
+      const { error } = await supabase.from('safety_inspections').delete().eq('id', deleteTarget.id);
       if (error) throw error;
+      addToast('Inspection deleted');
       loadInspections();
     } catch (error) {
       console.error('Error deleting inspection:', error);
+    } finally {
+      setDeleting(false);
+      setDeleteTarget(null);
     }
   };
 
@@ -142,6 +160,12 @@ export default function SafetyInspections() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
+        {loadError && (
+          <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3 mb-6 flex items-center justify-between">
+            <span className="flex items-center gap-2"><AlertCircle size={15} />{loadError}</span>
+            <button onClick={loadInspections} className="text-red-600 hover:text-red-800 font-medium text-xs underline">Retry</button>
+          </div>
+        )}
         {/* Status Tabs */}
         <div className="flex items-center gap-1.5 flex-wrap mb-4">
           {(['All', ...STATUS_OPTIONS] as const).map(tab => {
@@ -285,7 +309,7 @@ export default function SafetyInspections() {
                           <Edit2 className="w-4 h-4" />
                         </button>
                         <button
-                          onClick={() => handleDelete(inspection.id)}
+                          onClick={() => handleDelete(inspection.id, inspection.inspection_number || 'this inspection')}
                           className="text-red-600 hover:text-red-700"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -348,7 +372,7 @@ export default function SafetyInspections() {
                         <Edit2 className="w-4 h-4" />
                       </button>
                       <button
-                        onClick={() => handleDelete(inspection.id)}
+                        onClick={() => handleDelete(inspection.id, inspection.inspection_number || 'this inspection')}
                         className="p-2 text-red-600 hover:bg-red-50 rounded"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -376,6 +400,15 @@ export default function SafetyInspections() {
         <InspectionViewModal
           inspection={currentInspection}
           onClose={() => setShowViewModal(false)}
+        />
+      )}
+
+      {deleteTarget && (
+        <DeleteConfirmModal
+          label={deleteTarget.label}
+          onConfirm={handleDeleteConfirm}
+          onClose={() => setDeleteTarget(null)}
+          deleting={deleting}
         />
       )}
     </div>

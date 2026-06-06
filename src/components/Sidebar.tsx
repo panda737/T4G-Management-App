@@ -14,7 +14,7 @@ interface ModuleGroup {
   label: string;
   icon: LucideIcon;
   color: string;
-  items: { path: string; label: string }[];
+  items: { path: string; label: string; soon?: boolean }[];
 }
 
 const moduleGroups: ModuleGroup[] = [
@@ -91,7 +91,7 @@ const moduleGroups: ModuleGroup[] = [
     icon: CheckSquare,
     color: 'text-teal-400',
     items: [
-      { path: '/compliance', label: 'Compliance Overview' },
+      { path: '/compliance', label: 'Compliance Overview', soon: true },
     ],
   },
   {
@@ -279,7 +279,8 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
                           <span className="absolute left-0 top-0 h-full w-[3px] bg-emerald-500 rounded-r" />
                         )}
                         <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${isActive(item.path) ? 'bg-emerald-400' : 'bg-gray-600'}`} />
-                        <span>{item.label}</span>
+                        <span className={item.soon ? 'text-gray-500' : ''}>{item.label}</span>
+                        {item.soon && <span className="ml-auto text-[10px] font-medium text-gray-500 bg-gray-800 px-1.5 py-0.5 rounded">Soon</span>}
                       </button>
                     ))}
                   </div>

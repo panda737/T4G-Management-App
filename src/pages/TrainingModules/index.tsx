@@ -2,6 +2,8 @@ import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { BookOpen, Plus, Eye, Trash2, Search, Users, AlertTriangle, Clock, Award } from 'lucide-react';
 import { supabase, TrainingModule, TrainingModuleQuestion, TrainingAssessment } from '../../lib/supabase';
+import { useToast } from '../../lib/toast';
+import DeleteConfirmModal from '../../components/DeleteConfirmModal';
 import ModuleFormModal from './ModuleFormModal';
 import ModuleViewModal from './ModuleViewModal';
 import ModuleResultsModal from './ModuleResultsModal';
@@ -34,7 +36,10 @@ export default function TrainingModules() {
   const [showView, setShowView] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const [selectedModule, setSelectedModule] = useState<TrainingModule | null>(null);
+  const { addToast } = useToast();
   const [opError, setOpError] = useState('');
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; label: string } | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => { load(); }, []);
 
@@ -77,13 +82,21 @@ export default function TrainingModules() {
     return { active, mandatory, totalAssessments: assessments.length, passRate };
   }, [modules, assessments]);
 
-  async function handleDelete(id: string) {
-    if (!confirm('Delete this training module and all its questions?')) return;
+  function handleDelete(id: string, label: string) {
+    setDeleteTarget({ id, label });
+  }
+
+  async function handleDeleteConfirm() {
+    if (!deleteTarget) return;
+    setDeleting(true);
     setOpError('');
-    const { error: qErr } = await supabase.from('training_module_questions').delete().eq('module_id', id);
-    if (qErr) { setOpError(qErr.message); return; }
-    const { error } = await supabase.from('training_modules').delete().eq('id', id);
+    const { error: qErr } = await supabase.from('training_module_questions').delete().eq('module_id', deleteTarget.id);
+    if (qErr) { setDeleting(false); setOpError(qErr.message); return; }
+    const { error } = await supabase.from('training_modules').delete().eq('id', deleteTarget.id);
+    setDeleting(false);
+    setDeleteTarget(null);
     if (error) { setOpError(error.message); return; }
+    addToast('Module deleted');
     load();
   }
 
@@ -200,11 +213,11 @@ export default function TrainingModules() {
                     <Clock size={12} /> {mod.estimated_minutes} min
                   </div>
                   <div className="flex items-center gap-2">
-                    <button onClick={() => { setSelectedModule(mod); setShowView(true); }} className="p-1.5 text-gray-400 hover:text-gray-700 transition" title="View">
+                    <button onClick={() => { setSelectedModule(mod); setShowView(true); }} className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors" title="View">
                       <Eye size={16} />
                     </button>
                     {modA.length > 0 && (
-                      <button onClick={() => { setSelectedModule(mod); setShowResults(true); }} className="p-1.5 text-gray-400 hover:text-emerald-600 transition" title="Results">
+                      <button onClick={() => { setSelectedModule(mod); setShowResults(true); }} className="p-1.5 text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 rounded transition-colors" title="Results">
                         <Award size={16} />
                       </button>
                     )}
@@ -214,7 +227,7 @@ export default function TrainingModules() {
                     >
                       Take Quiz
                     </button>
-                    <button onClick={() => handleDelete(mod.id)} className="p-1.5 text-gray-400 hover:text-red-500 transition" title="Delete">
+                    <button onClick={() => handleDelete(mod.id, mod.title)} className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded transition-colors" title="Delete">
                       <Trash2 size={16} />
                     </button>
                   </div>
@@ -226,13 +239,22 @@ export default function TrainingModules() {
       )}
 
       {showCreate && (
-        <ModuleFormModal onClose={() => setShowCreate(false)} onSave={() => { setShowCreate(false); load(); }} />
+        <ModuleFormModal onClose={() => setShowCreate(false)} onSave={() => { setShowCreate(false); addToast('Module saved'); load(); }} />
       )}
       {showView && selectedModule && (
         <ModuleViewModal module={selectedModule} questions={questions[selectedModule.id] || []} onClose={() => setShowView(false)} />
       )}
       {showResults && selectedModule && (
         <ModuleResultsModal module={selectedModule} assessments={assessments.filter(a => a.module_id === selectedModule.id)} onClose={() => setShowResults(false)} />
+      )}
+
+      {deleteTarget && (
+        <DeleteConfirmModal
+          label={deleteTarget.label}
+          onConfirm={handleDeleteConfirm}
+          onClose={() => setDeleteTarget(null)}
+          deleting={deleting}
+        />
       )}
     </div>
   );

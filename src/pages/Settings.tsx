@@ -76,14 +76,14 @@ export default function Settings() {
                       <div className="flex items-center justify-center gap-2">
                         <button
                           onClick={() => setEditCat(cat)}
-                          className="text-gray-400 hover:text-blue-600 transition-colors p-1 rounded hover:bg-blue-50"
+                          className="text-gray-400 hover:text-blue-600 transition-colors p-2 rounded hover:bg-blue-50"
                           title="Edit category"
                         >
                           <Edit2 size={14} />
                         </button>
                         <button
                           onClick={() => setConfirmToggle(cat)}
-                          className={`transition-colors p-1 rounded ${cat.active ? 'text-gray-400 hover:text-red-500 hover:bg-red-50' : 'text-gray-300 hover:text-emerald-500 hover:bg-emerald-50'}`}
+                          className={`transition-colors p-2 rounded ${cat.active ? 'text-gray-400 hover:text-red-500 hover:bg-red-50' : 'text-gray-300 hover:text-emerald-500 hover:bg-emerald-50'}`}
                           title={cat.active ? 'Deactivate category' : 'Activate category'}
                         >
                           <Power size={14} />

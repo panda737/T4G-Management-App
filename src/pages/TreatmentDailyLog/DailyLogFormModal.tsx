@@ -129,7 +129,7 @@ export default function DailyLogFormModal({ log, onClose, onSave }: Props) {
 
   return (
     <Modal
-      title={log ? `Edit -- ${new Date(log.date).toLocaleDateString('en-ZA', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}` : 'New Shift Treatment Record'}
+      title={log ? `Edit · ${new Date(log.date).toLocaleDateString('en-ZA', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}` : 'New Shift Treatment Record'}
       onClose={onClose}
       size="xl"
       accent="cyan"
@@ -303,7 +303,7 @@ function SupervisorSelect({ value, supervisors, onChange }: {
         onChange={e => onChange(e.target.value)}
         className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-cyan-500 bg-white"
       >
-        <option value="">-- None --</option>
+        <option value="">None</option>
         {supervisors.map(s => (
           <option key={s.id} value={s.id}>{s.first_name} {s.surname}</option>
         ))}

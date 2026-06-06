@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { Plus, Search, X, Save, Settings, ChevronDown } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { useToast } from '../lib/toast';
 import type { Equipment } from '../lib/supabase';
 import Modal from '../components/Modal';
 import { equipmentStatusColors as STATUS_COLORS } from '../lib/badgeColors';
@@ -12,6 +13,7 @@ export default function MaintenanceAssets() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
+  const { addToast } = useToast();
   const [showModal, setShowModal] = useState(false);
   const [editItem, setEditItem] = useState<Equipment | null>(null);
 
@@ -143,7 +145,7 @@ export default function MaintenanceAssets() {
                     <td className="px-3 py-3 text-center">
                       <button
                         onClick={ev => { ev.stopPropagation(); setEditItem(e); setShowModal(true); }}
-                        className="text-xs text-gray-400 hover:text-orange-600 font-medium"
+                        className="text-xs text-gray-500 hover:text-orange-600 font-medium"
                       >
                         Edit
                       </button>
@@ -160,7 +162,7 @@ export default function MaintenanceAssets() {
         <EquipmentModal
           item={editItem}
           onClose={() => { setShowModal(false); setEditItem(null); }}
-          onSave={() => { setShowModal(false); setEditItem(null); load(); }}
+          onSave={() => { setShowModal(false); setEditItem(null); addToast('Equipment saved'); load(); }}
         />
       )}
     </div>
