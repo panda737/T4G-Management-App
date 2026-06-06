@@ -63,8 +63,8 @@ export default function SafetyToolboxTalks() {
       return matchesSearch && matchesMonth;
     });
     filtered.sort((a, b) => {
-      const aVal = a[sortConfig.key as keyof SafetyToolboxTalk];
-      const bVal = b[sortConfig.key as keyof SafetyToolboxTalk];
+      const aVal = a[sortConfig.key as keyof SafetyToolboxTalk] ?? '';
+      const bVal = b[sortConfig.key as keyof SafetyToolboxTalk] ?? '';
       if (aVal < bVal) return sortConfig.ascending ? -1 : 1;
       if (aVal > bVal) return sortConfig.ascending ? 1 : -1;
       return 0;
@@ -190,6 +190,27 @@ export default function SafetyToolboxTalks() {
       return matchCat && matchSub && matchSearch;
     });
   }, [topics, selectedCategory, selectedSubcategory, librarySearch]);
+
+  const lastUsedByTopic = useMemo(() => {
+    const map = new Map<string, string>();
+    talks.forEach(t => {
+      if (!t.topic) return;
+      const existing = map.get(t.topic);
+      if (!existing || t.talk_date > existing) map.set(t.topic, t.talk_date);
+    });
+    return map;
+  }, [talks]);
+
+  const sortedFilteredTopics = useMemo(() => {
+    return [...filteredTopics].sort((a, b) => {
+      const aDate = lastUsedByTopic.get(a.title) ?? null;
+      const bDate = lastUsedByTopic.get(b.title) ?? null;
+      if (!aDate && !bDate) return 0;
+      if (!aDate) return -1;
+      if (!bDate) return 1;
+      return aDate.localeCompare(bDate);
+    });
+  }, [filteredTopics, lastUsedByTopic]);
 
   const currentYear = new Date().getFullYear();
   const yearTalks = talks.filter(t => t.talk_date?.startsWith(currentYear.toString()));
@@ -361,7 +382,7 @@ export default function SafetyToolboxTalks() {
         )}
 
         {activeTab === 'library' && (
-          <TopicLibraryView topics={topics} categories={categories} onSelect={selectTopicFromLibrary} />
+          <TopicLibraryView topics={topics} categories={categories} lastUsedByTopic={lastUsedByTopic} onSelect={selectTopicFromLibrary} />
         )}
       </div>
 
@@ -482,11 +503,13 @@ export default function SafetyToolboxTalks() {
       {showLibraryModal && (
         <Modal title="Topic Library" onClose={() => setShowLibraryModal(false)} size="xl">
           <TopicLibraryPicker
-            topics={topics} categories={categories}
+            categories={categories}
             selectedCategory={selectedCategory} setSelectedCategory={setSelectedCategory}
             selectedSubcategory={selectedSubcategory} setSelectedSubcategory={setSelectedSubcategory}
             searchTerm={librarySearch} setSearchTerm={setLibrarySearch}
-            filteredTopics={filteredTopics} onSelect={selectTopicFromLibrary}
+            filteredTopics={sortedFilteredTopics}
+            lastUsedByTopic={lastUsedByTopic}
+            onSelect={selectTopicFromLibrary}
           />
         </Modal>
       )}

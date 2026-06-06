@@ -169,23 +169,26 @@ export default function AttendanceRegister({ referenceType, referenceId, onUpdat
         <table className="w-full">
           <thead className="bg-gray-50 border-b border-gray-200 sticky top-0">
             <tr>
-              <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-700">Employee</th>
-              <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-700">Position</th>
-              <th className="px-4 py-2.5 text-center text-xs font-semibold text-gray-700">Status</th>
-              <th className="px-4 py-2.5 text-center text-xs font-semibold text-gray-700">Signature</th>
+              <th className="px-2 sm:px-4 py-2.5 text-left text-xs font-semibold text-gray-700">Employee</th>
+              <th className="hidden sm:table-cell px-4 py-2.5 text-left text-xs font-semibold text-gray-700">Position</th>
+              <th className="px-2 sm:px-4 py-2.5 text-center text-xs font-semibold text-gray-700">Status</th>
+              <th className="px-2 sm:px-4 py-2.5 text-center text-xs font-semibold text-gray-700">Sign</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
             {filtered.map(att => (
               <tr key={att.employee.id} className="hover:bg-gray-50">
-                <td className="px-4 py-2.5 text-sm font-medium text-gray-900">
-                  {att.employee.first_name} {att.employee.surname}
+                <td className="px-2 sm:px-4 py-2.5">
+                  <p className="text-sm font-medium text-gray-900 leading-tight">
+                    {att.employee.first_name} {att.employee.surname}
+                  </p>
+                  <p className="sm:hidden text-xs text-gray-400 mt-0.5">{att.employee.position}</p>
                 </td>
-                <td className="px-4 py-2.5 text-sm text-gray-500">{att.employee.position}</td>
-                <td className="px-4 py-2.5 text-center">
+                <td className="hidden sm:table-cell px-4 py-2.5 text-sm text-gray-500">{att.employee.position}</td>
+                <td className="px-2 sm:px-4 py-2.5 text-center">
                   <button
                     onClick={() => toggleStatus(att.employee.id)}
-                    className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold transition ${
+                    className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold transition ${
                       att.status === 'Present'
                         ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
                         : att.status === 'Late'
@@ -199,7 +202,7 @@ export default function AttendanceRegister({ referenceType, referenceId, onUpdat
                     {att.status}
                   </button>
                 </td>
-                <td className="px-4 py-2.5 text-center">
+                <td className="px-2 sm:px-4 py-2.5 text-center">
                   {att.signature_data ? (
                     <button
                       onClick={() => setSigningFor(att.employee.id)}
@@ -209,7 +212,7 @@ export default function AttendanceRegister({ referenceType, referenceId, onUpdat
                       <img
                         src={att.signature_data}
                         alt="Signature"
-                        className="h-8 w-20 object-contain border border-gray-200 rounded"
+                        className="h-7 w-16 object-contain border border-emerald-300 rounded bg-white"
                       />
                     </button>
                   ) : (
