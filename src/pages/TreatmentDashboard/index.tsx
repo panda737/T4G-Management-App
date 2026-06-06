@@ -360,10 +360,10 @@ export default function TreatmentDashboard() {
       </div>
 
       <div className="bg-gradient-to-r from-emerald-600 to-emerald-700 rounded-xl p-5 text-white shadow-lg">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2 opacity-80">
-            <Calendar size={14} />
-            <span className="text-xs font-medium uppercase tracking-wider">
+        <div className="flex items-center justify-between gap-2 mb-3 min-w-0">
+          <div className="flex items-center gap-2 opacity-80 min-w-0 flex-1">
+            <Calendar size={14} className="flex-shrink-0" />
+            <span className="text-xs font-medium uppercase tracking-wider truncate">
               {period === 'year'
                 ? selectedYearMonth
                   ? `${MONTHS[Number(selectedYearMonth.split('-')[1]) - 1]} ${selectedYearMonth.split('-')[0]}`
@@ -373,20 +373,20 @@ export default function TreatmentDashboard() {
                 : headerDateLabel ?? ''}
             </span>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 flex-shrink-0">
             {isAdmin && headerLog && period !== 'year' && (
               <>
                 <button
                   onClick={() => setEditingLog(headerLog)}
-                  className="flex items-center gap-1 px-2.5 py-1 text-xs bg-white/15 hover:bg-white/25 text-white rounded-md transition-colors"
+                  className="flex items-center gap-1 px-2 py-1 text-xs bg-white/15 hover:bg-white/25 text-white rounded-md transition-colors"
                 >
                   <Pencil size={11} /> Edit
                 </button>
                 <button
                   onClick={() => setDeletingLog(headerLog)}
-                  className="flex items-center gap-1 px-2.5 py-1 text-xs bg-red-500/30 hover:bg-red-500/50 text-white rounded-md transition-colors"
+                  className="flex items-center gap-1 px-2 py-1 text-xs bg-red-500/30 hover:bg-red-500/50 text-white rounded-md transition-colors"
                 >
-                  <Trash2 size={11} /> Delete
+                  <Trash2 size={11} /> Del
                 </button>
               </>
             )}
@@ -404,50 +404,50 @@ export default function TreatmentDashboard() {
         </div>
 
         {period === 'year' && yearHeaderStats ? (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 min-h-[72px]">
-            <div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 min-h-[72px]">
+            <div className="min-w-0">
               <p className="text-3xl font-bold">{fmtKg(yearHeaderStats.totalKg)}</p>
               <p className="text-xs opacity-70 mt-1">Total Treated</p>
             </div>
-            <div>
+            <div className="min-w-0">
               <p className="text-lg font-semibold">{yearHeaderStats.dayCycles} <span className="text-xs opacity-60 font-normal">cycles</span></p>
               <p className="text-xs opacity-70">Day: {fmtKg(yearHeaderStats.dayKg)}</p>
             </div>
-            <div>
+            <div className="min-w-0">
               <p className="text-lg font-semibold">{yearHeaderStats.aftCycles} <span className="text-xs opacity-60 font-normal">cycles</span></p>
-              <p className="text-xs opacity-70">Afternoon: {fmtKg(yearHeaderStats.aftKg)}</p>
+              <p className="text-xs opacity-70">Aft: {fmtKg(yearHeaderStats.aftKg)}</p>
             </div>
-            <div>
+            <div className="min-w-0">
               <p className="text-lg font-semibold">{yearHeaderStats.nightCycles} <span className="text-xs opacity-60 font-normal">cycles</span></p>
               <p className="text-xs opacity-70">Night: {fmtKg(yearHeaderStats.nightKg)}</p>
             </div>
           </div>
         ) : headerLog ? (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 min-h-[72px]">
-            <div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 min-h-[72px]">
+            <div className="min-w-0">
               <p className="text-3xl font-bold">{fmtKgRaw(Number(headerLog.total_treated_kg))}</p>
               <p className="text-xs opacity-70 mt-1">Total Treated</p>
               <p className="text-xs opacity-60 mt-1">{headerLog.total_cycles || 0} cycles total</p>
             </div>
-            <div>
+            <div className="min-w-0">
               <p className="text-lg font-semibold">{headerLog.day_shift_cycles || 0} <span className="text-xs opacity-60 font-normal">cycles</span></p>
               <p className="text-xs opacity-70">Day: {fmtKgRaw(Number(headerLog.day_shift_treated_kg))}</p>
               {empName(headerLog.day_shift_supervisor_id) && (
-                <p className="text-xs opacity-60 mt-0.5 flex items-center gap-1"><User size={10} /> {empName(headerLog.day_shift_supervisor_id)}</p>
+                <p className="text-xs opacity-60 mt-0.5 flex items-center gap-1 truncate"><User size={10} className="flex-shrink-0" /> <span className="truncate">{empName(headerLog.day_shift_supervisor_id)}</span></p>
               )}
             </div>
-            <div>
+            <div className="min-w-0">
               <p className="text-lg font-semibold">{headerLog.afternoon_shift_cycles || 0} <span className="text-xs opacity-60 font-normal">cycles</span></p>
-              <p className="text-xs opacity-70">Afternoon: {fmtKgRaw(Number(headerLog.afternoon_shift_treated_kg))}</p>
+              <p className="text-xs opacity-70">Aft: {fmtKgRaw(Number(headerLog.afternoon_shift_treated_kg))}</p>
               {empName(headerLog.afternoon_shift_supervisor_id) && (
-                <p className="text-xs opacity-60 mt-0.5 flex items-center gap-1"><User size={10} /> {empName(headerLog.afternoon_shift_supervisor_id)}</p>
+                <p className="text-xs opacity-60 mt-0.5 flex items-center gap-1 truncate"><User size={10} className="flex-shrink-0" /> <span className="truncate">{empName(headerLog.afternoon_shift_supervisor_id)}</span></p>
               )}
             </div>
-            <div>
+            <div className="min-w-0">
               <p className="text-lg font-semibold">{headerLog.night_shift_cycles || 0} <span className="text-xs opacity-60 font-normal">cycles</span></p>
               <p className="text-xs opacity-70">Night: {fmtKgRaw(Number(headerLog.night_shift_treated_kg))}</p>
               {empName(headerLog.night_shift_supervisor_id) && (
-                <p className="text-xs opacity-60 mt-0.5 flex items-center gap-1"><User size={10} /> {empName(headerLog.night_shift_supervisor_id)}</p>
+                <p className="text-xs opacity-60 mt-0.5 flex items-center gap-1 truncate"><User size={10} className="flex-shrink-0" /> <span className="truncate">{empName(headerLog.night_shift_supervisor_id)}</span></p>
               )}
             </div>
           </div>
