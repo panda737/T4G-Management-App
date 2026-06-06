@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Calendar, Factory, Save, AlertTriangle, Check, X } from 'lucide-react';
+import { Calendar, Factory, Save, AlertTriangle, Check, X, Plus } from 'lucide-react';
 import { supabase, TreatmentDailyLog as TDL, Employee } from '../../lib/supabase';
 import Modal from '../../components/Modal';
 
@@ -23,8 +23,7 @@ export default function DailyLogFormModal({ log, onClose, onSave }: Props) {
     night_shift_cycles: log?.night_shift_cycles ?? 0,
     night_shift_treated_kg: log?.night_shift_treated_kg ?? 0,
     night_shift_supervisor_id: log?.night_shift_supervisor_id ?? '',
-    downtime_minutes: log?.downtime_minutes ?? 0,
-    downtime_reason: log?.downtime_reason ?? '',
+    downtime_entries: [{ minutes: log?.downtime_minutes ?? 0, reason: log?.downtime_reason ?? '' }],
     notes: log?.notes ?? '',
   });
 
@@ -45,6 +44,21 @@ export default function DailyLogFormModal({ log, onClose, onSave }: Props) {
 
   function update(field: string, value: string | number) {
     setForm(prev => ({ ...prev, [field]: value }));
+  }
+
+  function addDowntimeEntry() {
+    setForm(prev => ({ ...prev, downtime_entries: [...prev.downtime_entries, { minutes: 0, reason: '' }] }));
+  }
+
+  function removeDowntimeEntry(index: number) {
+    setForm(prev => ({ ...prev, downtime_entries: prev.downtime_entries.filter((_, i) => i !== index) }));
+  }
+
+  function updateDowntimeEntry(index: number, field: 'minutes' | 'reason', value: number | string) {
+    setForm(prev => ({
+      ...prev,
+      downtime_entries: prev.downtime_entries.map((e, i) => i === index ? { ...e, [field]: value } : e),
+    }));
   }
 
   async function handleSave() {
@@ -69,8 +83,13 @@ export default function DailyLogFormModal({ log, onClose, onSave }: Props) {
       total_cycles: totalCycles,
       total_treated_kg: totalKg,
       chemical_litres: chemicalLitres,
-      downtime_minutes: Number(form.downtime_minutes) || 0,
-      downtime_reason: form.downtime_reason,
+      downtime_minutes: form.downtime_entries.reduce((s, e) => s + (Number(e.minutes) || 0), 0),
+      downtime_reason: form.downtime_entries.length === 1
+        ? form.downtime_entries[0].reason
+        : form.downtime_entries
+            .filter(e => e.reason.trim() || Number(e.minutes) > 0)
+            .map(e => e.reason && Number(e.minutes) > 0 ? `${e.reason} (${e.minutes} min)` : e.reason || `${e.minutes} min`)
+            .join(' | '),
       notes: form.notes,
       updated_at: new Date().toISOString(),
     };
@@ -175,31 +194,61 @@ export default function DailyLogFormModal({ log, onClose, onSave }: Props) {
 
         {/* Downtime */}
         <div>
-          <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2">
-            <AlertTriangle size={14} /> Downtime
-          </h3>
-          <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Downtime (minutes)</label>
-              <input
-                type="number"
-                min="0"
-                value={form.downtime_minutes}
-                onChange={e => update('downtime_minutes', e.target.value)}
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
-              />
-            </div>
-            <div className="sm:col-span-3">
-              <label className="block text-xs font-medium text-gray-700 mb-1">Downtime Reason</label>
-              <input
-                type="text"
-                value={form.downtime_reason}
-                onChange={e => update('downtime_reason', e.target.value)}
-                placeholder="e.g. Shredder clogged, No power, Waiting for RORO..."
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
-              />
-            </div>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-2">
+              <AlertTriangle size={14} /> Downtime
+            </h3>
+            <button
+              type="button"
+              onClick={addDowntimeEntry}
+              className="flex items-center gap-1 text-xs font-medium text-cyan-600 hover:text-cyan-700 transition-colors"
+            >
+              <Plus size={13} /> Add downtime
+            </button>
           </div>
+          <div className="space-y-2">
+            {form.downtime_entries.map((entry, i) => (
+              <div key={i} className="grid grid-cols-1 sm:grid-cols-4 gap-2 sm:gap-3 items-end">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Minutes</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={entry.minutes || ''}
+                    onChange={e => updateDowntimeEntry(i, 'minutes', Number(e.target.value) || 0)}
+                    placeholder="0"
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                  />
+                </div>
+                <div className="sm:col-span-3 flex gap-2">
+                  <div className="flex-1">
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Reason</label>
+                    <input
+                      type="text"
+                      value={entry.reason}
+                      onChange={e => updateDowntimeEntry(i, 'reason', e.target.value)}
+                      placeholder="e.g. Shredder clogged, No power, Waiting for RORO..."
+                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                    />
+                  </div>
+                  {form.downtime_entries.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => removeDowntimeEntry(i)}
+                      className="mb-px p-2 text-gray-400 hover:text-red-500 transition-colors flex-shrink-0 self-end"
+                    >
+                      <X size={14} />
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+          {form.downtime_entries.length > 1 && (
+            <p className="mt-2 text-xs text-gray-500">
+              Total downtime: <strong>{form.downtime_entries.reduce((s, e) => s + (Number(e.minutes) || 0), 0)} min</strong>
+            </p>
+          )}
         </div>
 
         {/* Notes */}
