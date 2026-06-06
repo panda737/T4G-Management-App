@@ -24,6 +24,7 @@ export default function TrainingAssessment() {
   const [score, setScore] = useState(0);
   const [result, setResult] = useState<'Pass' | 'Fail'>('Fail');
   const [saving, setSaving] = useState(false);
+  const [opError, setOpError] = useState('');
   const startTimeRef = useRef<number>(0);
 
   useEffect(() => {
@@ -58,6 +59,7 @@ export default function TrainingAssessment() {
   async function submitQuiz() {
     if (!module || !selectedEmployee) return;
     setSaving(true);
+    setOpError('');
 
     let correct = 0;
     questions.forEach(q => {
@@ -74,7 +76,7 @@ export default function TrainingAssessment() {
 
     const employeeName = `${selectedEmployee.first_name} ${selectedEmployee.surname}`;
 
-    await supabase.from('training_assessments').insert([{
+    const { error: aErr } = await supabase.from('training_assessments').insert([{
       employee_id: selectedEmployee.id,
       employee_name: employeeName,
       module_id: module.id,
@@ -84,9 +86,10 @@ export default function TrainingAssessment() {
       result: pass ? 'Pass' : 'Fail',
       time_taken_seconds: timeTaken,
     }]);
+    if (aErr) { setOpError(aErr.message); setSaving(false); return; }
 
     const today = new Date().toISOString().split('T')[0];
-    await supabase.from('training_records').insert([{
+    const { error: rErr } = await supabase.from('training_records').insert([{
       employee_id: selectedEmployee.id,
       employee_name: employeeName,
       course_name: module.title,
@@ -97,6 +100,7 @@ export default function TrainingAssessment() {
       notes: `Module: ${module.category} - ${module.subcategory}. Time: ${formatTime(timeTaken)}`,
       status: 'Completed',
     }]);
+    if (rErr) { setOpError(rErr.message); setSaving(false); return; }
 
     setSaving(false);
     setStep('results');
@@ -155,6 +159,7 @@ export default function TrainingAssessment() {
         )}
       </div>
 
+      {opError && <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-2.5 mx-4 sm:mx-8 mt-4">{opError}</div>}
       <div className="max-w-3xl mx-auto p-4 sm:p-8">
         {/* Step 1: Select Employee */}
         {step === 'select-employee' && (

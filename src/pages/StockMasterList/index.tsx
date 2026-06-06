@@ -20,6 +20,7 @@ export default function StockMasterList() {
   const [globalMovement, setGlobalMovement] = useState<'in' | 'out' | null>(null);
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
   const [existingCodes, setExistingCodes] = useState<string[]>([]);
+  const [opError, setOpError] = useState('');
 
   useEffect(() => { load(); }, []);
 
@@ -70,6 +71,7 @@ export default function StockMasterList() {
 
   return (
     <div className="space-y-4">
+      {opError && <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-2.5">{opError}</div>}
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
@@ -259,7 +261,8 @@ export default function StockMasterList() {
           existingCodes={existingCodes}
           onClose={() => setShowAdd(false)}
           onSave={async (data) => {
-            await supabase.from('stock_items').insert(data);
+            const { error } = await supabase.from('stock_items').insert(data);
+            if (error) { setOpError(error.message); return; }
             setShowAdd(false);
             load();
           }}
@@ -273,7 +276,8 @@ export default function StockMasterList() {
           existingCodes={existingCodes.filter(c => c !== editItem.stock_code)}
           onClose={() => setEditItem(null)}
           onSave={async (data) => {
-            await supabase.from('stock_items').update({ ...data, updated_at: new Date().toISOString() }).eq('id', editItem.id);
+            const { error } = await supabase.from('stock_items').update({ ...data, updated_at: new Date().toISOString() }).eq('id', editItem.id);
+            if (error) { setOpError(error.message); return; }
             setEditItem(null);
             load();
           }}

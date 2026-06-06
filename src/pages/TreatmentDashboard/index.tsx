@@ -6,6 +6,8 @@ import {
 import { PageSpinner } from '../../components/Spinner';
 import { supabase, TreatmentDailyLog, TreatmentMonthlySummary, Employee } from '../../lib/supabase';
 import { fmtKgTons as fmtKg, fmtKgRaw } from '../../lib/formatters';
+
+type EmployeeName = Pick<Employee, 'id' | 'first_name' | 'surname' | 'position'>;
 import { MONTHS, MONTHS_SHORT, type Period, type BarDatum, categorizeDowntime } from './constants';
 import BarChart from './BarChart';
 import KpiCard from './KpiCard';
@@ -21,7 +23,7 @@ export default function TreatmentDashboard() {
   const { isAdmin } = useUser();
   const [logs, setLogs] = useState<TreatmentDailyLog[]>([]);
   const [monthlySummaries, setMonthlySummaries] = useState<TreatmentMonthlySummary[]>([]);
-  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [employees, setEmployees] = useState<EmployeeName[]>([]);
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState<Period>('month');
   const [selectedMonth, setSelectedMonth] = useState(() => {
@@ -39,6 +41,7 @@ export default function TreatmentDashboard() {
   const [editingLandfill, setEditingLandfill] = useState<TreatmentMonthlySummary | null>(null);
   const [deletingLandfill, setDeletingLandfill] = useState<TreatmentMonthlySummary | null>(null);
   const [deletingLandfillBusy, setDeletingLandfillBusy] = useState(false);
+  const [opError, setOpError] = useState('');
 
   useEffect(() => { loadData(); }, []);
 
@@ -52,11 +55,11 @@ export default function TreatmentDashboard() {
   async function loadData() {
     setLoading(true);
     const [logRes, sumRes, empRes] = await Promise.all([
-      supabase.from('treatment_daily_log').select('*').order('date', { ascending: true }),
+      supabase.from('treatment_daily_log').select('id, date, day_shift_cycles, day_shift_treated_kg, afternoon_shift_cycles, afternoon_shift_treated_kg, night_shift_cycles, night_shift_treated_kg, total_cycles, total_treated_kg, chemical_litres, downtime_minutes, downtime_reason, supervisor_id, day_shift_supervisor_id, afternoon_shift_supervisor_id, night_shift_supervisor_id, notes, status, created_at, updated_at').order('date', { ascending: true }),
       supabase.from('treatment_monthly_summary').select('*').order('month'),
       supabase.from('employees').select('id, first_name, surname, position').in('position', ['Supervisor', 'Senior Operator', 'Health & Safety Officer']).eq('status', 'active').order('surname'),
     ]);
-    setLogs(logRes.data || []);
+    setLogs((logRes.data || []) as TreatmentDailyLog[]);
     setMonthlySummaries(sumRes.data || []);
     setEmployees(empRes.data || []);
     setLoading(false);
@@ -65,8 +68,10 @@ export default function TreatmentDashboard() {
   async function handleDeleteLog() {
     if (!deletingLog) return;
     setDeletingLogBusy(true);
-    await supabase.from('treatment_daily_log').delete().eq('id', deletingLog.id);
+    setOpError('');
+    const { error } = await supabase.from('treatment_daily_log').delete().eq('id', deletingLog.id);
     setDeletingLogBusy(false);
+    if (error) { setOpError(error.message); return; }
     setDeletingLog(null);
     loadData();
   }
@@ -74,8 +79,10 @@ export default function TreatmentDashboard() {
   async function handleDeleteLandfill() {
     if (!deletingLandfill) return;
     setDeletingLandfillBusy(true);
-    await supabase.from('treatment_monthly_summary').delete().eq('id', deletingLandfill.id);
+    setOpError('');
+    const { error } = await supabase.from('treatment_monthly_summary').delete().eq('id', deletingLandfill.id);
     setDeletingLandfillBusy(false);
+    if (error) { setOpError(error.message); return; }
     setDeletingLandfill(null);
     loadData();
   }
@@ -292,8 +299,8 @@ export default function TreatmentDashboard() {
           <h1 className="text-2xl font-bold text-gray-900">Treatment Plant Dashboard</h1>
           <p className="text-sm text-gray-500 mt-1">Cold chemical treatment -- Peracetic acid & hydrogen peroxide</p>
         </div>
-        <div className="flex items-center gap-2 overflow-x-auto">
-          <div className="flex bg-gray-100 rounded-lg p-0.5">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex bg-gray-100 rounded-lg p-0.5 flex-shrink-0">
             {(['day', 'month', 'year'] as Period[]).map(p => (
               <button
                 key={p}
@@ -310,7 +317,7 @@ export default function TreatmentDashboard() {
             <select
               value={selectedMonth}
               onChange={e => setSelectedMonth(e.target.value)}
-              className="bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-sm"
+              className="flex-1 min-w-0 bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-sm"
             >
               {availableMonths.map(m => {
                 const [y, mo] = m.split('-').map(Number);
@@ -322,7 +329,7 @@ export default function TreatmentDashboard() {
             <select
               value={selectedYear}
               onChange={e => setSelectedYear(e.target.value)}
-              className="bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-sm"
+              className="flex-1 min-w-0 bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-sm"
             >
               {availableYears.map(y => <option key={y} value={y}>{y}</option>)}
             </select>
@@ -506,6 +513,12 @@ export default function TreatmentDashboard() {
         />
         <DowntimePanel downtimeBreakdown={downtimeBreakdown} />
       </div>
+
+      {opError && (
+        <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-2.5">
+          {opError}
+        </div>
+      )}
 
       {/* Admin: Edit daily log */}
       {editingLog && editingLog !== 'new' && (

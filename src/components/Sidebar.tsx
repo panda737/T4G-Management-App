@@ -191,11 +191,11 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
             <img src="/T4G_Small_Logo.png" alt="Tech4Green" className="w-7 h-7 rounded-lg mx-auto object-contain" />
           )}
           {isMobileDrawer ? (
-            <button onClick={onMobileClose} className="text-gray-400 hover:text-white transition-colors ml-auto">
+            <button onClick={onMobileClose} aria-label="Close navigation" className="text-gray-400 hover:text-white transition-colors ml-auto">
               <X size={20} />
             </button>
           ) : (
-            <button onClick={onToggle} className="text-gray-400 hover:text-white transition-colors ml-auto">
+            <button onClick={onToggle} aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} className="text-gray-400 hover:text-white transition-colors ml-auto">
               {collapsed ? <Menu size={18} /> : <X size={18} />}
             </button>
           )}
@@ -334,13 +334,13 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
                   {roleLabel}
                 </span>
               </div>
-              <button onClick={onSignOut} title="Sign out" className="text-gray-400 hover:text-red-400 transition-colors flex-shrink-0">
+              <button onClick={onSignOut} title="Sign out" aria-label="Sign out" className="text-gray-400 hover:text-red-400 transition-colors flex-shrink-0">
                 <LogOut size={15} />
               </button>
             </div>
           ) : (
             <div className="flex justify-center py-3 group relative">
-              <button onClick={onSignOut} title="Sign out" className="text-gray-400 hover:text-red-400 transition-colors">
+              <button onClick={onSignOut} title="Sign out" aria-label="Sign out" className="text-gray-400 hover:text-red-400 transition-colors">
                 <LogOut size={16} />
               </button>
               <span className="absolute left-16 bg-gray-800 text-white text-xs px-2.5 py-1.5 rounded-md opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50 shadow-xl border border-gray-700">

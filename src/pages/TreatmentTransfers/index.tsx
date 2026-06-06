@@ -23,6 +23,7 @@ export default function TreatmentTransfers() {
   const [editTransfer, setEditTransfer] = useState<TransferWithDate | null>(null);
   const [deletingTransfer, setDeletingTransfer] = useState<TransferWithDate | null>(null);
   const [deletingTransferBusy, setDeletingTransferBusy] = useState(false);
+  const [opError, setOpError] = useState('');
   const [showLandfillForm, setShowLandfillForm] = useState(false);
   const [editLandfill, setEditLandfill] = useState<TreatmentMonthlySummary | null>(null);
 
@@ -45,8 +46,10 @@ export default function TreatmentTransfers() {
   async function handleDeleteTransfer() {
     if (!deletingTransfer) return;
     setDeletingTransferBusy(true);
-    await supabase.from('treatment_waste_transfers').delete().eq('id', deletingTransfer.id);
+    setOpError('');
+    const { error } = await supabase.from('treatment_waste_transfers').delete().eq('id', deletingTransfer.id);
     setDeletingTransferBusy(false);
+    if (error) { setOpError(error.message); return; }
     setDeletingTransfer(null);
     loadData();
   }
@@ -189,6 +192,12 @@ export default function TreatmentTransfers() {
           onClose={() => { setShowTransferForm(false); setEditTransfer(null); }}
           onSave={() => { setShowTransferForm(false); setEditTransfer(null); loadData(); }}
         />
+      )}
+
+      {opError && (
+        <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-2.5 mx-4">
+          {opError}
+        </div>
       )}
 
       {deletingTransfer && (

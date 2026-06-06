@@ -64,6 +64,7 @@ export default function TrainingCertificates() {
   const [showView, setShowView] = useState(false);
   const [selectedCert, setSelectedCert] = useState<TrainingCertificate | null>(null);
   const [formData, setFormData] = useState<CertFormData>(EMPTY_FORM);
+  const [opError, setOpError] = useState('');
 
   useEffect(() => { load(); }, []);
 
@@ -102,20 +103,21 @@ export default function TrainingCertificates() {
   }
 
   async function handleSave() {
-    if (selectedCert) {
-      await supabase.from('training_certificates').update(formData).eq('id', selectedCert.id);
-      setShowEdit(false);
-    } else {
-      await supabase.from('training_certificates').insert([formData]);
-      setShowAdd(false);
-    }
+    setOpError('');
+    const { error } = selectedCert
+      ? await supabase.from('training_certificates').update(formData).eq('id', selectedCert.id)
+      : await supabase.from('training_certificates').insert([formData]);
+    if (error) { setOpError(error.message); return; }
+    if (selectedCert) setShowEdit(false); else setShowAdd(false);
     setSelectedCert(null);
     load();
   }
 
   async function handleDelete(id: string) {
     if (!confirm('Delete this certificate?')) return;
-    await supabase.from('training_certificates').delete().eq('id', id);
+    setOpError('');
+    const { error } = await supabase.from('training_certificates').delete().eq('id', id);
+    if (error) { setOpError(error.message); return; }
     load();
   }
 
@@ -142,6 +144,7 @@ export default function TrainingCertificates() {
 
   return (
     <div className="space-y-5">
+      {opError && <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-2.5">{opError}</div>}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <Award className="w-7 h-7 text-gray-700" />

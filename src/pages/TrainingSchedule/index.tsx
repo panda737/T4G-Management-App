@@ -30,6 +30,7 @@ export default function TrainingSchedulePage() {
   const [selectedSession, setSelectedSession] = useState<TrainingSchedule | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState<SessionFormData>(EMPTY_FORM);
+  const [opError, setOpError] = useState('');
 
   useEffect(() => { load(); }, []);
 
@@ -67,10 +68,11 @@ export default function TrainingSchedulePage() {
       status: formData.status,
     };
 
+    setOpError('');
     let sessionId = editingId;
     if (editingId) {
-      await supabase.from('training_schedule').update(data).eq('id', editingId);
-      // Replace attendees: delete old, insert new
+      const { error } = await supabase.from('training_schedule').update(data).eq('id', editingId);
+      if (error) { setOpError(error.message); return; }
       if (formData.selected_attendee_ids.length > 0) {
         await supabase.from('training_session_attendees').delete().eq('session_id', editingId);
         await supabase.from('training_session_attendees').insert(
@@ -78,7 +80,8 @@ export default function TrainingSchedulePage() {
         );
       }
     } else {
-      const { data: inserted } = await supabase.from('training_schedule').insert([data]).select('id').single();
+      const { data: inserted, error } = await supabase.from('training_schedule').insert([data]).select('id').single();
+      if (error) { setOpError(error.message); return; }
       sessionId = inserted?.id ?? null;
       if (sessionId && formData.selected_attendee_ids.length > 0) {
         await supabase.from('training_session_attendees').insert(
@@ -94,10 +97,11 @@ export default function TrainingSchedulePage() {
   }
 
   async function handleDelete(id: string) {
-    if (confirm('Delete this session?')) {
-      await supabase.from('training_schedule').delete().eq('id', id);
-      load();
-    }
+    if (!confirm('Delete this session?')) return;
+    setOpError('');
+    const { error } = await supabase.from('training_schedule').delete().eq('id', id);
+    if (error) { setOpError(error.message); return; }
+    load();
   }
 
   async function openEdit(session: TrainingSchedule) {
@@ -146,6 +150,7 @@ export default function TrainingSchedulePage() {
 
   return (
     <div className="space-y-5">
+      {opError && <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-2.5">{opError}</div>}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <CalendarDays size={28} className="text-emerald-600" />

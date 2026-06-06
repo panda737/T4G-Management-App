@@ -26,6 +26,7 @@ export default function StockTakeCount({ session, onBack, onSessionUpdate, onRep
   const [applyingCorrections, setApplyingCorrections] = useState(false);
   const [showAlreadyApplied, setShowAlreadyApplied] = useState(false);
   const [showAppliedSuccess, setShowAppliedSuccess] = useState<number>(0);
+  const [opError, setOpError] = useState('');
 
   useEffect(() => { loadLines(); }, [session.id]);
 
@@ -46,18 +47,21 @@ export default function StockTakeCount({ session, onBack, onSessionUpdate, onRep
       ? { ...l, counted_quantity: counted, comment, variance: counted !== null ? counted - l.system_quantity : 0 }
       : l
     ));
-    await supabase.from('stock_take_line_items').update({
+    const { error } = await supabase.from('stock_take_line_items').update({
       counted_quantity: counted,
       comment,
       updated_at: new Date().toISOString(),
     }).eq('id', id);
+    if (error) setOpError(error.message);
   }
 
   async function updateStatus(status: string) {
     setSaving(true);
+    setOpError('');
     const update: Partial<StockTakeSession> = { status };
     if (status === 'Completed') update.completed_at = new Date().toISOString();
-    const { data } = await supabase.from('stock_take_sessions').update(update).eq('id', session.id).select().maybeSingle();
+    const { data, error } = await supabase.from('stock_take_sessions').update(update).eq('id', session.id).select().maybeSingle();
+    if (error) { setOpError(error.message); setSaving(false); return; }
     if (data) onSessionUpdate(data);
     setSaving(false);
   }
@@ -65,11 +69,13 @@ export default function StockTakeCount({ session, onBack, onSessionUpdate, onRep
   async function approveSession() {
     if (!approvalName) return;
     setSaving(true);
-    const { data } = await supabase.from('stock_take_sessions').update({
+    setOpError('');
+    const { data, error } = await supabase.from('stock_take_sessions').update({
       status: 'Approved',
       approved_by: approvalName,
       approved_at: new Date().toISOString(),
     }).eq('id', session.id).select().maybeSingle();
+    if (error) { setOpError(error.message); setSaving(false); return; }
     if (data) onSessionUpdate(data);
     setShowApprove(false);
     setSaving(false);
@@ -88,7 +94,7 @@ export default function StockTakeCount({ session, onBack, onSessionUpdate, onRep
     const now = new Date().toISOString();
 
     for (const line of linesWithVariance) {
-      await supabase.from('stock_movements').insert({
+      const { error: movErr } = await supabase.from('stock_movements').insert({
         movement_date: now,
         stock_item_id: line.stock_item_id,
         stock_code: line.stock_code,
@@ -100,10 +106,12 @@ export default function StockTakeCount({ session, onBack, onSessionUpdate, onRep
         movement_group_id: groupId,
         movement_group_label: groupLabel,
       });
-      await supabase.from('stock_items').update({
+      if (movErr) { setOpError(movErr.message); setApplyingCorrections(false); return; }
+      const { error: updErr } = await supabase.from('stock_items').update({
         current_quantity: line.system_quantity + line.variance,
         updated_at: now,
       }).eq('id', line.stock_item_id);
+      if (updErr) { setOpError(updErr.message); setApplyingCorrections(false); return; }
     }
 
     const { data: updated } = await supabase
@@ -130,6 +138,7 @@ export default function StockTakeCount({ session, onBack, onSessionUpdate, onRep
 
   return (
     <div className="space-y-4">
+      {opError && <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-2.5">{opError}</div>}
       {/* Page header */}
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
         <div>

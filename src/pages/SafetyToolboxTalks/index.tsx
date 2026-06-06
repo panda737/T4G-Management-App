@@ -32,6 +32,7 @@ export default function SafetyToolboxTalks() {
   const [selectedSubcategory, setSelectedSubcategory] = useState('');
   const [librarySearch, setLibrarySearch] = useState('');
   const [formData, setFormData] = useState<FormData>({ ...EMPTY_FORM, talk_date: new Date().toISOString().split('T')[0] });
+  const [opError, setOpError] = useState('');
 
   useEffect(() => { loadData(); }, []);
   useEffect(() => { filterTalks(); }, [talks, searchTerm, monthFilter, sortConfig]);
@@ -112,10 +113,16 @@ export default function SafetyToolboxTalks() {
         toolbox_id: insertedTalk.id,
         employee_id: empId,
       }));
-      await Promise.all([
+      const results = await Promise.all([
         supabase.from('training_attendance').insert(attendanceRecords),
         supabase.from('toolbox_attendees').insert(junctionRecords),
       ]);
+      const attendanceErr = results[0].error;
+      const junctionErr = results[1].error;
+      if (attendanceErr || junctionErr) {
+        setOpError((attendanceErr ?? junctionErr)!.message);
+        return;
+      }
     }
 
     setShowAddModal(false);
@@ -125,7 +132,9 @@ export default function SafetyToolboxTalks() {
 
   async function handleDelete(id: string) {
     if (!confirm('Are you sure you want to delete this talk record?')) return;
-    await supabase.from('safety_toolbox_talks').delete().eq('id', id);
+    setOpError('');
+    const { error } = await supabase.from('safety_toolbox_talks').delete().eq('id', id);
+    if (error) { setOpError(error.message); return; }
     loadData();
   }
 
@@ -184,6 +193,7 @@ export default function SafetyToolboxTalks() {
 
   return (
     <div className="min-h-screen bg-gray-50 p-4 sm:p-8">
+      {opError && <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-2.5 mb-4">{opError}</div>}
       <div className="max-w-7xl mx-auto">
         <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 sm:gap-0 mb-6 sm:mb-8">
           <div className="flex items-center gap-3">

@@ -19,16 +19,20 @@ export default function Settings() {
   const [showAdd, setShowAdd] = useState(false);
   const [editCat, setEditCat] = useState<StockCategory | null>(null);
   const [confirmToggle, setConfirmToggle] = useState<StockCategory | null>(null);
+  const [opError, setOpError] = useState('');
 
   async function confirmToggleActive() {
     if (!confirmToggle) return;
-    await supabase.from('stock_categories').update({ active: !confirmToggle.active }).eq('id', confirmToggle.id);
+    setOpError('');
+    const { error } = await supabase.from('stock_categories').update({ active: !confirmToggle.active }).eq('id', confirmToggle.id);
+    if (error) { setOpError(error.message); return; }
     setConfirmToggle(null);
     reloadCategories();
   }
 
   return (
     <div className="space-y-5">
+      {opError && <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-2.5">{opError}</div>}
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
         <p className="text-sm text-gray-500 mt-1">Manage stock categories and configuration</p>

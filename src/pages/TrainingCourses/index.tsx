@@ -44,6 +44,7 @@ export default function TrainingCourses() {
   const [showView, setShowView] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
   const [formData, setFormData] = useState<CourseFormData>(EMPTY_FORM);
+  const [opError, setOpError] = useState('');
 
   useEffect(() => { load(); }, []);
 
@@ -72,20 +73,21 @@ export default function TrainingCourses() {
       courseCode = await generateCourseCode(formData.category);
     }
     const payload = { ...formData, course_code: courseCode };
-    if (selectedCourse) {
-      await supabase.from('training_courses').update(payload).eq('id', selectedCourse.id);
-      setShowEdit(false);
-    } else {
-      await supabase.from('training_courses').insert([payload]);
-      setShowAdd(false);
-    }
+    setOpError('');
+    const { error } = selectedCourse
+      ? await supabase.from('training_courses').update(payload).eq('id', selectedCourse.id)
+      : await supabase.from('training_courses').insert([payload]);
+    if (error) { setOpError(error.message); return; }
+    if (selectedCourse) setShowEdit(false); else setShowAdd(false);
     setSelectedCourse(null);
     load();
   }
 
   async function handleDelete(courseId: string) {
     if (!confirm('Are you sure?')) return;
-    await supabase.from('training_courses').delete().eq('id', courseId);
+    setOpError('');
+    const { error } = await supabase.from('training_courses').delete().eq('id', courseId);
+    if (error) { setOpError(error.message); return; }
     load();
   }
 
@@ -112,6 +114,7 @@ export default function TrainingCourses() {
 
   return (
     <div className="space-y-5">
+      {opError && <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-2.5">{opError}</div>}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <BookOpen className="w-7 h-7 text-sky-600" />

@@ -156,11 +156,13 @@ function NewSessionModal({ onClose, onSave }: { onClose: () => void; onSave: (s:
   const [conductedBy, setConductedBy] = useState('');
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
 
   async function handleSave() {
     if (!name) return;
     setSaving(true);
-    const { data: session } = await supabase.from('stock_take_sessions').insert({
+    setSaveError('');
+    const { data: session, error } = await supabase.from('stock_take_sessions').insert({
       stock_take_name: name,
       stock_take_date: new Date(date).toISOString(),
       conducted_by: conductedBy,
@@ -168,27 +170,25 @@ function NewSessionModal({ onClose, onSave }: { onClose: () => void; onSave: (s:
       notes,
     }).select().maybeSingle();
 
-    if (session) {
-      const { data: stockItems } = await supabase.from('stock_items').select('*').eq('active', true).order('category').order('stock_item');
-      if (stockItems && stockItems.length > 0) {
-        const lineItems = stockItems.map((item: StockItem) => ({
-          stock_take_session_id: session.id,
-          stock_item_id: item.id,
-          stock_code: item.stock_code,
-          stock_item: item.stock_item,
-          category: item.category,
-          description: item.description,
-          system_quantity: item.current_quantity,
-          counted_quantity: null,
-          comment: '',
-        }));
-        await supabase.from('stock_take_line_items').insert(lineItems);
-      }
-      setSaving(false);
-      onSave(session);
-    } else {
-      setSaving(false);
+    if (error || !session) { setSaveError(error?.message ?? 'Failed to create session'); setSaving(false); return; }
+
+    const { data: stockItems } = await supabase.from('stock_items').select('*').eq('active', true).order('category').order('stock_item');
+    if (stockItems && stockItems.length > 0) {
+      const lineItems = stockItems.map((item: StockItem) => ({
+        stock_take_session_id: session.id,
+        stock_item_id: item.id,
+        stock_code: item.stock_code,
+        stock_item: item.stock_item,
+        category: item.category,
+        description: item.description,
+        system_quantity: item.current_quantity,
+        counted_quantity: null,
+        comment: '',
+      }));
+      await supabase.from('stock_take_line_items').insert(lineItems);
     }
+    setSaving(false);
+    onSave(session);
   }
 
   const inputCls = 'w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500';
@@ -213,6 +213,7 @@ function NewSessionModal({ onClose, onSave }: { onClose: () => void; onSave: (s:
           <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} className={`${inputCls} resize-none`} />
         </div>
       </div>
+      {saveError && <div className="mt-3 text-sm text-red-700 bg-red-50 px-4 py-2.5 rounded-lg border border-red-200">{saveError}</div>}
       <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-100">
         <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">Cancel</button>
         <button onClick={handleSave} disabled={saving || !name} className="px-4 py-2 text-sm bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg disabled:opacity-50 font-medium shadow-sm">

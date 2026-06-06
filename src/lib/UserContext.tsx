@@ -51,7 +51,7 @@ export function UserProvider({ session, children }: { session: Session; children
     async function fetchProfile() {
       const { data } = await supabase
         .from('user_profiles')
-        .select('*')
+        .select('id, auth_user_id, display_name, role, is_active, created_at, updated_at')
         .eq('auth_user_id', session.user.id)
         .maybeSingle();
 

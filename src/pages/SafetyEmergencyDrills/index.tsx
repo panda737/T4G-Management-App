@@ -52,6 +52,7 @@ export default function SafetyEmergencyDrills() {
   const [editingDrill, setEditingDrill] = useState<SafetyEmergencyDrill | null>(null);
   const [viewingDrill, setViewingDrill] = useState<SafetyEmergencyDrill | null>(null);
   const [formData, setFormData] = useState<DrillFormData>(EMPTY_FORM);
+  const [opError, setOpError] = useState('');
 
   useEffect(() => { load(); }, []);
 
@@ -83,11 +84,11 @@ export default function SafetyEmergencyDrills() {
       target_time_seconds: parseInt(formData.target_time_seconds) || 0,
     };
 
-    if (editingDrill) {
-      await supabase.from('safety_emergency_drills').update(payload).eq('id', editingDrill.id);
-    } else {
-      await supabase.from('safety_emergency_drills').insert([payload]);
-    }
+    setOpError('');
+    const { error } = editingDrill
+      ? await supabase.from('safety_emergency_drills').update(payload).eq('id', editingDrill.id)
+      : await supabase.from('safety_emergency_drills').insert([payload]);
+    if (error) { setOpError(error.message); return; }
 
     load();
     handleCloseModal();
@@ -95,7 +96,9 @@ export default function SafetyEmergencyDrills() {
 
   const handleDelete = async (id: string) => {
     if (confirm('Delete this drill record?')) {
-      await supabase.from('safety_emergency_drills').delete().eq('id', id);
+      setOpError('');
+      const { error } = await supabase.from('safety_emergency_drills').delete().eq('id', id);
+      if (error) { setOpError(error.message); return; }
       load();
     }
   };
@@ -137,6 +140,11 @@ export default function SafetyEmergencyDrills() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {opError && (
+        <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-2.5 mx-4 mt-4 rounded-lg">
+          {opError}
+        </div>
+      )}
       {/* Header */}
       <div className="bg-white border-b border-gray-200 px-4 sm:px-8 py-4 sm:py-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-0">

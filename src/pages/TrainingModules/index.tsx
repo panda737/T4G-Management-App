@@ -34,6 +34,7 @@ export default function TrainingModules() {
   const [showView, setShowView] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const [selectedModule, setSelectedModule] = useState<TrainingModule | null>(null);
+  const [opError, setOpError] = useState('');
 
   useEffect(() => { load(); }, []);
 
@@ -78,8 +79,11 @@ export default function TrainingModules() {
 
   async function handleDelete(id: string) {
     if (!confirm('Delete this training module and all its questions?')) return;
-    await supabase.from('training_module_questions').delete().eq('module_id', id);
-    await supabase.from('training_modules').delete().eq('id', id);
+    setOpError('');
+    const { error: qErr } = await supabase.from('training_module_questions').delete().eq('module_id', id);
+    if (qErr) { setOpError(qErr.message); return; }
+    const { error } = await supabase.from('training_modules').delete().eq('id', id);
+    if (error) { setOpError(error.message); return; }
     load();
   }
 
@@ -93,6 +97,7 @@ export default function TrainingModules() {
 
   return (
     <div className="space-y-6">
+      {opError && <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-2.5">{opError}</div>}
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
         <div className="flex items-center gap-3">
           <BookOpen className="w-8 h-8 text-sky-600" />

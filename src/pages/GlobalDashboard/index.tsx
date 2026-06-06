@@ -31,16 +31,18 @@ export default function GlobalDashboard() {
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
     const in30Days = new Date(now.getTime() + 30 * 86400000).toISOString().split('T')[0];
 
+    const twelveMonthsAgo = new Date(now.getFullYear() - 1, now.getMonth(), 1).toISOString().split('T')[0];
+
     const [
-      itemsRes, movRes, recentMovRes, empRes, treatAllRes,
+      itemsRes, movCountRes, recentMovRes, empRes, treatAllRes,
       incidentsRes, actionsRes, drillsRes, inspectionsRes,
       coursesRes, certsRes, scheduleRes,
     ] = await Promise.all([
-      supabase.from('stock_items').select('*').eq('active', true),
-      supabase.from('stock_movements').select('id, created_at'),
+      supabase.from('stock_items').select('id, category, current_quantity, minimum_stock_level').eq('active', true),
+      supabase.from('stock_movements').select('id', { count: 'exact', head: true }).gte('created_at', startOfMonth),
       supabase.from('stock_movements').select('id, movement_type, quantity, movement_date, stock_items(stock_item)').order('created_at', { ascending: false }).limit(6),
       supabase.from('employees').select('id', { count: 'exact' }).eq('status', 'active'),
-      supabase.from('treatment_daily_log').select('date, total_cycles, total_treated_kg, chemical_litres, downtime_minutes'),
+      supabase.from('treatment_daily_log').select('date, total_cycles, total_treated_kg, chemical_litres, downtime_minutes').gte('date', twelveMonthsAgo),
       supabase.from('safety_incidents').select('id, status'),
       supabase.from('safety_corrective_actions').select('id, status, due_date'),
       supabase.from('safety_emergency_drills').select('id, status, drill_date'),
@@ -56,8 +58,7 @@ export default function GlobalDashboard() {
     const outOfStock = items.filter(i => getStockStatus(i) === 'Out of Stock').length;
     const lowStock = items.filter(i => getStockStatus(i) === 'Low Stock').length;
     const inStock = items.length - outOfStock - lowStock;
-    const monthMovements = (movRes.data || []).filter(m => m.created_at >= startOfMonth);
-    setStockStats({ total: items.length, outOfStock, lowStock, inStock, movements: monthMovements.length });
+    setStockStats({ total: items.length, outOfStock, lowStock, inStock, movements: movCountRes.count ?? 0 });
     setRecentMovements((recentMovRes.data || []) as unknown as RecentMovement[]);
 
     const catMap = new Map<string, { count: number; qty: number }>();

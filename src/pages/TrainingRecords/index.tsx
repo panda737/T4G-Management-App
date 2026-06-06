@@ -37,6 +37,7 @@ export default function TrainingRecords() {
   const [showViewModal, setShowViewModal] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState<TrainingRecord | null>(null);
   const [formData, setFormData] = useState<RecordFormData>(EMPTY_FORM);
+  const [opError, setOpError] = useState('');
 
   useEffect(() => { load(); }, []);
 
@@ -94,11 +95,11 @@ export default function TrainingRecords() {
       notes: formData.notes,
     };
 
-    if (selectedRecord) {
-      await supabase.from('training_records').update(data).eq('id', selectedRecord.id);
-    } else {
-      await supabase.from('training_records').insert([data]);
-    }
+    setOpError('');
+    const { error } = selectedRecord
+      ? await supabase.from('training_records').update(data).eq('id', selectedRecord.id)
+      : await supabase.from('training_records').insert([data]);
+    if (error) { setOpError(error.message); return; }
     setShowAddModal(false);
     setFormData(EMPTY_FORM);
     setSelectedRecord(null);
@@ -123,10 +124,11 @@ export default function TrainingRecords() {
   }
 
   async function handleDelete(id: string) {
-    if (confirm('Delete this training record?')) {
-      await supabase.from('training_records').delete().eq('id', id);
-      load();
-    }
+    if (!confirm('Delete this training record?')) return;
+    setOpError('');
+    const { error } = await supabase.from('training_records').delete().eq('id', id);
+    if (error) { setOpError(error.message); return; }
+    load();
   }
 
   if (loading) {
@@ -135,6 +137,7 @@ export default function TrainingRecords() {
 
   return (
     <div className="space-y-6 bg-gray-50 min-h-screen p-6">
+      {opError && <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-2.5">{opError}</div>}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <ClipboardList size={28} className="text-gray-900" />

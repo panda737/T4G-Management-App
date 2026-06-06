@@ -24,9 +24,9 @@ export default function Dashboard() {
   async function load() {
     setLoading(true);
     const [itemsRes, movementsRes, sessionsRes] = await Promise.all([
-      supabase.from('stock_items').select('*').eq('active', true),
+      supabase.from('stock_items').select('id, current_quantity, minimum_stock_level').eq('active', true),
       supabase.from('stock_movements').select('*, stock_items(stock_item, description)').order('created_at', { ascending: false }).limit(10),
-      supabase.from('stock_take_sessions').select('*').order('created_at', { ascending: false }).limit(5),
+      supabase.from('stock_take_sessions').select('id, stock_take_name, stock_take_date, conducted_by, status').order('created_at', { ascending: false }).limit(5),
     ]);
 
     const items: StockItem[] = itemsRes.data || [];

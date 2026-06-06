@@ -31,6 +31,7 @@ export default function ModuleFormModal({ onClose, onSave }: Props) {
     { question_text: '', option_a: '', option_b: '', option_c: '', option_d: '', correct_answer: 'A', explanation: '', sort_order: 1 },
   ]);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
 
   function addQuestion() {
     setQuestions(prev => [...prev, {
@@ -59,11 +60,12 @@ export default function ModuleFormModal({ onClose, onSave }: Props) {
       .select()
       .maybeSingle();
 
-    if (error || !moduleData) { setSaving(false); return; }
+    if (error || !moduleData) { setSaveError(error?.message ?? 'Failed to create module'); setSaving(false); return; }
 
-    await supabase.from('training_module_questions').insert(
+    const { error: qErr } = await supabase.from('training_module_questions').insert(
       validQ.map((q, i) => ({ ...q, module_id: moduleData.id, sort_order: i + 1 }))
     );
+    if (qErr) { setSaveError(qErr.message); setSaving(false); return; }
 
     setSaving(false);
     onSave();
@@ -174,6 +176,7 @@ export default function ModuleFormModal({ onClose, onSave }: Props) {
         </div>
       </div>
 
+      {saveError && <div className="mt-3 text-sm text-red-700 bg-red-50 px-4 py-2.5 rounded-lg border border-red-200">{saveError}</div>}
       <div className="flex gap-3 justify-end mt-6 pt-4 border-t border-gray-200">
         <button onClick={onClose} className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition text-sm">Cancel</button>
         <button onClick={handleSave} disabled={saving} className="px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-900 transition text-sm disabled:opacity-50">

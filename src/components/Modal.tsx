@@ -1,5 +1,5 @@
 import { X } from 'lucide-react';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 
 interface ModalProps {
   title: string;
@@ -10,9 +10,30 @@ interface ModalProps {
   accent?: 'green' | 'red' | 'cyan' | 'blue' | 'amber' | 'orange' | 'gray';
 }
 
+const FOCUSABLE = 'a[href],button:not([disabled]),textarea,input,select,[tabindex]:not([tabindex="-1"])';
+
 export default function Modal({ title, onClose, children, footer, size = 'md', accent }: ModalProps) {
+  const panelRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
-    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    const getFocusable = () => Array.from(panelRef.current?.querySelectorAll<HTMLElement>(FOCUSABLE) ?? []);
+
+    getFocusable()[0]?.focus();
+
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { onClose(); return; }
+      if (e.key !== 'Tab') return;
+      const focusable = getFocusable();
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (e.shiftKey) {
+        if (document.activeElement === first) { e.preventDefault(); last.focus(); }
+      } else {
+        if (document.activeElement === last) { e.preventDefault(); first.focus(); }
+      }
+    };
+
     document.addEventListener('keydown', handler);
     document.body.style.overflow = 'hidden';
     return () => {
@@ -44,12 +65,16 @@ export default function Modal({ title, onClose, children, footer, size = 'md', a
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
       <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="modal-title"
         className={`relative bg-white w-full flex flex-col overflow-hidden h-full sm:h-[88vh] sm:rounded-xl shadow-2xl ${widths[size]} ${a.border}`}
       >
         {/* Fixed header */}
         <div className={`flex items-center justify-between px-5 py-3.5 border-b border-gray-200 ${a.headerBg} flex-shrink-0`}>
-          <h2 className={`text-base font-semibold ${a.titleColor}`}>{title}</h2>
-          <button onClick={onClose} className="p-1 -mr-1 text-gray-400 hover:text-gray-600 transition-colors rounded-md hover:bg-black/5">
+          <h2 id="modal-title" className={`text-base font-semibold ${a.titleColor}`}>{title}</h2>
+          <button onClick={onClose} aria-label="Close" className="p-1 -mr-1 text-gray-400 hover:text-gray-600 transition-colors rounded-md hover:bg-black/5">
             <X size={20} />
           </button>
         </div>

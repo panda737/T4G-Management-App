@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Component, type ReactNode } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { Menu } from 'lucide-react';
+import { Menu, XCircle } from 'lucide-react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from './lib/supabase';
 import { UserProvider } from './lib/UserContext';
@@ -40,6 +40,41 @@ import MaintenanceParts from './pages/MaintenanceParts';
 import PlantOverview from './pages/PlantOverview';
 import AdminUsers from './pages/AdminUsers';
 
+class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
+  state = { error: null };
+
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
+
+  componentDidCatch(error: Error, info: { componentStack: string }) {
+    console.error('Page error:', error, info.componentStack);
+  }
+
+  render() {
+    if (this.state.error) {
+      return (
+        <div className="min-h-[60vh] flex items-center justify-center p-8">
+          <div className="text-center max-w-sm">
+            <div className="w-14 h-14 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <XCircle className="w-7 h-7 text-red-500" />
+            </div>
+            <h2 className="text-lg font-bold text-gray-900 mb-2">Something went wrong</h2>
+            <p className="text-sm text-gray-500 mb-6">An unexpected error occurred on this page. Your data is safe.</p>
+            <button
+              onClick={() => this.setState({ error: null })}
+              className="px-5 py-2.5 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800 transition"
+            >
+              Try again
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 function AuthenticatedLayout({ session }: { session: Session }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -63,6 +98,7 @@ function AuthenticatedLayout({ session }: { session: Session }) {
         <div className="flex items-center gap-3 px-4 py-3">
           <button
             onClick={() => setMobileOpen(true)}
+            aria-label="Open navigation"
             className="text-gray-300 hover:text-white transition-colors"
           >
             <Menu size={22} />
@@ -76,6 +112,7 @@ function AuthenticatedLayout({ session }: { session: Session }) {
         className={`flex-1 transition-all duration-300 print:ml-0 pt-14 lg:pt-0 ${sidebarCollapsed ? 'lg:ml-16' : 'lg:ml-64'}`}
       >
         <div className="min-h-screen p-3 sm:p-4 lg:p-6 max-w-screen-2xl mx-auto">
+          <ErrorBoundary>
           <Routes>
             <Route path="/" element={<GlobalDashboard />} />
 
@@ -131,6 +168,7 @@ function AuthenticatedLayout({ session }: { session: Session }) {
             {/* Catch-all */}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
+          </ErrorBoundary>
         </div>
       </main>
     </div>

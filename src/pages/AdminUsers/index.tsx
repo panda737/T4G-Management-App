@@ -50,19 +50,22 @@ export default function AdminUsers() {
   const [showCreate, setShowCreate] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
+  const [opError, setOpError] = useState('');
 
   useEffect(() => { load(); }, []);
 
   async function load() {
     setLoading(true);
-    const { data: profiles } = await supabase.from('user_profiles').select('*').order('created_at');
+    const { data: profiles } = await supabase.from('user_profiles').select('id, auth_user_id, display_name, role, is_active, created_at').order('created_at');
     setUsers((profiles ?? []) as UserProfile[]);
     setLoading(false);
   }
 
   async function handleToggleActive(user: UserProfile) {
     if (user.auth_user_id === myProfile?.auth_user_id) return;
-    await supabase.from('user_profiles').update({ is_active: !user.is_active, updated_at: new Date().toISOString() }).eq('id', user.id);
+    setOpError('');
+    const { error } = await supabase.from('user_profiles').update({ is_active: !user.is_active, updated_at: new Date().toISOString() }).eq('id', user.id);
+    if (error) { setOpError(error.message); return; }
     load();
   }
 
@@ -111,6 +114,7 @@ export default function AdminUsers() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {opError && <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-2.5 mx-4 sm:mx-8 mt-4">{opError}</div>}
       <div className="bg-gray-900 px-4 py-4 sm:px-8 sm:py-6 mb-8">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-4">

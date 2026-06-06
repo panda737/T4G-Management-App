@@ -97,7 +97,8 @@ export default function QuickMovementModal({ direction, items, onClose, onSave }
       });
       if (movErr) { setError(movErr.message); setSaving(false); return; }
       const newQty = Math.max(0, stockItem.current_quantity + delta);
-      await supabase.from('stock_items').update({ current_quantity: newQty, updated_at: new Date().toISOString() }).eq('id', line.itemId);
+      const { error: updErr } = await supabase.from('stock_items').update({ current_quantity: newQty, updated_at: new Date().toISOString() }).eq('id', line.itemId);
+      if (updErr) { setError(updErr.message); setSaving(false); return; }
     }
     setSaving(false);
     onSave();

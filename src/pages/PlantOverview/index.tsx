@@ -45,6 +45,7 @@ export default function PlantOverview() {
   const [innerLoading, setInnerLoading] = useState(false);
   const [modal, setModal] = useState<'part' | 'maintenance' | null>(null);
   const [editPart, setEditPart] = useState<Part | null>(null);
+  const [opError, setOpError] = useState('');
 
   const loadAll = useCallback(async () => {
     const [{ data: eqData }, { data: partsData }] = await Promise.all([
@@ -110,7 +111,9 @@ export default function PlantOverview() {
   async function updateStatus(status: string) {
     const eq = selectedKey ? equipByStep[selectedKey] : null;
     if (!eq) return;
-    await supabase.from('equipment').update({ status }).eq('id', eq.id);
+    setOpError('');
+    const { error } = await supabase.from('equipment').update({ status }).eq('id', eq.id);
+    if (error) { setOpError(error.message); return; }
     setEquipByStep(prev => ({ ...prev, [selectedKey!]: { ...prev[selectedKey!], status } }));
   }
 
@@ -131,6 +134,7 @@ export default function PlantOverview() {
 
   return (
     <div className="space-y-4">
+      {opError && <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-2.5">{opError}</div>}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Plant Overview</h1>
