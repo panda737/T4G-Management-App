@@ -161,70 +161,122 @@ export default function StockMovements() {
         </select>
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="bg-gray-800 text-white">
-              <th className="text-left px-4 py-3 font-medium text-xs uppercase tracking-wider w-36">Date</th>
-              <th className="text-left px-4 py-3 font-medium text-xs uppercase tracking-wider">Type / Label</th>
-              <th className="text-left px-4 py-3 font-medium text-xs uppercase tracking-wider w-36">Reference</th>
-              <th className="text-left px-4 py-3 font-medium text-xs uppercase tracking-wider w-40">Supplier / Client</th>
-              <th className="text-center px-4 py-3 font-medium text-xs uppercase tracking-wider w-20">Items</th>
-              <th className="text-center px-4 py-3 font-medium text-xs uppercase tracking-wider w-24 bg-gray-900">Total Qty</th>
-              <th className="text-left px-4 py-3 font-medium text-xs uppercase tracking-wider w-28">Captured By</th>
-              <th className="w-10" />
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {loading ? (
-              <tr><td colSpan={8} className="py-12 text-center"><div className="flex justify-center"><div className="animate-spin rounded-full h-6 w-6 border-b-2 border-emerald-600" /></div></td></tr>
-            ) : filtered.length === 0 ? (
-              <tr><td colSpan={8} className="py-12 text-center text-sm text-gray-400">No movements found</td></tr>
-            ) : filtered.map((g, idx) => {
-              const c = directionColor(g.movementType);
-              return (
-                <tr
-                  key={g.groupId}
-                  className={`hover:bg-emerald-50/40 transition-colors cursor-pointer group ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}
-                  onClick={() => setDetailGroup(g)}
-                >
-                  <td className="px-4 py-2.5 text-xs text-gray-500 whitespace-nowrap">
-                    {new Date(g.date).toLocaleDateString()}<br />
-                    <span className="text-gray-400">{new Date(g.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                  </td>
-                  <td className="px-4 py-2.5">
-                    <div className="flex items-center gap-2">
-                      <GroupTypeIcon type={g.movementType} />
-                      <div>
-                        <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded font-medium ${c.badge}`}>
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+        {loading ? (
+          <div className="flex justify-center py-12">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-emerald-600" />
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="py-12 text-center text-sm text-gray-400">No movements found</div>
+        ) : (
+          <>
+            {/* Desktop Table */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-gray-800 text-white">
+                    <th className="text-left px-4 py-3 font-medium text-xs uppercase tracking-wider w-36">Date</th>
+                    <th className="text-left px-4 py-3 font-medium text-xs uppercase tracking-wider">Type / Label</th>
+                    <th className="text-left px-4 py-3 font-medium text-xs uppercase tracking-wider w-36">Reference</th>
+                    <th className="text-left px-4 py-3 font-medium text-xs uppercase tracking-wider w-40">Supplier / Client</th>
+                    <th className="text-center px-4 py-3 font-medium text-xs uppercase tracking-wider w-20">Items</th>
+                    <th className="text-center px-4 py-3 font-medium text-xs uppercase tracking-wider w-24 bg-gray-900">Total Qty</th>
+                    <th className="text-left px-4 py-3 font-medium text-xs uppercase tracking-wider w-28">Captured By</th>
+                    <th className="w-10" />
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {filtered.map((g, idx) => {
+                    const c = directionColor(g.movementType);
+                    return (
+                      <tr
+                        key={g.groupId}
+                        className={`hover:bg-emerald-50/40 transition-colors cursor-pointer group ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}
+                        onClick={() => setDetailGroup(g)}
+                      >
+                        <td className="px-4 py-2.5 text-xs text-gray-500 whitespace-nowrap">
+                          {new Date(g.date).toLocaleDateString()}<br />
+                          <span className="text-gray-400">{new Date(g.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                        </td>
+                        <td className="px-4 py-2.5">
+                          <div className="flex items-center gap-2">
+                            <GroupTypeIcon type={g.movementType} />
+                            <div>
+                              <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded font-medium ${c.badge}`}>
+                                <MovementIcon type={g.movementType} />
+                                {g.movementType}
+                              </span>
+                              {g.isGroup && g.label !== g.movementType && (
+                                <p className="text-xs text-gray-500 mt-0.5">{g.label}</p>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-4 py-2.5 text-xs text-gray-700 font-mono">{g.reference || '—'}</td>
+                        <td className="px-4 py-2.5 text-xs text-gray-600">{g.supplierClient || '—'}</td>
+                        <td className="px-4 py-2.5 text-center">
+                          <span className="text-xs bg-gray-100 text-gray-700 px-2 py-0.5 rounded-full font-semibold">{g.itemCount}</span>
+                        </td>
+                        <td className="px-4 py-2.5 text-center font-bold text-gray-900 bg-gray-50/60">
+                          <span className={INCREASE_TYPES.includes(g.movementType) ? 'text-emerald-700' : DECREASE_TYPES.includes(g.movementType) ? 'text-red-600' : 'text-amber-700'}>
+                            {INCREASE_TYPES.includes(g.movementType) ? '+' : DECREASE_TYPES.includes(g.movementType) ? '-' : ''}{g.totalQty}
+                          </span>
+                        </td>
+                        <td className="px-4 py-2.5 text-xs text-gray-600">{g.capturedBy || '—'}</td>
+                        <td className="px-4 py-2.5 text-center">
+                          <ChevronRight size={15} className="text-gray-400 group-hover:text-emerald-600 transition-colors" />
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile Cards */}
+            <div className="md:hidden divide-y divide-gray-100">
+              {filtered.map(g => {
+                const c = directionColor(g.movementType);
+                const qtySign = INCREASE_TYPES.includes(g.movementType) ? '+' : DECREASE_TYPES.includes(g.movementType) ? '-' : '';
+                const qtyColor = INCREASE_TYPES.includes(g.movementType) ? 'text-emerald-700' : DECREASE_TYPES.includes(g.movementType) ? 'text-red-600' : 'text-amber-700';
+                return (
+                  <div
+                    key={g.groupId}
+                    className="p-4 hover:bg-emerald-50/40 transition-colors cursor-pointer"
+                    onClick={() => setDetailGroup(g)}
+                  >
+                    <div className="flex items-start justify-between gap-2 mb-1.5">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <GroupTypeIcon type={g.movementType} />
+                        <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded font-medium flex-shrink-0 ${c.badge}`}>
                           <MovementIcon type={g.movementType} />
                           {g.movementType}
                         </span>
-                        {g.isGroup && g.label !== g.movementType && (
-                          <p className="text-xs text-gray-500 mt-0.5">{g.label}</p>
-                        )}
                       </div>
+                      <span className={`text-sm font-bold flex-shrink-0 ${qtyColor}`}>
+                        {qtySign}{g.totalQty}
+                      </span>
                     </div>
-                  </td>
-                  <td className="px-4 py-2.5 text-xs text-gray-700 font-mono">{g.reference || '—'}</td>
-                  <td className="px-4 py-2.5 text-xs text-gray-600">{g.supplierClient || '—'}</td>
-                  <td className="px-4 py-2.5 text-center">
-                    <span className="text-xs bg-gray-100 text-gray-700 px-2 py-0.5 rounded-full font-semibold">{g.itemCount}</span>
-                  </td>
-                  <td className="px-4 py-2.5 text-center font-bold text-gray-900 bg-gray-50/60">
-                    <span className={INCREASE_TYPES.includes(g.movementType) ? 'text-emerald-700' : DECREASE_TYPES.includes(g.movementType) ? 'text-red-600' : 'text-amber-700'}>
-                      {INCREASE_TYPES.includes(g.movementType) ? '+' : DECREASE_TYPES.includes(g.movementType) ? '-' : ''}{g.totalQty}
-                    </span>
-                  </td>
-                  <td className="px-4 py-2.5 text-xs text-gray-600">{g.capturedBy || '—'}</td>
-                  <td className="px-4 py-2.5 text-center">
-                    <ChevronRight size={15} className="text-gray-400 group-hover:text-emerald-600 transition-colors" />
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+                    {g.isGroup && g.label !== g.movementType && (
+                      <p className="text-xs text-gray-500 mb-1 ml-6">{g.label}</p>
+                    )}
+                    <div className="flex items-center justify-between text-xs text-gray-400 mt-1">
+                      <span>{new Date(g.date).toLocaleDateString()}</span>
+                      <span className="flex items-center gap-1.5">
+                        {g.reference && <span className="font-mono text-gray-500">{g.reference}</span>}
+                        <span className="bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded-full font-semibold">{g.itemCount} item{g.itemCount !== 1 ? 's' : ''}</span>
+                        <ChevronRight size={13} className="text-gray-300" />
+                      </span>
+                    </div>
+                    {g.supplierClient && (
+                      <p className="text-xs text-gray-400 mt-0.5">{g.supplierClient}</p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
       </div>
 
       {showAdd && (

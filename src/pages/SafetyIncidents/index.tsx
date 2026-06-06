@@ -66,6 +66,9 @@ export default function SafetyIncidents() {
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; label: string } | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [loadError, setLoadError] = useState('');
+  const [showQuickModal, setShowQuickModal] = useState(false);
+  const [quickForm, setQuickForm] = useState({ incident_type: 'Injury', location: '', description: '' });
+  const [quickSaving, setQuickSaving] = useState(false);
 
   useEffect(() => {
     loadIncidents();
@@ -155,6 +158,33 @@ export default function SafetyIncidents() {
     setShowAddModal(true);
   };
 
+  const handleQuickSave = async () => {
+    if (!quickForm.location.trim() || !quickForm.description.trim()) return;
+    setQuickSaving(true);
+    try {
+      const incident_number = await generateSequentialNumber('safety_incidents', 'incident_number', 'INC');
+      const { error } = await supabase.from('safety_incidents').insert([{
+        ...EMPTY_FORM,
+        incident_number,
+        incident_date: new Date().toISOString().split('T')[0],
+        incident_type: quickForm.incident_type,
+        location: quickForm.location.trim(),
+        description: quickForm.description.trim(),
+        severity: 'Minor',
+        status: 'Open',
+      }]);
+      if (error) throw error;
+      addToast('Incident reported');
+      setShowQuickModal(false);
+      setQuickForm({ incident_type: 'Injury', location: '', description: '' });
+      loadIncidents();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setQuickSaving(false);
+    }
+  };
+
   const stats = [
     { label: 'Total', count: filteredIncidents.length },
     { label: 'Open', count: filteredIncidents.filter(i => i.status === 'Open').length },
@@ -181,6 +211,13 @@ export default function SafetyIncidents() {
             </div>
           </div>
           <div className="flex items-center gap-2 w-full sm:w-auto">
+            <button
+              onClick={() => setShowQuickModal(true)}
+              className="sm:hidden flex items-center gap-1.5 text-sm border border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100 px-3 py-2 rounded-lg font-medium transition-colors"
+              title="Quick incident report"
+            >
+              <Plus className="w-4 h-4" /> Quick
+            </button>
             <button
               onClick={() => downloadCSV(filteredIncidents.map(i => ({
                 'Incident No': i.incident_number || '',
@@ -404,6 +441,59 @@ export default function SafetyIncidents() {
           )}
         </div>
       </div>
+
+      {showQuickModal && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowQuickModal(false)} />
+          <div className="relative bg-white w-full rounded-t-2xl shadow-2xl p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-base font-semibold text-gray-900">Quick Incident Report</h2>
+              <button onClick={() => setShowQuickModal(false)} className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
+                <span className="sr-only">Close</span>
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Type *</label>
+              <select
+                value={quickForm.incident_type}
+                onChange={e => setQuickForm(f => ({ ...f, incident_type: e.target.value }))}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white"
+              >
+                {INCIDENT_TYPES.map(t => <option key={t}>{t}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Location *</label>
+              <input
+                type="text"
+                value={quickForm.location}
+                onChange={e => setQuickForm(f => ({ ...f, location: e.target.value }))}
+                placeholder="Where did it happen?"
+                className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">What happened? *</label>
+              <textarea
+                value={quickForm.description}
+                onChange={e => setQuickForm(f => ({ ...f, description: e.target.value }))}
+                rows={3}
+                placeholder="Brief description..."
+                className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 resize-none"
+              />
+            </div>
+            <p className="text-xs text-gray-400">Saved as Minor / Open. Open the full form to add more detail.</p>
+            <button
+              onClick={handleQuickSave}
+              disabled={quickSaving || !quickForm.location.trim() || !quickForm.description.trim()}
+              className="w-full py-3 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-sm font-semibold disabled:opacity-50 transition-colors"
+            >
+              {quickSaving ? 'Saving…' : 'Submit Report'}
+            </button>
+          </div>
+        </div>
+      )}
 
       {showAddModal && (
         <IncidentFormModal

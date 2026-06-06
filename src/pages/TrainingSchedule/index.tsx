@@ -26,7 +26,7 @@ export default function TrainingSchedulePage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusTab, setStatusTab] = useState('All');
-  const [monthFilter, setMonthFilter] = useState(new Date().toISOString().slice(0, 7));
+  const [monthFilter, setMonthFilter] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [showView, setShowView] = useState(false);
   const [selectedSession, setSelectedSession] = useState<TrainingSchedule | null>(null);
@@ -78,11 +78,36 @@ export default function TrainingSchedulePage() {
     if (editingId) {
       const { error } = await supabase.from('training_schedule').update(data).eq('id', editingId);
       if (error) { setOpError(error.message); return; }
+      // Always sync pre-enrollment list
+      await supabase.from('training_session_attendees').delete().eq('session_id', editingId);
       if (formData.selected_attendee_ids.length > 0) {
-        await supabase.from('training_session_attendees').delete().eq('session_id', editingId);
         await supabase.from('training_session_attendees').insert(
           formData.selected_attendee_ids.map(empId => ({ session_id: editingId, employee_id: empId }))
         );
+        // Add attendance records only for newly-added attendees (preserve existing signatures)
+        const { data: existingAtt } = await supabase
+          .from('training_attendance')
+          .select('employee_id')
+          .eq('reference_type', 'training_session')
+          .eq('reference_id', editingId);
+        const existingIds = new Set((existingAtt || []).map(a => a.employee_id));
+        const newAttendeeIds = formData.selected_attendee_ids.filter(id => !existingIds.has(id));
+        if (newAttendeeIds.length > 0) {
+          const { data: empData } = await supabase
+            .from('employees')
+            .select('id, first_name, surname')
+            .in('id', newAttendeeIds);
+          const empMap = new Map((empData || []).map(e => [e.id, `${e.first_name} ${e.surname}`]));
+          await supabase.from('training_attendance').insert(
+            newAttendeeIds.map(empId => ({
+              reference_type: 'training_session' as const,
+              reference_id: editingId,
+              employee_id: empId,
+              employee_name: empMap.get(empId) || '',
+              status: 'Present',
+            }))
+          );
+        }
       }
     } else {
       const { data: inserted, error } = await supabase.from('training_schedule').insert([data]).select('id').single();
@@ -167,7 +192,7 @@ export default function TrainingSchedulePage() {
         s.instructor.toLowerCase().includes(q) ||
         s.location.toLowerCase().includes(q);
       const matchTab = statusTab === 'All' || s.status === statusTab;
-      const matchMonth = s.scheduled_date.slice(0, 7) === monthFilter;
+      const matchMonth = !monthFilter || s.scheduled_date.slice(0, 7) === monthFilter;
       return matchSearch && matchTab && matchMonth;
     });
   }, [sessions, search, statusTab, monthFilter]);
@@ -245,63 +270,121 @@ export default function TrainingSchedulePage() {
         />
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="bg-gray-800 text-white text-left text-xs font-medium uppercase tracking-wider">
-              <th className="px-4 py-3">Course</th>
-              <th className="px-4 py-3">Date & Time</th>
-              <th className="px-4 py-3">Location</th>
-              <th className="px-4 py-3">Instructor</th>
-              <th className="px-4 py-3 w-36">Enrollment</th>
-              <th className="px-4 py-3 w-28">Status</th>
-              <th className="px-4 py-3 w-24">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {loading ? (
-              <tr><td colSpan={7} className="py-12 text-center"><div className="flex justify-center"><div className="animate-spin rounded-full h-6 w-6 border-b-2 border-emerald-600" /></div></td></tr>
-            ) : filtered.length === 0 ? (
-              <tr><td colSpan={7} className="py-12 text-center text-sm text-gray-400">No sessions found</td></tr>
-            ) : filtered.map((session, idx) => (
-              <tr key={session.id} className={`hover:bg-emerald-50/30 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}>
-                <td className="px-4 py-2.5 text-xs font-medium text-gray-900">{session.course_name}</td>
-                <td className="px-4 py-2.5 text-xs text-gray-600 whitespace-nowrap">
-                  {new Date(session.scheduled_date).toLocaleDateString()}
-                  {session.scheduled_time && ` · ${session.scheduled_time}`}
-                </td>
-                <td className="px-4 py-2.5 text-xs text-gray-600">{session.location}</td>
-                <td className="px-4 py-2.5 text-xs text-gray-600">{session.instructor}</td>
-                <td className="px-4 py-2.5">
-                  <div className="flex items-center gap-2">
-                    <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
-                      <div className="h-full bg-emerald-500" style={{ width: `${(session.enrolled_count / session.capacity) * 100}%` }} />
-                    </div>
-                    <span className="text-xs text-gray-600 whitespace-nowrap">{session.enrolled_count}/{session.capacity}</span>
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+        {loading ? (
+          <div className="flex justify-center py-12">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-emerald-600" />
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="py-12 text-center text-sm text-gray-400">
+            No sessions found
+            {monthFilter && (
+              <button onClick={() => setMonthFilter('')} className="block mx-auto mt-2 text-xs text-gray-500 underline">
+                Show all months
+              </button>
+            )}
+          </div>
+        ) : (
+          <>
+            {/* Desktop Table */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-gray-800 text-white text-left text-xs font-medium uppercase tracking-wider">
+                    <th className="px-4 py-3">Course</th>
+                    <th className="px-4 py-3">Date & Time</th>
+                    <th className="px-4 py-3">Location</th>
+                    <th className="px-4 py-3">Instructor</th>
+                    <th className="px-4 py-3 w-36">Enrollment</th>
+                    <th className="px-4 py-3 w-28">Status</th>
+                    <th className="px-4 py-3 w-24">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {filtered.map((session, idx) => (
+                    <tr key={session.id} className={`hover:bg-emerald-50/30 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}>
+                      <td className="px-4 py-2.5 text-xs font-medium text-gray-900">{session.course_name}</td>
+                      <td className="px-4 py-2.5 text-xs text-gray-600 whitespace-nowrap">
+                        {new Date(session.scheduled_date).toLocaleDateString()}
+                        {session.scheduled_time && ` · ${session.scheduled_time}`}
+                      </td>
+                      <td className="px-4 py-2.5 text-xs text-gray-600">{session.location}</td>
+                      <td className="px-4 py-2.5 text-xs text-gray-600">{session.instructor}</td>
+                      <td className="px-4 py-2.5">
+                        <div className="flex items-center gap-2">
+                          <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
+                            <div className="h-full bg-emerald-500" style={{ width: `${(session.enrolled_count / session.capacity) * 100}%` }} />
+                          </div>
+                          <span className="text-xs text-gray-600 whitespace-nowrap">{session.enrolled_count}/{session.capacity}</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-2.5">
+                        <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${SESSION_STATUS_COLORS[session.status]}`}>
+                          {session.status}
+                        </span>
+                      </td>
+                      <td className="px-4 py-2.5">
+                        <div className="flex items-center gap-1">
+                          <button onClick={() => { setSelectedSession(session); setShowView(true); }} className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors">
+                            <Eye size={14} />
+                          </button>
+                          <button onClick={() => openEdit(session)} className="p-1.5 text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 rounded transition-colors">
+                            <Edit2 size={14} />
+                          </button>
+                          <button onClick={() => handleDelete(session.id, session.course_name)} className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded transition-colors">
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile Cards */}
+            <div className="md:hidden divide-y divide-gray-100">
+              {filtered.map(session => (
+                <div
+                  key={session.id}
+                  className="p-4 hover:bg-emerald-50/30 transition-colors cursor-pointer"
+                  onClick={() => { setSelectedSession(session); setShowView(true); }}
+                >
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <p className="font-medium text-gray-900 text-sm leading-tight">{session.course_name}</p>
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium flex-shrink-0 ${SESSION_STATUS_COLORS[session.status]}`}>
+                      {session.status}
+                    </span>
                   </div>
-                </td>
-                <td className="px-4 py-2.5">
-                  <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${SESSION_STATUS_COLORS[session.status]}`}>
-                    {session.status}
-                  </span>
-                </td>
-                <td className="px-4 py-2.5">
-                  <div className="flex items-center gap-1">
-                    <button onClick={() => { setSelectedSession(session); setShowView(true); }} className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors">
-                      <Eye size={14} />
-                    </button>
-                    <button onClick={() => openEdit(session)} className="p-1.5 text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 rounded transition-colors">
+                  <div className="space-y-0.5 text-xs text-gray-500">
+                    <p>{new Date(session.scheduled_date).toLocaleDateString()}{session.scheduled_time && ` · ${session.scheduled_time}`}</p>
+                    <p>{session.location} · {session.instructor}</p>
+                  </div>
+                  <div className="flex items-center gap-2 mt-2">
+                    <div className="flex-1 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                      <div className="h-full bg-emerald-500" style={{ width: `${session.capacity ? (session.enrolled_count / session.capacity) * 100 : 0}%` }} />
+                    </div>
+                    <span className="text-xs text-gray-500 whitespace-nowrap">{session.enrolled_count}/{session.capacity}</span>
+                  </div>
+                  <div className="flex justify-end gap-1 mt-3 pt-2 border-t border-gray-100">
+                    <button
+                      onClick={e => { e.stopPropagation(); openEdit(session); }}
+                      className="p-2 text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 rounded transition-colors"
+                    >
                       <Edit2 size={14} />
                     </button>
-                    <button onClick={() => handleDelete(session.id, session.course_name)} className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded transition-colors">
+                    <button
+                      onClick={e => { e.stopPropagation(); handleDelete(session.id, session.course_name); }}
+                      className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                    >
                       <Trash2 size={14} />
                     </button>
                   </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
       </div>
 
       {showForm && (
