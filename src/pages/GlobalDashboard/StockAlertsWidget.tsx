@@ -14,9 +14,16 @@ interface StockAlertsWidgetProps {
   belowMinItems: StockAlertItem[];
 }
 
+const MAX_ITEMS = 10;
+
 export default function StockAlertsWidget({ outOfStockItems, belowMinItems }: StockAlertsWidgetProps) {
   const navigate = useNavigate();
   const allClear = outOfStockItems.length === 0 && belowMinItems.length === 0;
+
+  const oosVisible = outOfStockItems.slice(0, MAX_ITEMS);
+  const remaining = MAX_ITEMS - oosVisible.length;
+  const belowVisible = belowMinItems.slice(0, remaining);
+  const totalHidden = (outOfStockItems.length - oosVisible.length) + (belowMinItems.length - belowVisible.length);
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 sm:p-5 flex flex-col">
@@ -32,11 +39,13 @@ export default function StockAlertsWidget({ outOfStockItems, belowMinItems }: St
         </div>
       ) : (
         <div className="flex-1 space-y-4">
-          {outOfStockItems.length > 0 && (
+          {oosVisible.length > 0 && (
             <div>
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-red-600 mb-2">Out of Stock</p>
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-red-600 mb-2">
+                Out of Stock <span className="text-red-400 font-normal normal-case tracking-normal">({outOfStockItems.length})</span>
+              </p>
               <div className="space-y-1.5">
-                {outOfStockItems.map(item => (
+                {oosVisible.map(item => (
                   <div key={item.id} className="flex items-center gap-2 text-xs">
                     <span className="w-1.5 h-1.5 rounded-full bg-red-500 flex-shrink-0" />
                     <span className="text-gray-800 font-medium truncate flex-1">{item.stock_item}</span>
@@ -47,11 +56,13 @@ export default function StockAlertsWidget({ outOfStockItems, belowMinItems }: St
             </div>
           )}
 
-          {belowMinItems.length > 0 && (
+          {belowVisible.length > 0 && (
             <div>
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-amber-600 mb-2">Below Minimum</p>
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-amber-600 mb-2">
+                Below Minimum <span className="text-amber-400 font-normal normal-case tracking-normal">({belowMinItems.length})</span>
+              </p>
               <div className="space-y-1.5">
-                {belowMinItems.map(item => (
+                {belowVisible.map(item => (
                   <div key={item.id} className="flex items-center gap-2 text-xs">
                     <span className="w-1.5 h-1.5 rounded-full bg-amber-500 flex-shrink-0" />
                     <span className="text-gray-800 font-medium truncate flex-1">{item.stock_item}</span>
@@ -62,6 +73,10 @@ export default function StockAlertsWidget({ outOfStockItems, belowMinItems }: St
                 ))}
               </div>
             </div>
+          )}
+
+          {totalHidden > 0 && (
+            <p className="text-[11px] text-gray-400">+{totalHidden} more — see master list</p>
           )}
         </div>
       )}
