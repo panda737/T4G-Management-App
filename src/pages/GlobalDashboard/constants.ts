@@ -22,6 +22,13 @@ export interface RecentMovement {
   stock_items: { stock_item: string } | null;
 }
 
+export interface UpcomingEvent {
+  id: string;
+  date: string;
+  label: string;
+  type: 'drill' | 'inspection' | 'training';
+}
+
 export const MOVEMENT_COLORS: Record<string, string> = {
   'Stock Received': 'text-emerald-600 bg-emerald-50',
   'Stock Returned': 'text-emerald-600 bg-emerald-50',
