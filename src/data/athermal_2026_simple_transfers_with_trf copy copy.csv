@@ -1,0 +1,45 @@
+date,Waste Stream,Quantity,Facility,Manifest
+2026-01-05,PVC,187.5,A-Thermal,A-0031966
+2026-01-05,PVC,136,A-Thermal,A-0032332
+2026-01-05,PVC,62,A-Thermal,A-0033231
+2026-01-09,Anatomical,1082,A-Thermal,A-0033567
+2026-01-19,Pharmaceutical,5.4,A-Thermal,A-0034095
+2026-01-20,Anatomical,4168,A-Thermal,A-0034101
+2026-01-20,PVC,203.8,A-Thermal,A-0034310
+2026-01-24,Clinical Glass,2917,A-Thermal,A-0034464
+2026-01-26,Anatomical,3688,A-Thermal,A-0034337
+2026-02-03,PVC,176.2,A-Thermal,A-0035498
+2026-02-04,Anatomical,2705,A-Thermal,A-0033704
+2026-02-11,Clinical Glass,1605,A-Thermal,A-0036178
+2026-02-11,Cytotoxic,266,A-Thermal,A-0036178
+2026-02-11,Pharmaceutical,1156,A-Thermal,A-0036178
+2026-02-13,PVC,221,A-Thermal,A-0036382
+2026-02-17,Anatomical,516,A-Thermal,A-0036684
+2026-02-21,Anatomical,3505,A-Thermal,A-0037245
+2026-02-26,Anatomical,2093,A-Thermal,A-0037512
+2026-02-27,Clinical Glass,911,A-Thermal,A-0037937
+2026-02-27,Cytotoxic,795,A-Thermal,A-0037937
+2026-03-06,Clinical Glass,456,A-Thermal,A-0038455
+2026-03-06,Cytotoxic,737,A-Thermal,A-0038455
+2026-03-06,Pharmaceutical,538,A-Thermal,A-0038455
+2026-03-09,Anatomical,422,A-Thermal,A-0038234
+2026-03-11,PVC,216.5,A-Thermal,A-0038157
+2026-03-12,Clinical Glass,1603,A-Thermal,A-0037410
+2026-03-12,Pharmaceutical,757,A-Thermal,A-0037410
+2026-03-17,PVC,202.5,A-Thermal,A-0039306
+2026-03-19,Anatomical,3704,A-Thermal,A-0039301
+2026-03-20,Pharmaceutical,2723,A-Thermal,A-0039359
+2026-03-28,Anatomical,3515,A-Thermal,A-0039873
+2026-03-31,PVC,193.5,A-Thermal,A-0040654
+2026-04-02,Clinical Glass,3137,A-Thermal,A-0040035
+2026-04-07,PVC,80,A-Thermal,A-0041097
+2026-04-10,Clinical Glass,2961,A-Thermal,A-0041534
+2026-04-17,PVC,214,A-Thermal,A-0042277
+2026-04-24,Clinical Glass,2387,A-Thermal,A-0042588
+2026-04-24,Other,308,A-Thermal,A-0042588
+2026-05-09,Clinical Glass,3080,A-Thermal,A-0043534
+2026-05-13,PVC,265.599999999999997,A-Thermal,A-0044261
+2026-05-14,Clinical Glass,1050,A-Thermal,A-0042463
+2026-05-19,PVC,101,A-Thermal,A-0044724
+2026-05-22,Clinical Glass,1751,A-Thermal,A-0044753
+2026-05-29,Anatomical,1919,A-Thermal,A-0043401
