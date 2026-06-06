@@ -1,14 +1,7 @@
 import { useEffect, useState } from 'react';
-import {
-  Plus, Calendar, Factory, Save,
-  AlertTriangle, Check, Trash2, X,
-} from 'lucide-react';
-import { supabase, TreatmentDailyLog as TDL, TreatmentWasteTransfer, Employee } from '../../lib/supabase';
+import { Calendar, Factory, Save, AlertTriangle, Check, X } from 'lucide-react';
+import { supabase, TreatmentDailyLog as TDL, Employee } from '../../lib/supabase';
 import Modal from '../../components/Modal';
-
-const WASTE_CATEGORIES = ['Infectious', 'Sharps', 'Anatomical', 'Pharmaceutical', 'Cytotoxic', 'Clinical Glass', 'PVC', 'Other'];
-const TRANSFER_DESTINATIONS = ['A-Thermal', 'Averda', 'Biomed', 'ClinX', 'Holfontein'];
-const LANDFILL_DESTINATION = 'Mooiplaats Landfill';
 
 interface Props {
   log: TDL | null;
@@ -17,8 +10,7 @@ interface Props {
 }
 
 export default function DailyLogFormModal({ log, onClose, onSave }: Props) {
-  const [supervisors, setSupervisors] = useState<Employee[]>([]);
-  const [transfers, setTransfers] = useState<TreatmentWasteTransfer[]>([]);
+  const [supervisors, setSupervisors] = useState<Pick<Employee, 'id' | 'first_name' | 'surname' | 'position'>[]>([]);
 
   const [form, setForm] = useState({
     date: log?.date || new Date().toISOString().split('T')[0],
@@ -45,14 +37,7 @@ export default function DailyLogFormModal({ log, onClose, onSave }: Props) {
       .eq('status', 'active')
       .order('surname')
       .then(({ data }) => setSupervisors(data || []));
-
-    if (log) {
-      supabase.from('treatment_waste_transfers')
-        .select('*')
-        .eq('daily_log_id', log.id)
-        .then(({ data }) => setTransfers(data || []));
-    }
-  }, [log]);
+  }, []);
 
   const totalCycles = Number(form.day_shift_cycles) + Number(form.afternoon_shift_cycles) + Number(form.night_shift_cycles);
   const totalKg = Number(form.day_shift_treated_kg) + Number(form.afternoon_shift_treated_kg) + Number(form.night_shift_treated_kg);
@@ -60,28 +45,6 @@ export default function DailyLogFormModal({ log, onClose, onSave }: Props) {
 
   function update(field: string, value: string | number) {
     setForm(prev => ({ ...prev, [field]: value }));
-  }
-
-  function addTransfer() {
-    setTransfers(prev => [...prev, {
-      id: crypto.randomUUID(),
-      daily_log_id: log?.id || '',
-      transfer_type: 'Transfer Out',
-      waste_category: 'Infectious',
-      quantity_kg: 0,
-      destination: TRANSFER_DESTINATIONS[0],
-      manifest_number: '',
-      notes: '',
-      created_at: new Date().toISOString(),
-    }]);
-  }
-
-  function updateTransfer(idx: number, field: string, value: string | number) {
-    setTransfers(prev => prev.map((t, i) => i === idx ? { ...t, [field]: value } : t));
-  }
-
-  function removeTransfer(idx: number) {
-    setTransfers(prev => prev.filter((_, i) => i !== idx));
   }
 
   async function handleSave() {
@@ -112,41 +75,12 @@ export default function DailyLogFormModal({ log, onClose, onSave }: Props) {
       updated_at: new Date().toISOString(),
     };
 
-    let logId = log?.id;
-
     if (log) {
-      const { error: err } = await supabase
-        .from('treatment_daily_log')
-        .update(payload)
-        .eq('id', log.id);
+      const { error: err } = await supabase.from('treatment_daily_log').update(payload).eq('id', log.id);
       if (err) { setError(err.message); setSaving(false); return; }
     } else {
-      const { data: newLog, error: err } = await supabase
-        .from('treatment_daily_log')
-        .insert(payload)
-        .select('id')
-        .maybeSingle();
+      const { error: err } = await supabase.from('treatment_daily_log').insert(payload);
       if (err) { setError(err.message); setSaving(false); return; }
-      logId = newLog?.id;
-    }
-
-    if (logId) {
-      await supabase.from('treatment_waste_transfers').delete().eq('daily_log_id', logId);
-      const validTransfers = transfers.filter(t => Number(t.quantity_kg) > 0);
-      if (validTransfers.length > 0) {
-        const { error: tErr } = await supabase.from('treatment_waste_transfers').insert(
-          validTransfers.map(t => ({
-            daily_log_id: logId,
-            transfer_type: t.transfer_type,
-            waste_category: t.waste_category,
-            quantity_kg: Number(t.quantity_kg),
-            destination: t.destination,
-            manifest_number: t.manifest_number,
-            notes: t.notes,
-          }))
-        );
-        if (tErr) { setError(tErr.message); setSaving(false); return; }
-      }
     }
 
     setSaving(false);
@@ -183,7 +117,7 @@ export default function DailyLogFormModal({ log, onClose, onSave }: Props) {
       footer={modalFooter}
     >
       <div className="space-y-6">
-        {/* Date field */}
+        {/* Date */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1">Date *</label>
@@ -217,24 +151,11 @@ export default function DailyLogFormModal({ log, onClose, onSave }: Props) {
               <ShiftInput label="Kg Treated" value={form.day_shift_treated_kg} onChange={v => update('day_shift_treated_kg', v)} />
               <ShiftInput label="Kg Treated" value={form.afternoon_shift_treated_kg} onChange={v => update('afternoon_shift_treated_kg', v)} />
               <ShiftInput label="Kg Treated" value={form.night_shift_treated_kg} onChange={v => update('night_shift_treated_kg', v)} />
-              <SupervisorSelect
-                value={form.day_shift_supervisor_id}
-                supervisors={supervisors}
-                onChange={v => update('day_shift_supervisor_id', v)}
-              />
-              <SupervisorSelect
-                value={form.afternoon_shift_supervisor_id}
-                supervisors={supervisors}
-                onChange={v => update('afternoon_shift_supervisor_id', v)}
-              />
-              <SupervisorSelect
-                value={form.night_shift_supervisor_id}
-                supervisors={supervisors}
-                onChange={v => update('night_shift_supervisor_id', v)}
-              />
+              <SupervisorSelect value={form.day_shift_supervisor_id} supervisors={supervisors} onChange={v => update('day_shift_supervisor_id', v)} />
+              <SupervisorSelect value={form.afternoon_shift_supervisor_id} supervisors={supervisors} onChange={v => update('afternoon_shift_supervisor_id', v)} />
+              <SupervisorSelect value={form.night_shift_supervisor_id} supervisors={supervisors} onChange={v => update('night_shift_supervisor_id', v)} />
             </div>
 
-            {/* Totals */}
             <div className="mt-4 pt-3 border-t border-gray-200 grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4 text-center">
               <div>
                 <p className="text-lg font-bold text-gray-900">{totalCycles}</p>
@@ -281,94 +202,6 @@ export default function DailyLogFormModal({ log, onClose, onSave }: Props) {
           </div>
         </div>
 
-        {/* Waste Transfers */}
-        <div>
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Waste Transfers</h3>
-            <button onClick={addTransfer} className="flex items-center gap-1 text-xs text-cyan-600 hover:text-cyan-700 font-medium">
-              <Plus size={13} /> Add Transfer
-            </button>
-          </div>
-          {transfers.length === 0 ? (
-            <p className="text-xs text-gray-400 bg-gray-50 rounded-lg p-4 text-center">No waste transfers for this day</p>
-          ) : (
-            <div className="space-y-3">
-              {transfers.map((t, idx) => (
-                <div key={t.id} className="bg-gray-50 rounded-lg p-3 flex flex-col sm:flex-row flex-wrap gap-3 items-end relative">
-                  <div className="w-full sm:w-32">
-                    <label className="block text-[10px] font-medium text-gray-500 mb-0.5">Type</label>
-                    <select
-                      value={t.transfer_type}
-                      onChange={e => {
-                        updateTransfer(idx, 'transfer_type', e.target.value);
-                        if (e.target.value === 'Landfill') updateTransfer(idx, 'destination', LANDFILL_DESTINATION);
-                      }}
-                      className="w-full border border-gray-200 rounded px-2 py-1.5 text-xs bg-white"
-                    >
-                      <option value="Transfer Out">Transfer Out</option>
-                      <option value="Landfill">Landfill</option>
-                    </select>
-                  </div>
-                  <div className="w-full sm:w-32">
-                    <label className="block text-[10px] font-medium text-gray-500 mb-0.5">Category</label>
-                    <select
-                      value={t.waste_category}
-                      onChange={e => updateTransfer(idx, 'waste_category', e.target.value)}
-                      className="w-full border border-gray-200 rounded px-2 py-1.5 text-xs bg-white"
-                    >
-                      {WASTE_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-                    </select>
-                  </div>
-                  <div className="w-full sm:w-24">
-                    <label className="block text-[10px] font-medium text-gray-500 mb-0.5">Kg</label>
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.5"
-                      value={t.quantity_kg}
-                      onChange={e => updateTransfer(idx, 'quantity_kg', e.target.value)}
-                      className="w-full border border-gray-200 rounded px-2 py-1.5 text-xs"
-                    />
-                  </div>
-                  <div className="w-full sm:flex-1 sm:min-w-[120px]">
-                    <label className="block text-[10px] font-medium text-gray-500 mb-0.5">Destination</label>
-                    {t.transfer_type === 'Landfill' ? (
-                      <input
-                        value={LANDFILL_DESTINATION}
-                        disabled
-                        className="w-full border border-gray-200 rounded px-2 py-1.5 text-xs bg-gray-100 text-gray-500"
-                      />
-                    ) : (
-                      <select
-                        value={t.destination}
-                        onChange={e => updateTransfer(idx, 'destination', e.target.value)}
-                        className="w-full border border-gray-200 rounded px-2 py-1.5 text-xs bg-white"
-                      >
-                        {TRANSFER_DESTINATIONS.map(d => <option key={d} value={d}>{d}</option>)}
-                      </select>
-                    )}
-                  </div>
-                  <div className="w-full sm:flex-1 sm:min-w-[100px]">
-                    <label className="block text-[10px] font-medium text-gray-500 mb-0.5">Manifest #</label>
-                    <input
-                      type="text"
-                      value={t.manifest_number}
-                      onChange={e => updateTransfer(idx, 'manifest_number', e.target.value)}
-                      className="w-full border border-gray-200 rounded px-2 py-1.5 text-xs"
-                    />
-                  </div>
-                  <button
-                    onClick={() => removeTransfer(idx)}
-                    className="p-1.5 text-gray-400 hover:text-red-500 transition-colors sm:self-end"
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
         {/* Notes */}
         <div>
           <label className="block text-xs font-medium text-gray-700 mb-1">Notes</label>
@@ -410,7 +243,7 @@ function ShiftInput({ label, value, onChange }: { label: string; value: number; 
 
 function SupervisorSelect({ value, supervisors, onChange }: {
   value: string;
-  supervisors: Employee[];
+  supervisors: Pick<Employee, 'id' | 'first_name' | 'surname' | 'position'>[];
   onChange: (v: string) => void;
 }) {
   return (

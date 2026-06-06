@@ -1,8 +1,12 @@
 import { useState } from 'react';
-import { Save, X } from 'lucide-react';
+import { Save, X, Calendar } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import Modal from '../../components/Modal';
 import { WASTE_CATEGORIES, TRANSFER_DESTINATIONS, type DailyLogRef, type TransferWithDate } from './constants';
+
+function getDateFromLogs(dailyLogs: DailyLogRef[], id: string) {
+  return dailyLogs.find(l => l.id === id)?.date || new Date().toISOString().split('T')[0];
+}
 
 export default function TransferFormModal({ transfer, dailyLogs, onClose, onSave }: {
   transfer?: TransferWithDate | null;
@@ -11,7 +15,7 @@ export default function TransferFormModal({ transfer, dailyLogs, onClose, onSave
   onSave: () => void;
 }) {
   const [form, setForm] = useState({
-    daily_log_id: transfer?.daily_log_id || dailyLogs[0]?.id || '',
+    date: transfer ? getDateFromLogs(dailyLogs, transfer.daily_log_id) : new Date().toISOString().split('T')[0],
     waste_category: transfer?.waste_category || 'Infectious',
     quantity_kg: transfer ? String(transfer.quantity_kg) : '',
     destination: transfer?.destination || TRANSFER_DESTINATIONS[0],
@@ -21,16 +25,41 @@ export default function TransferFormModal({ transfer, dailyLogs, onClose, onSave
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
+  async function resolveDailyLogId(date: string): Promise<string | null> {
+    const existing = dailyLogs.find(l => l.date === date);
+    if (existing) return existing.id;
+
+    const { data, error: err } = await supabase
+      .from('treatment_daily_log')
+      .insert({
+        date,
+        day_shift_cycles: 0, day_shift_treated_kg: 0,
+        afternoon_shift_cycles: 0, afternoon_shift_treated_kg: 0,
+        night_shift_cycles: 0, night_shift_treated_kg: 0,
+        total_cycles: 0, total_treated_kg: 0,
+        chemical_litres: 0, downtime_minutes: 0,
+        status: 'Completed',
+      })
+      .select('id')
+      .maybeSingle();
+
+    if (err) { setError(err.message); return null; }
+    return data?.id || null;
+  }
+
   async function handleSave() {
-    if (!form.daily_log_id || !form.quantity_kg || Number(form.quantity_kg) <= 0) {
+    if (!form.date || !form.quantity_kg || Number(form.quantity_kg) <= 0) {
       setError('Please select a date and enter a valid quantity.');
       return;
     }
     setSaving(true);
     setError('');
 
+    const daily_log_id = await resolveDailyLogId(form.date);
+    if (!daily_log_id) { setSaving(false); return; }
+
     const payload = {
-      daily_log_id: form.daily_log_id,
+      daily_log_id,
       transfer_type: 'Transfer Out',
       waste_category: form.waste_category,
       quantity_kg: Number(form.quantity_kg),
@@ -83,17 +112,15 @@ export default function TransferFormModal({ transfer, dailyLogs, onClose, onSave
         </div>
         <div>
           <label className="block text-xs font-medium text-gray-700 mb-1">Production Date *</label>
-          <select
-            value={form.daily_log_id}
-            onChange={e => setForm(prev => ({ ...prev, daily_log_id: e.target.value }))}
-            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
-          >
-            {dailyLogs.slice(0, 60).map(l => (
-              <option key={l.id} value={l.id}>
-                {new Date(l.date).toLocaleDateString('en-ZA', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
-              </option>
-            ))}
-          </select>
+          <div className="relative">
+            <Calendar size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+            <input
+              type="date"
+              value={form.date}
+              onChange={e => setForm(prev => ({ ...prev, date: e.target.value }))}
+              className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            />
+          </div>
         </div>
         <div className="grid grid-cols-2 gap-4">
           <div>
