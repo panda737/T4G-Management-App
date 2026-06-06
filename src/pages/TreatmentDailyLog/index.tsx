@@ -33,7 +33,7 @@ export default function TreatmentDailyLog() {
       .in('position', ['Supervisor', 'Senior Operator', 'Health & Safety Officer'])
       .eq('status', 'active')
       .order('surname');
-    setEmployees(data || []);
+    setEmployees((data || []) as unknown as Employee[]);
   }
 
   function empName(id: string | null | undefined): string | null {
@@ -188,49 +188,39 @@ export default function TreatmentDailyLog() {
               {filtered.map((l) => {
                 const isZero = Number(l.total_cycles) === 0;
                 const hasDowntime = l.downtime_reason && l.downtime_reason.trim() !== '';
-                const dayShift = l.day_shift_cycles > 0 ? 'Day' : '';
-                const aftShift = l.afternoon_shift_cycles > 0 ? 'Aft' : '';
-                const nightShift = l.night_shift_cycles > 0 ? 'Night' : '';
-                const shifts = [dayShift, aftShift, nightShift].filter(Boolean).join(' / ') || 'No cycles';
-
                 return (
                   <div
                     key={l.id}
-                    className={`p-4 cursor-pointer transition-colors ${isZero ? 'opacity-50' : 'hover:bg-cyan-50/30'}`}
+                    className={`px-3 py-2 cursor-pointer transition-colors ${isZero ? 'opacity-50' : 'hover:bg-cyan-50/30'}`}
                     onClick={() => { setEditLog(l); setShowForm(true); }}
                   >
-                    <div className="space-y-3">
-                      <div className="font-bold text-gray-800">
+                    {/* Date + totals + edit */}
+                    <div className="flex items-center gap-1.5 mb-1.5">
+                      <span className="text-sm font-bold text-gray-800 flex-1 min-w-0 truncate">
                         {new Date(l.date).toLocaleDateString('en-ZA', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
-                      </div>
-                      <div className="text-xs text-gray-600">{shifts}</div>
-                      <div className="flex gap-4 py-2 border-y border-gray-100">
-                        <div>
-                          <p className="text-lg font-bold text-gray-900">{l.total_cycles}</p>
-                          <p className="text-xs text-gray-500">Cycles</p>
-                        </div>
-                        <div>
-                          <p className="text-lg font-bold text-gray-900">
-                            {Number(l.total_treated_kg).toLocaleString('en-ZA', { maximumFractionDigits: 0 })}
-                          </p>
-                          <p className="text-xs text-gray-500">kg</p>
-                        </div>
-                      </div>
-                      {hasDowntime && (
-                        <div className="flex items-center gap-2 text-xs text-amber-700 bg-amber-50 px-2 py-1.5 rounded">
-                          <AlertTriangle size={14} className="flex-shrink-0" />
-                          <span className="truncate">{l.downtime_reason}</span>
-                        </div>
-                      )}
-                      <div className="flex items-center justify-end pt-1">
-                        <button
-                          onClick={e => { e.stopPropagation(); setEditLog(l); setShowForm(true); }}
-                          className="text-xs text-cyan-600 hover:text-cyan-700 font-medium"
-                        >
-                          Edit
-                        </button>
-                      </div>
+                      </span>
+                      <span className="text-[10px] text-gray-500 flex-shrink-0">
+                        {l.total_cycles} cyc · {Number(l.total_treated_kg).toLocaleString('en-ZA', { maximumFractionDigits: 0 })} kg
+                      </span>
+                      <button
+                        onClick={e => { e.stopPropagation(); setEditLog(l); setShowForm(true); }}
+                        className="text-xs text-cyan-600 hover:text-cyan-700 font-medium flex-shrink-0 pl-1.5"
+                      >
+                        Edit
+                      </button>
                     </div>
+                    {/* 3 shifts side by side */}
+                    <div className="grid grid-cols-3 gap-1">
+                      <ShiftMini label="Day" cycles={l.day_shift_cycles} kg={l.day_shift_treated_kg} supervisorName={empName(l.day_shift_supervisor_id)} />
+                      <ShiftMini label="Aft" cycles={l.afternoon_shift_cycles} kg={l.afternoon_shift_treated_kg} supervisorName={empName(l.afternoon_shift_supervisor_id)} />
+                      <ShiftMini label="Night" cycles={l.night_shift_cycles} kg={l.night_shift_treated_kg} supervisorName={empName(l.night_shift_supervisor_id)} />
+                    </div>
+                    {hasDowntime && (
+                      <div className="flex items-center gap-1 text-[10px] text-amber-700 mt-1.5">
+                        <AlertTriangle size={10} className="flex-shrink-0" />
+                        <span className="truncate">{l.downtime_reason}</span>
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -259,6 +249,23 @@ function CycleKg({ cycles, kg, supervisorName }: { cycles: number; kg: number; s
       {supervisorName && (
         <span className="text-[10px] text-gray-400 block truncate max-w-[90px]" title={supervisorName}>{supervisorName}</span>
       )}
+    </div>
+  );
+}
+
+function ShiftMini({ label, cycles, kg, supervisorName }: { label: string; cycles: number; kg: number; supervisorName?: string | null }) {
+  if (!cycles || cycles === 0) return (
+    <div className="bg-gray-50 rounded px-1.5 py-1 text-center">
+      <p className="text-[9px] text-gray-400 uppercase font-medium leading-tight">{label}</p>
+      <p className="text-gray-300 text-xs leading-tight">--</p>
+    </div>
+  );
+  return (
+    <div className="bg-gray-50 rounded px-1.5 py-1 text-center">
+      <p className="text-[9px] text-gray-400 uppercase font-medium leading-tight">{label}</p>
+      <p className={`text-sm font-bold leading-tight ${cycles >= 12 ? 'text-emerald-600' : 'text-gray-800'}`}>{cycles}</p>
+      <p className="text-[9px] text-gray-400 leading-tight">{Number(kg).toLocaleString('en-ZA', { maximumFractionDigits: 0 })} kg</p>
+      {supervisorName && <p className="text-[8px] text-gray-400 truncate leading-tight" title={supervisorName}>{supervisorName}</p>}
     </div>
   );
 }
