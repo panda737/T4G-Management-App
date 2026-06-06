@@ -353,24 +353,20 @@ export default function SafetyToolboxTalks() {
 
                   <div className="md:hidden divide-y divide-gray-100">
                     {filteredTalks.map(talk => (
-                      <div key={talk.id} className="p-4 space-y-3">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <p className="font-semibold text-gray-900">{talk.topic}</p>
-                            <p className="text-xs text-gray-500 mt-1">{new Date(talk.talk_date).toLocaleDateString()}</p>
+                      <div key={talk.id} className="px-4 py-3 flex items-start gap-2">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <p className="text-sm font-semibold text-gray-900 truncate">{talk.topic}</p>
+                            {talk.follow_up_required && <AlertCircle size={12} className="text-orange-500 flex-shrink-0" />}
                           </div>
-                          {talk.follow_up_required && <AlertCircle className="w-4 h-4 text-orange-600 flex-shrink-0" />}
+                          <p className="text-xs text-gray-400 mt-0.5 truncate">
+                            {new Date(talk.talk_date).toLocaleDateString()} · {talk.presented_by} · {talk.duration_minutes} min · {talk.attendee_count} attendees{talk.location ? ` · ${talk.location}` : ''}
+                          </p>
                         </div>
-                        <div className="space-y-2 text-sm">
-                          <p><span className="text-gray-600">Presenter:</span> {talk.presented_by}</p>
-                          <p><span className="text-gray-600">Duration:</span> {talk.duration_minutes} min</p>
-                          <p><span className="text-gray-600">Attendees:</span> {talk.attendee_count}</p>
-                          <p><span className="text-gray-600">Location:</span> {talk.location}</p>
-                        </div>
-                        <div className="flex justify-end gap-2 pt-2 border-t border-gray-100">
-                          <button onClick={() => { setSelectedTalk(talk); setShowViewModal(true); }} className="p-2 text-gray-600 hover:bg-gray-50 rounded"><Eye className="w-4 h-4" /></button>
-                          <button onClick={() => { setSelectedTalk(talk); setShowAttendanceModal(true); }} className="p-2 text-sky-600 hover:bg-sky-50 rounded" title="Attendance Register"><ClipboardList className="w-4 h-4" /></button>
-                          <button onClick={() => handleDelete(talk.id, talk.talk_number || 'this talk')} className="p-2 text-red-600 hover:bg-red-50 rounded"><Trash2 className="w-4 h-4" /></button>
+                        <div className="flex items-center gap-0.5 flex-shrink-0">
+                          <button onClick={() => { setSelectedTalk(talk); setShowViewModal(true); }} className="p-2 text-gray-500 hover:bg-gray-50 rounded"><Eye size={15} /></button>
+                          <button onClick={() => { setSelectedTalk(talk); setShowAttendanceModal(true); }} className="p-2 text-sky-600 hover:bg-sky-50 rounded"><ClipboardList size={15} /></button>
+                          <button onClick={() => handleDelete(talk.id, talk.talk_number || 'this talk')} className="p-2 text-red-500 hover:bg-red-50 rounded"><Trash2 size={15} /></button>
                         </div>
                       </div>
                     ))}

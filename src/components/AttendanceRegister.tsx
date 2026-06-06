@@ -27,6 +27,7 @@ export default function AttendanceRegister({ referenceType, referenceId, onUpdat
   const [saving, setSaving] = useState(false);
   const [signingFor, setSigningFor] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [showOnlyPresent, setShowOnlyPresent] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -54,6 +55,8 @@ export default function AttendanceRegister({ referenceType, referenceId, onUpdat
       };
     });
     setAttendees(rows);
+    // Default to present-only view when attendance has already been taken
+    setShowOnlyPresent(rows.some(r => r.saved));
     setLoading(false);
   }
 
@@ -121,12 +124,12 @@ export default function AttendanceRegister({ referenceType, referenceId, onUpdat
   const absentCount = attendees.filter(a => a.status === 'Absent').length;
   const signedCount = attendees.filter(a => a.signature_data).length;
 
-  const filtered = searchTerm
-    ? attendees.filter(a =>
-        `${a.employee.first_name} ${a.employee.surname}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        a.employee.position?.toLowerCase().includes(searchTerm.toLowerCase())
-      )
-    : attendees;
+  const filtered = attendees
+    .filter(a => !showOnlyPresent || a.status !== 'Absent')
+    .filter(a => !searchTerm ||
+      `${a.employee.first_name} ${a.employee.surname}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      a.employee.position?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
 
   if (loading) {
     return (
@@ -137,55 +140,67 @@ export default function AttendanceRegister({ referenceType, referenceId, onUpdat
   }
 
   return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-4 gap-3">
-        <div className="bg-emerald-50 rounded-lg p-3 text-center">
-          <p className="text-2xl font-bold text-emerald-700">{presentCount}</p>
-          <p className="text-xs text-emerald-600">Present</p>
+    <div className="space-y-3">
+      <div className="grid grid-cols-4 gap-2">
+        <div className="bg-emerald-50 rounded-lg p-2 text-center">
+          <p className="text-xl font-bold text-emerald-700">{presentCount}</p>
+          <p className="text-[10px] text-emerald-600">Present</p>
         </div>
-        <div className="bg-amber-50 rounded-lg p-3 text-center">
-          <p className="text-2xl font-bold text-amber-700">{lateCount}</p>
-          <p className="text-xs text-amber-600">Late</p>
+        <div className="bg-amber-50 rounded-lg p-2 text-center">
+          <p className="text-xl font-bold text-amber-700">{lateCount}</p>
+          <p className="text-[10px] text-amber-600">Late</p>
         </div>
-        <div className="bg-red-50 rounded-lg p-3 text-center">
-          <p className="text-2xl font-bold text-red-700">{absentCount}</p>
-          <p className="text-xs text-red-600">Absent</p>
+        <div className="bg-red-50 rounded-lg p-2 text-center">
+          <p className="text-xl font-bold text-red-700">{absentCount}</p>
+          <p className="text-[10px] text-red-600">Absent</p>
         </div>
-        <div className="bg-sky-50 rounded-lg p-3 text-center">
-          <p className="text-2xl font-bold text-sky-700">{signedCount}</p>
-          <p className="text-xs text-sky-600">Signed</p>
+        <div className="bg-sky-50 rounded-lg p-2 text-center">
+          <p className="text-xl font-bold text-sky-700">{signedCount}</p>
+          <p className="text-[10px] text-sky-600">Signed</p>
         </div>
       </div>
 
-      <input
-        type="text"
-        placeholder="Search employees..."
-        value={searchTerm}
-        onChange={e => setSearchTerm(e.target.value)}
-        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-500"
-      />
+      <div className="flex items-center gap-2">
+        <input
+          type="text"
+          placeholder="Search employees..."
+          value={searchTerm}
+          onChange={e => setSearchTerm(e.target.value)}
+          className="flex-1 px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-500"
+        />
+        <button
+          onClick={() => setShowOnlyPresent(v => !v)}
+          className={`flex-shrink-0 px-2.5 py-1.5 text-xs font-medium rounded-lg border transition ${
+            showOnlyPresent
+              ? 'bg-emerald-600 text-white border-emerald-600'
+              : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+          }`}
+        >
+          {showOnlyPresent ? 'Present only' : 'Show all'}
+        </button>
+      </div>
 
       <div className="border border-gray-200 rounded-lg overflow-hidden max-h-[400px] overflow-y-auto">
         <table className="w-full">
           <thead className="bg-gray-50 border-b border-gray-200 sticky top-0">
             <tr>
-              <th className="px-2 sm:px-4 py-2.5 text-left text-xs font-semibold text-gray-700">Employee</th>
-              <th className="hidden sm:table-cell px-4 py-2.5 text-left text-xs font-semibold text-gray-700">Position</th>
-              <th className="px-2 sm:px-4 py-2.5 text-center text-xs font-semibold text-gray-700">Status</th>
-              <th className="px-2 sm:px-4 py-2.5 text-center text-xs font-semibold text-gray-700">Sign</th>
+              <th className="px-2 sm:px-4 py-1.5 text-left text-xs font-semibold text-gray-700">Employee</th>
+              <th className="hidden sm:table-cell px-4 py-1.5 text-left text-xs font-semibold text-gray-700">Position</th>
+              <th className="px-2 sm:px-4 py-1.5 text-center text-xs font-semibold text-gray-700">Status</th>
+              <th className="px-2 sm:px-4 py-1.5 text-center text-xs font-semibold text-gray-700">Sign</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
             {filtered.map(att => (
               <tr key={att.employee.id} className="hover:bg-gray-50">
-                <td className="px-2 sm:px-4 py-2.5">
+                <td className="px-2 sm:px-4 py-1.5">
                   <p className="text-sm font-medium text-gray-900 leading-tight">
                     {att.employee.first_name} {att.employee.surname}
                   </p>
                   <p className="sm:hidden text-xs text-gray-400 mt-0.5">{att.employee.position}</p>
                 </td>
-                <td className="hidden sm:table-cell px-4 py-2.5 text-sm text-gray-500">{att.employee.position}</td>
-                <td className="px-2 sm:px-4 py-2.5 text-center">
+                <td className="hidden sm:table-cell px-4 py-1.5 text-sm text-gray-500">{att.employee.position}</td>
+                <td className="px-2 sm:px-4 py-1.5 text-center">
                   <button
                     onClick={() => toggleStatus(att.employee.id)}
                     className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold transition ${
@@ -202,7 +217,7 @@ export default function AttendanceRegister({ referenceType, referenceId, onUpdat
                     {att.status}
                   </button>
                 </td>
-                <td className="px-2 sm:px-4 py-2.5 text-center">
+                <td className="px-2 sm:px-4 py-1.5 text-center">
                   {att.signature_data ? (
                     <button
                       onClick={() => setSigningFor(att.employee.id)}

@@ -334,48 +334,24 @@ export default function SafetyEmergencyDrills() {
             {/* Mobile Cards */}
             <div className="md:hidden divide-y divide-gray-100">
               {filtered.map(drill => (
-                <div key={drill.id} className="p-4 space-y-3">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <p className="font-semibold text-gray-900">{drill.drill_number}</p>
-                      <p className="text-xs text-gray-500 mt-1">{new Date(drill.drill_date).toLocaleDateString()}</p>
-                    </div>
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${badgeColor(drillStatusColors, drill.status)}`}>
-                      {drill.status}
-                    </span>
-                  </div>
-                  <div className="space-y-2 text-sm">
-                    <div className="flex items-center gap-2">
-                      {getDrillIcon(drill.drill_type)}
-                      <span className="text-gray-600">{drill.drill_type}</span>
-                    </div>
-                    <p><span className="text-gray-600">Location:</span> {drill.location}</p>
-                    <p><span className="text-gray-600">Coordinator:</span> {drill.coordinator}</p>
-                    <p><span className="text-gray-600">Participants:</span> {drill.participants_count}</p>
-                  </div>
-                  {drill.status === 'Completed' && (
-                    <div className="text-sm">
-                      {drill.passed ? (
-                        <span className="flex items-center gap-1 text-emerald-600">
-                          <CheckCircle className="w-4 h-4" /> Passed
-                        </span>
-                      ) : (
-                        <span className="flex items-center gap-1 text-red-600">
-                          <XCircle className="w-4 h-4" /> Failed
-                        </span>
+                <div key={drill.id} className="px-4 py-3 flex items-start gap-2">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-sm font-semibold text-gray-900">{drill.drill_number}</span>
+                      <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${badgeColor(drillStatusColors, drill.status)}`}>{drill.status}</span>
+                      {drill.status === 'Completed' && (drill.passed
+                        ? <span className="text-[10px] text-emerald-600 font-medium">✓ Passed</span>
+                        : <span className="text-[10px] text-red-600 font-medium">✗ Failed</span>
                       )}
                     </div>
-                  )}
-                  <div className="flex justify-end gap-2 pt-2 border-t border-gray-100">
-                    <button onClick={() => { setViewingDrill(drill); setShowViewModal(true); }} className="p-2 text-gray-600 hover:bg-gray-50 rounded">
-                      <Eye className="w-4 h-4" />
-                    </button>
-                    <button onClick={() => handleOpenEdit(drill)} className="p-2 text-gray-600 hover:bg-gray-50 rounded">
-                      <Edit2 className="w-4 h-4" />
-                    </button>
-                    <button onClick={() => handleDelete(drill.id, drill.drill_number || drill.drill_type)} className="p-2 text-red-600 hover:bg-red-50 rounded">
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    <p className="text-xs text-gray-400 mt-0.5 truncate">
+                      {new Date(drill.drill_date).toLocaleDateString()} · {drill.drill_type}{drill.location ? ` · ${drill.location}` : ''}{drill.coordinator ? ` · ${drill.coordinator}` : ''}{drill.participants_count ? ` · ${drill.participants_count} participants` : ''}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-0.5 flex-shrink-0">
+                    <button onClick={() => { setViewingDrill(drill); setShowViewModal(true); }} className="p-2 text-gray-600 hover:bg-gray-50 rounded"><Eye size={15} /></button>
+                    <button onClick={() => handleOpenEdit(drill)} className="p-2 text-gray-600 hover:bg-gray-50 rounded"><Edit2 size={15} /></button>
+                    <button onClick={() => handleDelete(drill.id, drill.drill_number || drill.drill_type)} className="p-2 text-red-500 hover:bg-red-50 rounded"><Trash2 size={15} /></button>
                   </div>
                 </div>
               ))}

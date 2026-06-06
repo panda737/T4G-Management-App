@@ -400,39 +400,21 @@ export default function SafetyIncidents() {
               {/* Mobile Cards */}
               <div className="md:hidden divide-y divide-gray-100">
                 {filteredIncidents.map(incident => (
-                  <div key={incident.id} className="p-4 space-y-3">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <p className="font-semibold text-gray-900">{incident.incident_number}</p>
-                        <p className="text-xs text-gray-500 mt-1">{new Date(incident.incident_date).toLocaleDateString()}</p>
+                  <div key={incident.id} className="px-4 py-3 flex items-start gap-2">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-sm font-semibold text-gray-900">{incident.incident_number}</span>
+                        <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${badgeColor(severityColors, incident.severity)}`}>{incident.severity}</span>
+                        <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${badgeColor(incidentStatusColors, incident.status)}`}>{incident.status}</span>
                       </div>
-                      <span className={`px-2 py-1 rounded text-xs font-medium ${badgeColor(severityColors, incident.severity)}`}>
-                        {incident.severity}
-                      </span>
+                      <p className="text-xs text-gray-400 mt-0.5 truncate">
+                        {new Date(incident.incident_date).toLocaleDateString()} · {incident.incident_type}{incident.location ? ` · ${incident.location}` : ''}
+                      </p>
+                      {incident.reported_by && <p className="text-xs text-gray-400 truncate">By {incident.reported_by}</p>}
                     </div>
-                    <div className="space-y-2 text-sm">
-                      <p><span className="text-gray-600">Type:</span> <span className="mr-1">{getTypeIcon(incident.incident_type)}</span>{incident.incident_type}</p>
-                      <p><span className="text-gray-600">Location:</span> {incident.location}</p>
-                      <p><span className="text-gray-600">Reported By:</span> {incident.reported_by}</p>
-                    </div>
-                    <div className="flex justify-between items-center pt-2 border-t border-gray-100">
-                      <span className={`px-2 py-1 rounded text-xs font-medium ${badgeColor(incidentStatusColors, incident.status)}`}>
-                        {incident.status}
-                      </span>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => { setSelectedIncident(incident); setShowViewModal(true); }}
-                          className="p-2 text-amber-600 hover:bg-amber-50 rounded"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(incident.id, incident.incident_number || 'this incident')}
-                          className="p-2 text-red-600 hover:bg-red-50 rounded"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
+                    <div className="flex items-center gap-0.5 flex-shrink-0">
+                      <button onClick={() => { setSelectedIncident(incident); setShowViewModal(true); }} className="p-2 text-amber-600 hover:bg-amber-50 rounded"><Eye size={15} /></button>
+                      <button onClick={() => handleDelete(incident.id, incident.incident_number || 'this incident')} className="p-2 text-red-500 hover:bg-red-50 rounded"><Trash2 size={15} /></button>
                     </div>
                   </div>
                 ))}

@@ -331,52 +331,26 @@ export default function SafetyInspections() {
             ) : (
               <div className="divide-y divide-gray-100">
                 {filtered.map(inspection => (
-                  <div key={inspection.id} className="p-4 space-y-3">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <p className="font-semibold text-gray-900">{inspection.inspection_number}</p>
-                        <p className="text-xs text-gray-500 mt-1">{new Date(inspection.inspection_date).toLocaleDateString()}</p>
+                  <div key={inspection.id} className="px-4 py-3 flex items-start gap-2">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-sm font-semibold text-gray-900">{inspection.inspection_number}</span>
+                        <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium whitespace-nowrap ${badgeColor(inspectionStatusColors, inspection.status)}`}>{inspection.status}</span>
                       </div>
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap ${badgeColor(inspectionStatusColors, inspection.status)}`}>
-                        {inspection.status}
-                      </span>
-                    </div>
-                    <div className="space-y-2 text-sm">
-                      <div className="flex items-center gap-2">
-                        {TYPE_ICONS[inspection.inspection_type]}
-                        <span className="text-gray-600">{inspection.inspection_type}</span>
+                      <p className="text-xs text-gray-400 mt-0.5 truncate">
+                        {new Date(inspection.inspection_date).toLocaleDateString()} · {inspection.inspection_type}{inspection.area ? ` · ${inspection.area}` : ''}{inspection.inspector ? ` · ${inspection.inspector}` : ''}
+                      </p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <div className="flex-1 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                          <div className={`h-full ${inspection.score_percentage >= 90 ? 'bg-emerald-500' : inspection.score_percentage >= 75 ? 'bg-amber-500' : 'bg-red-500'}`} style={{ width: `${inspection.score_percentage}%` }} />
+                        </div>
+                        <span className="text-xs font-medium text-gray-700 whitespace-nowrap">{inspection.score_percentage}%</span>
                       </div>
-                      <p><span className="text-gray-600">Area:</span> {inspection.area}</p>
-                      <p><span className="text-gray-600">Inspector:</span> {inspection.inspector}</p>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
-                        <div
-                          className={`h-full ${inspection.score_percentage >= 90 ? 'bg-emerald-500' : inspection.score_percentage >= 75 ? 'bg-amber-500' : 'bg-red-500'}`}
-                          style={{ width: `${inspection.score_percentage}%` }}
-                        />
-                      </div>
-                      <span className="text-sm font-medium whitespace-nowrap">{inspection.score_percentage}%</span>
-                    </div>
-                    <div className="flex justify-end gap-2 pt-2 border-t border-gray-100">
-                      <button
-                        onClick={() => { setViewingId(inspection.id); setShowViewModal(true); }}
-                        className="p-2 text-amber-600 hover:bg-amber-50 rounded"
-                      >
-                        <Eye className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => { setEditingId(inspection.id); setFormData(inspection); setShowAddModal(true); }}
-                        className="p-2 text-blue-600 hover:bg-blue-50 rounded"
-                      >
-                        <Edit2 className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(inspection.id, inspection.inspection_number || 'this inspection')}
-                        className="p-2 text-red-600 hover:bg-red-50 rounded"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                    <div className="flex items-center gap-0.5 flex-shrink-0">
+                      <button onClick={() => { setViewingId(inspection.id); setShowViewModal(true); }} className="p-2 text-amber-600 hover:bg-amber-50 rounded"><Eye size={15} /></button>
+                      <button onClick={() => { setEditingId(inspection.id); setFormData(inspection); setShowAddModal(true); }} className="p-2 text-blue-600 hover:bg-blue-50 rounded"><Edit2 size={15} /></button>
+                      <button onClick={() => handleDelete(inspection.id, inspection.inspection_number || 'this inspection')} className="p-2 text-red-500 hover:bg-red-50 rounded"><Trash2 size={15} /></button>
                     </div>
                   </div>
                 ))}
