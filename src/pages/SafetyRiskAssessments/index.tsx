@@ -220,17 +220,17 @@ export default function SafetyRiskAssessments() {
             <table className="w-full">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Assessment #</th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Date</th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Area</th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Activity</th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Hazard</th>
-                  <th className="px-6 py-3 text-center text-sm font-semibold text-gray-900">Risk Rating</th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Risk Level</th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Responsible</th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Review Date</th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Status</th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Actions</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 whitespace-nowrap">Assessment #</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 whitespace-nowrap">Date</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700">Area</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700">Activity</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700">Hazard</th>
+                  <th className="px-4 py-3 text-center text-xs font-semibold text-gray-700 whitespace-nowrap">Risk Rating</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 whitespace-nowrap">Risk Level</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700">Responsible</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 whitespace-nowrap">Review Date</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700">Status</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -241,31 +241,31 @@ export default function SafetyRiskAssessments() {
                 ) : (
                   filteredAssessments.map(assessment => (
                     <tr key={assessment.id} className="border-b border-gray-200 hover:bg-gray-50">
-                      <td className="px-6 py-4 text-sm font-medium text-gray-900">{assessment.assessment_number}</td>
-                      <td className="px-6 py-4 text-sm text-gray-600">{new Date(assessment.assessment_date).toLocaleDateString()}</td>
-                      <td className="px-6 py-4 text-sm text-gray-600">{assessment.area}</td>
-                      <td className="px-6 py-4 text-sm text-gray-600">{assessment.activity}</td>
-                      <td className="px-6 py-4 text-sm text-gray-600 max-w-xs truncate">{assessment.hazard}</td>
-                      <td className="px-6 py-4 text-center">
+                      <td className="px-4 py-2.5 text-sm font-medium text-gray-900 whitespace-nowrap">{assessment.assessment_number}</td>
+                      <td className="px-4 py-2.5 text-sm text-gray-600 whitespace-nowrap">{new Date(assessment.assessment_date).toLocaleDateString()}</td>
+                      <td className="px-4 py-2.5 text-sm text-gray-600">{assessment.area}</td>
+                      <td className="px-4 py-2.5 text-sm text-gray-600">{assessment.activity}</td>
+                      <td className="px-4 py-2.5 text-sm text-gray-600 max-w-[180px] truncate">{assessment.hazard}</td>
+                      <td className="px-4 py-2.5 text-center whitespace-nowrap">
                         <span className={`inline-block px-3 py-1 rounded-full text-sm font-bold ${getRiskColor(assessment.risk_rating)}`}>
                           {assessment.risk_rating}
                         </span>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-4 py-2.5 whitespace-nowrap">
                         <span className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${getRiskLevelColor(assessment.risk_level)}`}>
                           {assessment.risk_level}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-600">{assessment.responsible_person}</td>
-                      <td className="px-6 py-4 text-sm text-gray-600">
+                      <td className="px-4 py-2.5 text-sm text-gray-600">{assessment.responsible_person}</td>
+                      <td className="px-4 py-2.5 text-sm text-gray-600 whitespace-nowrap">
                         {assessment.review_date ? new Date(assessment.review_date).toLocaleDateString() : '—'}
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-4 py-2.5 whitespace-nowrap">
                         <span className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(assessment.status)}`}>
                           {assessment.status}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-sm flex gap-2">
+                      <td className="px-4 py-2.5 text-sm flex gap-2">
                         <button onClick={() => { setSelectedAssessment(assessment); setShowViewModal(true); }} className="text-gray-600 hover:text-gray-900" title="View">
                           <Eye className="w-4 h-4" />
                         </button>

@@ -328,13 +328,13 @@ export default function SafetyToolboxTalks() {
                       <tbody>
                         {filteredTalks.map(talk => (
                           <tr key={talk.id} className="border-b border-gray-200 hover:bg-gray-50 transition">
-                            <td className="px-4 py-3 text-sm font-medium text-gray-900">{talk.talk_number}</td>
-                            <td className="px-4 py-3 text-sm text-gray-600">{new Date(talk.talk_date).toLocaleDateString()}</td>
-                            <td className="px-4 py-3 text-sm font-medium text-gray-900 max-w-[200px] truncate">{talk.topic}</td>
-                            <td className="px-4 py-3 text-sm text-gray-600">{talk.presented_by}</td>
-                            <td className="px-4 py-3 text-sm text-gray-600">{talk.duration_minutes} min</td>
-                            <td className="px-4 py-3 text-sm text-gray-600">{talk.attendee_count}</td>
-                            <td className="px-4 py-3 text-sm text-gray-600">{talk.location}</td>
+                            <td className="px-4 py-2.5 text-sm font-medium text-gray-900 whitespace-nowrap">{talk.talk_number}</td>
+                            <td className="px-4 py-2.5 text-sm text-gray-600 whitespace-nowrap">{new Date(talk.talk_date).toLocaleDateString()}</td>
+                            <td className="px-4 py-2.5 text-sm font-medium text-gray-900 max-w-[200px] truncate">{talk.topic}</td>
+                            <td className="px-4 py-2.5 text-sm text-gray-600 whitespace-nowrap">{talk.presented_by}</td>
+                            <td className="px-4 py-2.5 text-sm text-gray-600 whitespace-nowrap">{talk.duration_minutes} min</td>
+                            <td className="px-4 py-2.5 text-sm text-gray-600 whitespace-nowrap">{talk.attendee_count}</td>
+                            <td className="px-4 py-2.5 text-sm text-gray-600">{talk.location}</td>
                             <td className="px-4 py-3 text-sm">
                               {talk.follow_up_required ? (
                                 <div className="flex items-center gap-1"><AlertCircle className="w-4 h-4 text-orange-600" /><span className="text-orange-600">Required</span></div>
