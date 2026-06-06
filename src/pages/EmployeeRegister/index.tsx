@@ -54,11 +54,6 @@ export default function EmployeeRegister() {
     return matchesSearch && matchesPosition && matchesStatus && matchesHsRole;
   });
 
-  const positionCounts = employees.reduce<Record<string, number>>((acc, e) => {
-    if (e.status === 'active') acc[e.position] = (acc[e.position] || 0) + 1;
-    return acc;
-  }, {});
-
   const hsRoleOptions: { value: EmployeeHsRole; label: string }[] = [
     { value: 'employee', label: 'Employee' },
     { value: 'supervisor', label: 'Supervisor' },
@@ -88,24 +83,6 @@ export default function EmployeeRegister() {
             <Plus size={16} /> <span className="hidden sm:inline">Add Employee</span>
           </button>
         )}
-      </div>
-
-      {/* Position Summary */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
-        {POSITIONS.map(pos => (
-          <button
-            key={pos}
-            onClick={() => setPositionFilter(positionFilter === pos ? '' : pos)}
-            className={`text-left p-3 rounded-lg border transition-all text-xs ${
-              positionFilter === pos
-                ? 'bg-emerald-50 border-emerald-300 text-emerald-800'
-                : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300'
-            }`}
-          >
-            <p className="font-bold text-lg text-gray-900">{positionCounts[pos] || 0}</p>
-            <p className="truncate mt-0.5">{pos}</p>
-          </button>
-        ))}
       </div>
 
       {/* Filters */}
