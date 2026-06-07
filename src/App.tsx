@@ -40,6 +40,9 @@ import MaintenanceAssets from './pages/MaintenanceAssets';
 import MaintenanceParts from './pages/MaintenanceParts';
 import PlantOverview from './pages/PlantOverview';
 import AdminUsers from './pages/AdminUsers';
+import DocumentLibrary from './pages/DocumentLibrary';
+import AppointmentsRegister from './pages/EmployeeRegister/AppointmentsRegister';
+import WasteOnFloor from './pages/TreatmentWasteOnFloor';
 
 class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
   state = { error: null };
@@ -130,6 +133,7 @@ function AuthenticatedLayout({ session }: { session: Session }) {
             <Route path="/treatment" element={<TreatmentDashboard />} />
             <Route path="/treatment/daily-log" element={<TreatmentDailyLog />} />
             <Route path="/treatment/transfers" element={<TreatmentTransfers />} />
+            <Route path="/treatment/waste-on-floor" element={<WasteOnFloor />} />
 
             {/* Health & Safety */}
             <Route path="/safety" element={<SheqDashboard />} />
@@ -159,9 +163,13 @@ function AuthenticatedLayout({ session }: { session: Session }) {
             {/* Compliance (Coming Soon) */}
             <Route path="/compliance" element={<ComingSoon title="Compliance Overview" description="Unified compliance view across all modules -- SHEQ, training, treatment, and stock management." />} />
 
+            {/* Documents */}
+            <Route path="/documents" element={<DocumentLibrary />} />
+
             {/* Employee Register */}
             <Route path="/employees" element={<EmployeeRegister />} />
             <Route path="/employees/:id" element={<EmployeeProfile />} />
+            <Route path="/employees/appointments" element={<AppointmentsRegister />} />
 
             {/* Admin */}
             <Route path="/admin/users" element={<AdminUsers />} />

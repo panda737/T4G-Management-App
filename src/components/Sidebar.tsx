@@ -5,6 +5,7 @@ import {
   LayoutDashboard, Package,
   Settings, Menu, X, LogOut, ChevronDown, Users, Factory,
   ShieldAlert, GraduationCap, CheckSquare, UserCog, Wrench,
+  FileText, TrendingUp, Truck,
 } from 'lucide-react';
 import { useUser } from '../lib/UserContext';
 import { ROLE_LABELS, ROLE_COLORS } from '../lib/supabase';
@@ -27,6 +28,7 @@ const moduleGroups: ModuleGroup[] = [
       { path: '/treatment', label: 'Plant Dashboard' },
       { path: '/treatment/daily-log', label: 'Daily Log' },
       { path: '/treatment/transfers', label: 'Transfers' },
+      { path: '/treatment/waste-on-floor', label: 'Waste on Floor' },
     ],
   },
   {
@@ -101,6 +103,38 @@ const moduleGroups: ModuleGroup[] = [
     color: 'text-rose-400',
     items: [
       { path: '/employees', label: 'Employee Register' },
+      { path: '/employees/appointments', label: 'Legal Appointments' },
+    ],
+  },
+  {
+    id: 'documents',
+    label: 'Documents',
+    icon: FileText,
+    color: 'text-violet-400',
+    items: [
+      { path: '/documents', label: 'Document Library' },
+    ],
+  },
+  {
+    id: 'commercial',
+    label: 'Commercial',
+    icon: TrendingUp,
+    color: 'text-indigo-400',
+    items: [
+      { path: '/commercial', label: 'Dashboard', soon: true },
+      { path: '/commercial/accounts', label: 'Accounts', soon: true },
+      { path: '/commercial/pipeline', label: 'Pipeline', soon: true },
+      { path: '/commercial/revenue', label: 'Revenue', soon: true },
+    ],
+  },
+  {
+    id: 'logistics',
+    label: 'Logistics',
+    icon: Truck,
+    color: 'text-slate-400',
+    items: [
+      { path: '/logistics/vehicles', label: 'Vehicle Register', soon: true },
+      { path: '/logistics/drivers', label: 'Driver Compliance', soon: true },
     ],
   },
 ];

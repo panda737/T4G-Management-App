@@ -1,13 +1,16 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, User, Phone, Mail, MapPin, AlertTriangle, ClipboardCheck, Users, GraduationCap, Award, Shield, ShieldAlert, CheckCircle, Calendar, CreditCard as Edit, Loader, Building, CreditCard, Activity } from 'lucide-react';
+import { ArrowLeft, User, Phone, Mail, MapPin, AlertTriangle, ClipboardCheck, Users, GraduationCap, Award, Shield, ShieldAlert, CheckCircle, Calendar, CreditCard as Edit, Loader, Building, CreditCard, Activity, Briefcase, Plus, Pencil, Trash2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
-import type { Employee } from '../../lib/supabase';
+import type { Employee, LegalAppointment } from '../../lib/supabase';
 import { HS_ROLE_LABELS, HS_ROLE_COLORS } from '../../lib/supabase';
 import { useUser } from '../../lib/UserContext';
+import { useToast } from '../../lib/toast';
 import EmployeeFormModal from './EmployeeFormModal';
+import LegalAppointmentModal from './LegalAppointmentModal';
+import DeleteConfirmModal from '../../components/DeleteConfirmModal';
 
-type ProfileTab = 'incidents' | 'inspections' | 'toolbox' | 'training';
+type ProfileTab = 'incidents' | 'inspections' | 'toolbox' | 'training' | 'legal';
 
 interface ActivityData {
   incidentsReported: any[];
@@ -74,6 +77,7 @@ function fmt(dateStr: string | null | undefined) {
 export default function EmployeeProfile() {
   const { id } = useParams<{ id: string }>();
   const { isAdmin, isManagement } = useUser();
+  const { addToast } = useToast();
   const canEdit = isAdmin || isManagement;
 
   const [employee, setEmployee] = useState<Employee | null>(null);
@@ -82,13 +86,38 @@ export default function EmployeeProfile() {
   const [activityLoading, setActivityLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<ProfileTab>('incidents');
   const [showEdit, setShowEdit] = useState(false);
+  const [appointments, setAppointments] = useState<LegalAppointment[]>([]);
+  const [showAppointmentModal, setShowAppointmentModal] = useState(false);
+  const [editAppointment, setEditAppointment] = useState<LegalAppointment | null>(null);
+  const [deleteAppointment, setDeleteAppointment] = useState<LegalAppointment | null>(null);
+  const [deletingAppointment, setDeletingAppointment] = useState(false);
 
   useEffect(() => {
     if (id) {
       loadEmployee(id);
       loadActivity(id);
+      loadAppointments(id);
     }
   }, [id]);
+
+  async function loadAppointments(empId: string) {
+    const { data } = await supabase
+      .from('legal_appointments')
+      .select('*')
+      .eq('employee_id', empId)
+      .order('appointment_date', { ascending: false });
+    setAppointments((data ?? []) as LegalAppointment[]);
+  }
+
+  async function handleDeleteAppointment() {
+    if (!deleteAppointment) return;
+    setDeletingAppointment(true);
+    await supabase.from('legal_appointments').delete().eq('id', deleteAppointment.id);
+    setDeletingAppointment(false);
+    setDeleteAppointment(null);
+    addToast('Appointment removed');
+    if (id) loadAppointments(id);
+  }
 
   async function loadEmployee(empId: string) {
     setLoading(true);
@@ -198,6 +227,7 @@ export default function EmployeeProfile() {
     { id: 'inspections', label: 'Inspections', count: activity.inspections.length, icon: <ClipboardCheck size={14} /> },
     { id: 'toolbox', label: 'Toolbox Talks', count: toolboxTotal, icon: <Users size={14} /> },
     { id: 'training', label: 'Training', count: trainingTotal, icon: <GraduationCap size={14} /> },
+    { id: 'legal', label: 'Legal Appointments', count: appointments.length, icon: <Briefcase size={14} /> },
   ];
 
   const hsRole = employee.hs_role ?? 'employee';
@@ -565,6 +595,66 @@ export default function EmployeeProfile() {
               )}
             </>
           )}
+
+          {activeTab === 'legal' && (
+            <div className="space-y-3">
+              {canEdit && (
+                <div className="flex justify-end">
+                  <button
+                    onClick={() => { setEditAppointment(null); setShowAppointmentModal(true); }}
+                    className="flex items-center gap-1.5 text-sm bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg font-medium transition"
+                  >
+                    <Plus size={14} /> Add Appointment
+                  </button>
+                </div>
+              )}
+              {appointments.length === 0 ? (
+                <EmptyState message="No legal appointments on record" />
+              ) : (
+                appointments.map(appt => {
+                  const today = new Date();
+                  const expiry = appt.expiry_date ? new Date(appt.expiry_date) : null;
+                  const daysToExpiry = expiry ? (expiry.getTime() - today.getTime()) / 86400000 : null;
+                  const isExpired = daysToExpiry !== null && daysToExpiry < 0;
+                  const isSoon = daysToExpiry !== null && daysToExpiry >= 0 && daysToExpiry <= 30;
+                  return (
+                    <div
+                      key={appt.id}
+                      className={`flex items-start justify-between p-3 rounded-lg border transition-colors ${
+                        isExpired ? 'bg-red-50/50 border-red-200' : isSoon ? 'bg-amber-50/50 border-amber-200' : 'bg-gray-50/50 border-gray-100 hover:border-gray-200'
+                      }`}
+                    >
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-gray-900">{appt.appointment_type}</p>
+                        <p className="text-xs text-gray-500 mt-0.5">
+                          Appointed {fmt(appt.appointment_date)}
+                          {appt.appointed_by && ` · by ${appt.appointed_by}`}
+                        </p>
+                        {appt.expiry_date && (
+                          <p className={`text-xs mt-0.5 font-medium ${isExpired ? 'text-red-600' : isSoon ? 'text-amber-600' : 'text-gray-400'}`}>
+                            {isExpired ? '⚠ Expired' : isSoon ? '⚠ Expires soon'  : 'Expires'} {fmt(appt.expiry_date)}
+                          </p>
+                        )}
+                        {appt.document_reference && (
+                          <p className="text-xs text-gray-400 mt-0.5">Ref: {appt.document_reference}</p>
+                        )}
+                      </div>
+                      {canEdit && (
+                        <div className="flex items-center gap-1 ml-2 flex-shrink-0">
+                          <button onClick={() => { setEditAppointment(appt); setShowAppointmentModal(true); }} className="p-1.5 text-gray-400 hover:text-emerald-600 rounded-lg transition">
+                            <Pencil size={13} />
+                          </button>
+                          <button onClick={() => setDeleteAppointment(appt)} className="p-1.5 text-gray-400 hover:text-red-600 rounded-lg transition">
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -620,6 +710,22 @@ export default function EmployeeProfile() {
             setShowEdit(false);
             await loadEmployee(id!);
           }}
+        />
+      )}
+      {showAppointmentModal && (
+        <LegalAppointmentModal
+          employeeId={id!}
+          appointment={editAppointment}
+          onClose={() => { setShowAppointmentModal(false); setEditAppointment(null); }}
+          onSave={() => { setShowAppointmentModal(false); setEditAppointment(null); addToast('Appointment saved'); if (id) loadAppointments(id); }}
+        />
+      )}
+      {deleteAppointment && (
+        <DeleteConfirmModal
+          label={deleteAppointment.appointment_type}
+          onConfirm={handleDeleteAppointment}
+          onClose={() => setDeleteAppointment(null)}
+          deleting={deletingAppointment}
         />
       )}
     </div>

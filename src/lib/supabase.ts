@@ -515,6 +515,68 @@ export type MaintenanceHistory = {
   created_at: string;
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Phase 1 types
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type DocumentCategory = 'SOP' | 'License' | 'Permit' | 'Policy' | 'Certificate' | 'Other';
+
+export type AppDocument = {
+  id: string;
+  title: string;
+  category: DocumentCategory;
+  description: string;
+  file_path: string;
+  file_name: string;
+  file_size_bytes: number;
+  expiry_date: string | null;
+  is_active: boolean;
+  uploaded_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type LegalAppointmentType =
+  | 'First Aider'
+  | 'Fire Fighter'
+  | 'Emergency Coordinator'
+  | 'Safety Representative'
+  | '16.1 Appointee'
+  | '16.2 Appointee'
+  | 'Risk Assessor'
+  | 'Incident Investigator'
+  | 'Other';
+
+export type LegalAppointment = {
+  id: string;
+  employee_id: string;
+  appointment_type: LegalAppointmentType;
+  appointment_date: string;
+  expiry_date: string | null;
+  appointed_by: string;
+  document_reference: string;
+  notes: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type WasteReceiptWasteType = 'Medical' | 'Sharps' | 'Pharmaceutical' | 'Anatomical' | 'Other';
+
+export type WasteReceipt = {
+  id: string;
+  receipt_number: string;
+  date: string;
+  client_name: string;
+  waste_type: WasteReceiptWasteType;
+  quantity_kg: number;
+  manifest_number: string;
+  vehicle_registration: string;
+  received_by: string | null;
+  notes: string;
+  created_at: string;
+  updated_at: string;
+};
+
 export function getStockStatus(item: StockItem): 'Out of Stock' | 'Low Stock' | 'In Stock' {
   if (item.current_quantity <= 0) return 'Out of Stock';
   if (item.minimum_stock_level > 0 && item.current_quantity < item.minimum_stock_level) return 'Low Stock';
