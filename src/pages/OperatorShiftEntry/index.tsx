@@ -110,11 +110,12 @@ export default function OperatorShiftEntry() {
   const [signatureData, setSignatureData] = useState<string | null>(null);
   const [showSignaturePad, setShowSignaturePad] = useState(false);
   const [excludeIds, setExcludeIds] = useState<string[]>([]);
+  const [supervisorName, setSupervisorName] = useState('');
   const [saving, setSaving] = useState(false);
   const [submitError, setSubmitError] = useState('');
   const [copied, setCopied] = useState(false);
 
-  // Build the exclude list for team member selection
+  // Fetch linked employee name and build team exclusion list
   useEffect(() => {
     supabase
       .from('employees')
@@ -122,18 +123,24 @@ export default function OperatorShiftEntry() {
       .eq('status', 'active')
       .then(({ data }) => {
         if (!data) return;
-        const displayName = (profile?.display_name ?? '').toLowerCase();
+        const linkedId = profile?.employee_id ?? null;
+        const linked = linkedId ? data.find(e => e.id === linkedId) : null;
+        setSupervisorName(
+          linked
+            ? `${linked.first_name} ${linked.surname}`
+            : (profile?.display_name ?? '')
+        );
         const excluded = data
           .filter(e =>
             e.hs_role === 'hs_staff' ||
             (e.position ?? '').toLowerCase().includes('driver') ||
             (e.position ?? '').toLowerCase().includes('maintenance') ||
-            `${e.first_name} ${e.surname}`.toLowerCase() === displayName
+            (linkedId ? e.id === linkedId : `${e.first_name} ${e.surname}`.toLowerCase() === (profile?.display_name ?? '').toLowerCase())
           )
           .map(e => e.id);
         setExcludeIds(excluded);
       });
-  }, [profile?.display_name]);
+  }, [profile?.employee_id, profile?.display_name]);
 
   function selectShift(s: ShiftType) {
     setShift(s);
@@ -151,11 +158,7 @@ export default function OperatorShiftEntry() {
   }
 
   function goBackToSelect() {
-    setForm(EMPTY_FORM);
-    setSignatureData(null);
-    setShowSignaturePad(false);
-    setSubmitError('');
-    setShift(null);
+    resetAll();
     setStep('select');
   }
 
@@ -219,8 +222,8 @@ export default function OperatorShiftEntry() {
       );
     }
 
-    // Upsert the shift's data into the daily log (creates the row if it doesn't exist yet).
-    // The database trigger recalculates total_cycles, total_treated_kg, and chemical_litres automatically.
+    // Upsert shift data into the daily log (creates the row if it doesn't exist).
+    // The DB trigger recalculates total_cycles, total_treated_kg, chemical_litres automatically.
     const shiftUpdate = shift === 'Day'
       ? {
           day_shift_cycles:        Number(form.cycles) || 0,
@@ -257,25 +260,35 @@ export default function OperatorShiftEntry() {
   }
 
   function buildClipboardText(): string {
-    const supervisor = profile?.display_name ?? 'Unknown';
+    const sup = supervisorName || profile?.display_name || 'Unknown';
     const teamStr = form.team_names.length > 0
-      ? `${supervisor} + ${form.team_names.join(', ')}`
-      : supervisor;
-    const delays = form.has_downtime
-      ? `${form.downtime_reason}${form.downtime_minutes ? ` (${form.downtime_minutes} min)` : ''}`
-      : 'None';
-    return [
+      ? `${sup}, ${form.team_names.join(', ')}`
+      : sup;
+    const lines: string[] = [
       `Date: ${shiftDate}`,
       `Shift: ${shift} Shift`,
       `Team: ${teamStr}`,
+      '',
       `Cycles: ${form.cycles || 0}`,
       `KG Treated: ${form.treated_kg || 0}`,
+      '',
       `RUC Washed: ${form.ruc_washed || 0}`,
       `Lids Washed: ${form.lids_washed || 0}`,
-      `Wheelie Bins Washed: ${form.wheelie_bins || 0}`,
-      `Delays: ${delays}`,
-      `Notes: ${form.notes.trim() || '—'}`,
-    ].join('\n');
+      `Wheelie Bins: ${form.wheelie_bins || 0}`,
+      '',
+    ];
+    if (form.has_downtime) {
+      const delay = form.downtime_reason
+        ? `${form.downtime_reason}${form.downtime_minutes ? ` (${form.downtime_minutes} min)` : ''}`
+        : `${form.downtime_minutes} min`;
+      lines.push(`Delays: ${delay}`);
+    } else {
+      lines.push('Delays: None');
+    }
+    if (form.notes.trim()) {
+      lines.push('', `Notes: ${form.notes.trim()}`);
+    }
+    return lines.join('\n');
   }
 
   async function handleCopy() {
@@ -345,7 +358,7 @@ export default function OperatorShiftEntry() {
         <div className="bg-gray-50 rounded-xl border border-gray-200 p-4 grid grid-cols-2 gap-4">
           <div>
             <p className="text-xs font-medium text-gray-500 mb-1">Supervisor</p>
-            <p className="text-sm font-semibold text-gray-900">{profile?.display_name ?? '—'}</p>
+            <p className="text-sm font-semibold text-gray-900">{supervisorName || '—'}</p>
           </div>
           <div>
             <p className="text-xs font-medium text-gray-500 mb-1">Date</p>
@@ -377,6 +390,8 @@ export default function OperatorShiftEntry() {
                 className={INPUT}
               />
             </div>
+          </div>
+          <div className="grid grid-cols-3 gap-3">
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">RUC Washed</label>
               <input
@@ -397,8 +412,8 @@ export default function OperatorShiftEntry() {
                 className={INPUT}
               />
             </div>
-            <div className="col-span-2">
-              <label className="block text-xs font-medium text-gray-600 mb-1">Wheelie Bins Washed</label>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Wheelie Bins</label>
               <input
                 type="number" min="0"
                 value={form.wheelie_bins}
@@ -464,6 +479,17 @@ export default function OperatorShiftEntry() {
           )}
         </div>
 
+        {/* Team Members */}
+        <div>
+          <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Team Members</h2>
+          <EmployeeMultiSelect
+            value={form.team_ids}
+            onChange={(ids, names) => setForm(f => ({ ...f, team_ids: ids, team_names: names }))}
+            placeholder="Select team members…"
+            excludeIds={excludeIds}
+          />
+        </div>
+
         {/* Notes */}
         <div>
           <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Notes</h2>
@@ -473,17 +499,6 @@ export default function OperatorShiftEntry() {
             rows={3}
             placeholder="Any additional notes for this shift…"
             className={`${INPUT} resize-none`}
-          />
-        </div>
-
-        {/* Team Members */}
-        <div>
-          <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Team Members</h2>
-          <EmployeeMultiSelect
-            value={form.team_ids}
-            onChange={(ids, names) => setForm(f => ({ ...f, team_ids: ids, team_names: names }))}
-            placeholder="Select team members…"
-            excludeIds={excludeIds}
           />
         </div>
 
@@ -500,17 +515,12 @@ export default function OperatorShiftEntry() {
               </div>
               <button
                 type="button"
-                onClick={() => { setSignatureData(null); setShowSignaturePad(true); }}
+                onClick={() => setShowSignaturePad(true)}
                 className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-700 transition"
               >
                 <RotateCcw size={11} /> Re-sign
               </button>
             </div>
-          ) : showSignaturePad ? (
-            <SignaturePad
-              onSave={url => { setSignatureData(url); setShowSignaturePad(false); }}
-              onCancel={() => setShowSignaturePad(false)}
-            />
           ) : (
             <button
               type="button"
@@ -543,31 +553,46 @@ export default function OperatorShiftEntry() {
             'Submit Shift Report'
           )}
         </button>
+
+        {/* Signature popup */}
+        {showSignaturePad && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-5">
+            <div className="absolute inset-0 bg-black/50" onClick={() => setShowSignaturePad(false)} />
+            <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm p-5 space-y-3">
+              <h3 className="text-base font-semibold text-gray-900 text-center">Draw your signature</h3>
+              <SignaturePad
+                onSave={url => { setSignatureData(url); setShowSignaturePad(false); }}
+                onCancel={() => setShowSignaturePad(false)}
+                existingSignature={signatureData}
+              />
+            </div>
+          </div>
+        )}
       </div>
     );
   }
 
   // ── Step 3: Summary ───────────────────────────────────────────────────────
-  const supervisor = profile?.display_name ?? 'Unknown';
+  const sup = supervisorName || profile?.display_name || 'Unknown';
   const teamDisplay = form.team_names.length > 0
-    ? `${supervisor} + ${form.team_names.join(', ')}`
-    : supervisor;
+    ? `${sup}, ${form.team_names.join(', ')}`
+    : sup;
   const delayDisplay = form.has_downtime
     ? `${form.downtime_reason}${form.downtime_minutes ? ` (${form.downtime_minutes} min)` : ''}`
     : 'None';
 
   const summaryRows = [
-    { label: 'Date',               value: shiftDate },
-    { label: 'Shift',              value: `${shift} Shift` },
-    { label: 'Supervisor',         value: supervisor },
-    { label: 'Team',               value: form.team_names.length > 0 ? teamDisplay : supervisor },
-    { label: 'Cycles',             value: form.cycles || '0' },
-    { label: 'KG Treated',         value: form.treated_kg || '0' },
-    { label: 'RUC Washed',         value: form.ruc_washed || '0' },
-    { label: 'Lids Washed',        value: form.lids_washed || '0' },
-    { label: 'Wheelie Bins Washed',value: form.wheelie_bins || '0' },
-    { label: 'Delays',             value: delayDisplay },
-    { label: 'Notes',              value: form.notes.trim() || '—' },
+    { label: 'Date',                value: shiftDate },
+    { label: 'Shift',               value: `${shift} Shift` },
+    { label: 'Supervisor',          value: sup },
+    { label: 'Team',                value: form.team_names.length > 0 ? teamDisplay : sup },
+    { label: 'Cycles',              value: form.cycles || '0' },
+    { label: 'KG Treated',          value: form.treated_kg || '0' },
+    { label: 'RUC Washed',          value: form.ruc_washed || '0' },
+    { label: 'Lids Washed',         value: form.lids_washed || '0' },
+    { label: 'Wheelie Bins Washed', value: form.wheelie_bins || '0' },
+    { label: 'Delays',              value: delayDisplay },
+    ...(form.notes.trim() ? [{ label: 'Notes', value: form.notes.trim() }] : []),
   ];
 
   return (
