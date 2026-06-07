@@ -205,9 +205,25 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
   }
 
   const isAdmin = role === 'admin';
+  const isOperator = role === 'operator';
+
+  useEffect(() => {
+    if (isOperator) setExpandedGroups(new Set(['treatment']));
+  }, [isOperator]);
+
   const displayName = profile?.display_name ?? userEmail ?? 'User';
   const roleLabel = role ? ROLE_LABELS[role] : 'Loading...';
   const roleColor = role ? ROLE_COLORS[role] : 'bg-gray-500/20 text-gray-400';
+
+  const visibleGroups: ModuleGroup[] = isOperator
+    ? [{
+        id: 'treatment',
+        label: 'Treatment Plant',
+        icon: Factory,
+        color: 'text-cyan-400',
+        items: [{ path: '/shift-report', label: 'Add Shift Record' }],
+      }]
+    : moduleGroups;
 
   const navContent = (isMobileDrawer: boolean) => {
     const showLabels = isMobileDrawer || !collapsed;
@@ -240,27 +256,30 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
 
         {/* Nav */}
         <nav className="flex-1 py-3 overflow-y-auto">
-          <button
-            onClick={() => handleNavigate('/')}
-            className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-all duration-150 group relative ${
-              isActive('/')
-                ? 'bg-emerald-600/20 text-emerald-400'
-                : 'text-gray-300 hover:bg-gray-800/60 hover:text-white'
-            }`}
-          >
-            {isActive('/') && <span className="absolute left-0 top-0 h-full w-[3px] bg-emerald-500 rounded-r" />}
-            <LayoutDashboard size={18} className="flex-shrink-0" />
-            {showLabels && <span className="font-medium">Dashboard</span>}
-            {!showLabels && (
-              <span className="absolute left-16 bg-gray-800 text-white text-xs px-2.5 py-1.5 rounded-md opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50 shadow-xl border border-gray-700">
-                Dashboard
-              </span>
-            )}
-          </button>
+          {!isOperator && (
+            <>
+              <button
+                onClick={() => handleNavigate('/')}
+                className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-all duration-150 group relative ${
+                  isActive('/')
+                    ? 'bg-emerald-600/20 text-emerald-400'
+                    : 'text-gray-300 hover:bg-gray-800/60 hover:text-white'
+                }`}
+              >
+                {isActive('/') && <span className="absolute left-0 top-0 h-full w-[3px] bg-emerald-500 rounded-r" />}
+                <LayoutDashboard size={18} className="flex-shrink-0" />
+                {showLabels && <span className="font-medium">Dashboard</span>}
+                {!showLabels && (
+                  <span className="absolute left-16 bg-gray-800 text-white text-xs px-2.5 py-1.5 rounded-md opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50 shadow-xl border border-gray-700">
+                    Dashboard
+                  </span>
+                )}
+              </button>
+              <div className="mx-4 my-2 border-t border-gray-800" />
+            </>
+          )}
 
-          <div className="mx-4 my-2 border-t border-gray-800" />
-
-          {moduleGroups.map((group) => {
+          {visibleGroups.map((group) => {
             const Icon = group.icon;
             const expanded = expandedGroups.has(group.id);
             const active = isGroupActive(group);

@@ -447,7 +447,36 @@ export type ToolboxTalkTopic = {
   created_at: string;
 };
 
-export type AppRole = 'admin' | 'management' | 'stock_controller' | 'production' | 'viewer';
+export type AppRole = 'admin' | 'management' | 'stock_controller' | 'production' | 'operator' | 'viewer';
+
+export type ShiftType = 'Day' | 'Afternoon' | 'Night';
+
+export type ShiftReport = {
+  id: string;
+  shift_date: string;
+  shift: ShiftType;
+  supervisor_id: string | null;
+  submitted_by: string;
+  cycles: number;
+  treated_kg: number;
+  ruc_washed: number;
+  lids_washed: number;
+  wheelie_bins: number;
+  has_downtime: boolean;
+  downtime_reason: string;
+  downtime_minutes: number;
+  notes: string;
+  signature_data: string | null;
+  signed_at: string | null;
+  created_at: string;
+};
+
+export type ShiftTeamMember = {
+  id: string;
+  shift_report_id: string;
+  employee_id: string;
+  created_at: string;
+};
 
 export type UserProfile = {
   id: string;
@@ -465,6 +494,7 @@ export const ROLE_LABELS: Record<AppRole, string> = {
   management: 'Management',
   stock_controller: 'Stock Controller',
   production: 'Production',
+  operator: 'Operator',
   viewer: 'Viewer',
 };
 
@@ -473,6 +503,7 @@ export const ROLE_COLORS: Record<AppRole, string> = {
   management: 'bg-teal-500/20 text-teal-300',
   stock_controller: 'bg-emerald-500/20 text-emerald-300',
   production: 'bg-cyan-500/20 text-cyan-300',
+  operator: 'bg-indigo-500/20 text-indigo-300',
   viewer: 'bg-gray-500/20 text-gray-400',
 };
 

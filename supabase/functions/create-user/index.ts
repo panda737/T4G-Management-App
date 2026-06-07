@@ -53,7 +53,7 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    const allowedRoles = ["admin", "management", "stock_controller", "production", "viewer"];
+    const allowedRoles = ["admin", "management", "stock_controller", "production", "operator", "viewer"];
     if (!allowedRoles.includes(role)) {
       return new Response(JSON.stringify({ error: "Invalid role" }), {
         status: 400,

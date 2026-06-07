@@ -7,6 +7,7 @@ interface UserContextValue {
   role: AppRole | null;
   isAdmin: boolean;
   isManagement: boolean;
+  isOperator: boolean;
   canWrite: (module: 'stock' | 'treatment' | 'safety' | 'training' | 'admin') => boolean;
   loading: boolean;
 }
@@ -16,6 +17,7 @@ const UserContext = createContext<UserContextValue>({
   role: null,
   isAdmin: false,
   isManagement: false,
+  isOperator: false,
   canWrite: () => false,
   loading: true,
 });
@@ -30,6 +32,7 @@ export function useUser() {
   - management:       all except admin ✓
   - stock_controller: stock only ✓
   - production:       treatment only ✓
+  - operator:         treatment only ✓ (shift entry)
   - viewer:           none ✗
 */
 function resolveCanWrite(role: AppRole | null, module: 'stock' | 'treatment' | 'safety' | 'training' | 'admin'): boolean {
@@ -38,6 +41,7 @@ function resolveCanWrite(role: AppRole | null, module: 'stock' | 'treatment' | '
   if (role === 'management') return module !== 'admin';
   if (role === 'stock_controller') return module === 'stock';
   if (role === 'production') return module === 'treatment';
+  if (role === 'operator') return module === 'treatment';
   return false; // viewer
 }
 
@@ -72,6 +76,7 @@ export function UserProvider({ session, children }: { session: Session; children
     role,
     isAdmin: role === 'admin',
     isManagement: role === 'management',
+    isOperator: role === 'operator',
     canWrite: (module) => resolveCanWrite(role, module),
     loading,
   };

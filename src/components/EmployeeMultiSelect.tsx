@@ -21,6 +21,7 @@ interface EmployeeMultiSelectProps {
   className?: string;
   positionFilter?: string[];
   hsRoleFilter?: EmployeeHsRole[];
+  excludeIds?: string[];
 }
 
 export default function EmployeeMultiSelect({
@@ -32,6 +33,7 @@ export default function EmployeeMultiSelect({
   className = '',
   positionFilter,
   hsRoleFilter,
+  excludeIds,
 }: EmployeeMultiSelectProps) {
   const [employees, setEmployees] = useState<EmployeeOption[]>([]);
   const [open, setOpen] = useState(false);
@@ -77,15 +79,19 @@ export default function EmployeeMultiSelect({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  const availableEmployees = excludeIds?.length
+    ? employees.filter(e => !excludeIds.includes(e.id))
+    : employees;
+
   const filtered = search
-    ? employees.filter(
+    ? availableEmployees.filter(
         e =>
           e.label.toLowerCase().includes(search.toLowerCase()) ||
           e.employee_number.toLowerCase().includes(search.toLowerCase()) ||
           e.department.toLowerCase().includes(search.toLowerCase()) ||
           e.position.toLowerCase().includes(search.toLowerCase())
       )
-    : employees;
+    : availableEmployees;
 
   function toggle(emp: EmployeeOption) {
     const next = value.includes(emp.id)

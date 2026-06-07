@@ -3,7 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Menu, XCircle } from 'lucide-react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from './lib/supabase';
-import { UserProvider } from './lib/UserContext';
+import { UserProvider, useUser } from './lib/UserContext';
 import { ToastProvider } from './lib/toast';
 import Sidebar from './components/Sidebar';
 import Login from './pages/Login';
@@ -41,6 +41,7 @@ import AdminUsers from './pages/AdminUsers';
 import DocumentLibrary from './pages/DocumentLibrary';
 import AppointmentsRegister from './pages/EmployeeRegister/AppointmentsRegister';
 import WasteOnFloor from './pages/TreatmentWasteOnFloor';
+import OperatorShiftEntry from './pages/OperatorShiftEntry';
 
 class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
   state = { error: null };
@@ -75,6 +76,13 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | 
     }
     return this.props.children;
   }
+}
+
+function RootRedirect() {
+  const { isOperator, loading } = useUser();
+  if (loading) return null;
+  if (isOperator) return <Navigate to="/shift-report" replace />;
+  return <GlobalDashboard />;
 }
 
 function AuthenticatedLayout({ session }: { session: Session }) {
@@ -117,7 +125,10 @@ function AuthenticatedLayout({ session }: { session: Session }) {
         <div className="min-h-screen p-3 sm:p-4 lg:p-6 max-w-screen-2xl mx-auto">
           <ErrorBoundary>
           <Routes>
-            <Route path="/" element={<GlobalDashboard />} />
+            <Route path="/" element={<RootRedirect />} />
+
+            {/* Operator shift entry */}
+            <Route path="/shift-report" element={<OperatorShiftEntry />} />
 
             {/* Stock Management */}
             <Route path="/stock" element={<Navigate to="/stock/master-list" replace />} />
