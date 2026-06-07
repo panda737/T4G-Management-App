@@ -32,24 +32,50 @@ export default function CreateUserModal({ onClose, onSave }: Props) {
     if (form.password.length < 8) { setError('Password must be at least 8 characters.'); return; }
 
     setCreating(true);
-    const { data: { session } } = await supabase.auth.getSession();
-    const res = await fetch(
-      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-user`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session?.access_token}`,
-          'Apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
-        },
-        body: JSON.stringify({ email: form.email, password: form.password, display_name: form.display_name, role: form.role }),
-      }
-    );
-    const result = await res.json();
-    setCreating(false);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { setError('Session expired — please log out and log in again.'); return; }
 
-    if (!res.ok || result.error) { setError(result.error ?? 'Failed to create user.'); return; }
-    onSave();
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 30000);
+      let res: Response;
+      try {
+        res = await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-user`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${session.access_token}`,
+              'Apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+            },
+            body: JSON.stringify({ email: form.email, password: form.password, display_name: form.display_name, role: form.role }),
+            signal: controller.signal,
+          }
+        );
+      } finally {
+        clearTimeout(timeout);
+      }
+
+      let result: { error?: string; success?: boolean };
+      try {
+        result = await res.json();
+      } catch {
+        setError(`Server error (HTTP ${res.status}). Please try again.`);
+        return;
+      }
+
+      if (!res.ok || result.error) { setError(result.error ?? 'Failed to create user.'); return; }
+      onSave();
+    } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') {
+        setError('Request timed out. Check your connection and try again.');
+      } else {
+        setError('Network error. Check your connection and try again.');
+      }
+    } finally {
+      setCreating(false);
+    }
   }
 
   return (
