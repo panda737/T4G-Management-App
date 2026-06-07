@@ -221,7 +221,10 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
         label: 'Treatment Plant',
         icon: Factory,
         color: 'text-cyan-400',
-        items: [{ path: '/shift-report', label: 'Add Shift Record' }],
+        items: [
+          { path: '/treatment', label: 'Plant Dashboard' },
+          { path: '/shift-report', label: 'Add Shift Record' },
+        ],
       }]
     : moduleGroups;
 

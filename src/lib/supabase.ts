@@ -484,6 +484,7 @@ export type UserProfile = {
   display_name: string;
   role: AppRole;
   is_active: boolean;
+  employee_id: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;

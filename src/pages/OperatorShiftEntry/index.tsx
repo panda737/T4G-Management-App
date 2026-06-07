@@ -180,11 +180,14 @@ export default function OperatorShiftEntry() {
       return;
     }
 
+    const employeeId = profile?.employee_id ?? null;
+
     const { data: report, error: reportErr } = await supabase
       .from('treatment_shift_reports')
       .insert({
         shift_date:       shiftDate,
         shift,
+        supervisor_id:    employeeId,
         submitted_by:     user.id,
         cycles:           Number(form.cycles) || 0,
         treated_kg:       Number(form.treated_kg) || 0,
@@ -215,6 +218,38 @@ export default function OperatorShiftEntry() {
         }))
       );
     }
+
+    // Upsert the shift's data into the daily log (creates the row if it doesn't exist yet).
+    // The database trigger recalculates total_cycles, total_treated_kg, and chemical_litres automatically.
+    const shiftUpdate = shift === 'Day'
+      ? {
+          day_shift_cycles:        Number(form.cycles) || 0,
+          day_shift_treated_kg:    Number(form.treated_kg) || 0,
+          day_shift_ruc_washed:    Number(form.ruc_washed) || 0,
+          day_shift_lids_washed:   Number(form.lids_washed) || 0,
+          day_shift_wheelie_bins:  Number(form.wheelie_bins) || 0,
+          day_shift_supervisor_id: employeeId,
+        }
+      : shift === 'Afternoon'
+      ? {
+          afternoon_shift_cycles:        Number(form.cycles) || 0,
+          afternoon_shift_treated_kg:    Number(form.treated_kg) || 0,
+          afternoon_shift_ruc_washed:    Number(form.ruc_washed) || 0,
+          afternoon_shift_lids_washed:   Number(form.lids_washed) || 0,
+          afternoon_shift_wheelie_bins:  Number(form.wheelie_bins) || 0,
+          afternoon_shift_supervisor_id: employeeId,
+        }
+      : {
+          night_shift_cycles:        Number(form.cycles) || 0,
+          night_shift_treated_kg:    Number(form.treated_kg) || 0,
+          night_shift_ruc_washed:    Number(form.ruc_washed) || 0,
+          night_shift_lids_washed:   Number(form.lids_washed) || 0,
+          night_shift_wheelie_bins:  Number(form.wheelie_bins) || 0,
+          night_shift_supervisor_id: employeeId,
+        };
+    await supabase
+      .from('treatment_daily_log')
+      .upsert({ date: shiftDate, updated_at: new Date().toISOString(), ...shiftUpdate }, { onConflict: 'date' });
 
     setSaving(false);
     addToast('Shift report submitted successfully');
@@ -554,27 +589,17 @@ export default function OperatorShiftEntry() {
         ))}
       </div>
 
-      <div className="flex gap-3">
-        <button
-          type="button"
-          onClick={handleCopy}
-          className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl border text-sm font-medium transition ${
-            copied
-              ? 'bg-emerald-600 text-white border-emerald-600'
-              : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
-          }`}
-        >
-          {copied ? <><Check size={15} /> Copied!</> : <><ClipboardCopy size={15} /> Copy Report</>}
-        </button>
-
-        <button
-          type="button"
-          onClick={() => { resetAll(); setStep('select'); }}
-          className="flex-1 py-3 rounded-xl bg-cyan-600 hover:bg-cyan-700 text-white text-sm font-medium transition"
-        >
-          Submit Another
-        </button>
-      </div>
+      <button
+        type="button"
+        onClick={handleCopy}
+        className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl border text-sm font-medium transition ${
+          copied
+            ? 'bg-emerald-600 text-white border-emerald-600'
+            : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+        }`}
+      >
+        {copied ? <><Check size={15} /> Copied!</> : <><ClipboardCopy size={15} /> Copy Report</>}
+      </button>
     </div>
   );
 }

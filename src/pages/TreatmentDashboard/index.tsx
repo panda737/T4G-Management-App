@@ -20,7 +20,7 @@ import DeleteConfirmModal from '../../components/DeleteConfirmModal';
 import { useUser } from '../../lib/UserContext';
 
 export default function TreatmentDashboard() {
-  const { isAdmin } = useUser();
+  const { isAdmin, isOperator } = useUser();
   const [logs, setLogs] = useState<TreatmentDailyLog[]>([]);
   const [monthlySummaries, setMonthlySummaries] = useState<TreatmentMonthlySummary[]>([]);
   const [employees, setEmployees] = useState<EmployeeName[]>([]);
@@ -52,11 +52,11 @@ export default function TreatmentDashboard() {
   }, []);
 
   useEffect(() => {
-    if (logs.length === 0) return;
+    if (logs.length === 0 || isOperator) return;
     const latest = logs[logs.length - 1].date.substring(0, 7);
     setSelectedMonth(latest);
     setSelectedYear(latest.substring(0, 4));
-  }, [logs]);
+  }, [logs, isOperator]);
 
   async function loadData() {
     setLoading(true);
@@ -321,42 +321,44 @@ export default function TreatmentDashboard() {
             </span>
           )}
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="flex bg-gray-100 rounded-lg p-0.5 flex-shrink-0">
-            {(['day', 'month', 'year'] as Period[]).map(p => (
-              <button
-                key={p}
-                onClick={() => setPeriod(p)}
-                className={`px-4 py-1.5 text-xs font-semibold rounded-md transition-all capitalize ${
-                  period === p ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
-                }`}
+        {!isOperator && (
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex bg-gray-100 rounded-lg p-0.5 flex-shrink-0">
+              {(['day', 'month', 'year'] as Period[]).map(p => (
+                <button
+                  key={p}
+                  onClick={() => setPeriod(p)}
+                  className={`px-4 py-1.5 text-xs font-semibold rounded-md transition-all capitalize ${
+                    period === p ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  {p === 'day' ? 'Yesterday' : p}
+                </button>
+              ))}
+            </div>
+            {period === 'month' && (
+              <select
+                value={selectedMonth}
+                onChange={e => setSelectedMonth(e.target.value)}
+                className="flex-1 min-w-0 bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-sm"
               >
-                {p === 'day' ? 'Yesterday' : p}
-              </button>
-            ))}
+                {availableMonths.map(m => {
+                  const [y, mo] = m.split('-').map(Number);
+                  return <option key={m} value={m}>{MONTHS_SHORT[mo - 1]} {y}</option>;
+                })}
+              </select>
+            )}
+            {period === 'year' && (
+              <select
+                value={selectedYear}
+                onChange={e => setSelectedYear(e.target.value)}
+                className="flex-1 min-w-0 bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-sm"
+              >
+                {availableYears.map(y => <option key={y} value={y}>{y}</option>)}
+              </select>
+            )}
           </div>
-          {period === 'month' && (
-            <select
-              value={selectedMonth}
-              onChange={e => setSelectedMonth(e.target.value)}
-              className="flex-1 min-w-0 bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-sm"
-            >
-              {availableMonths.map(m => {
-                const [y, mo] = m.split('-').map(Number);
-                return <option key={m} value={m}>{MONTHS_SHORT[mo - 1]} {y}</option>;
-              })}
-            </select>
-          )}
-          {period === 'year' && (
-            <select
-              value={selectedYear}
-              onChange={e => setSelectedYear(e.target.value)}
-              className="flex-1 min-w-0 bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-sm"
-            >
-              {availableYears.map(y => <option key={y} value={y}>{y}</option>)}
-            </select>
-          )}
-        </div>
+        )}
       </div>
 
       <div className="bg-gradient-to-r from-emerald-600 to-emerald-700 rounded-xl p-5 text-white shadow-lg">
@@ -374,7 +376,7 @@ export default function TreatmentDashboard() {
             </span>
           </div>
           <div className="flex items-center gap-1.5 flex-shrink-0">
-            {isAdmin && headerLog && period !== 'year' && (
+            {isAdmin && !isOperator && headerLog && period !== 'year' && (
               <>
                 <button
                   onClick={() => setEditingLog(headerLog)}
