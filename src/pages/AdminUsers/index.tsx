@@ -10,13 +10,15 @@ import DeleteConfirmModal from '../../components/DeleteConfirmModal';
 import CreateUserModal from './CreateUserModal';
 import EditUserModal from './EditUserModal';
 
-const ROLES: AppRole[] = ['admin', 'management', 'stock_controller', 'production', 'viewer'];
+// Reference section shows Operator instead of Production (operator is the active shift role)
+const ROLES: AppRole[] = ['admin', 'management', 'stock_controller', 'operator', 'viewer'];
 
 const ROLE_DESCRIPTIONS: Record<AppRole, string> = {
   admin: 'Full access to everything including user management',
   management: 'Full access to all modules — cannot manage users',
   stock_controller: 'Write access to Stock Management only',
   production: 'Write access to Treatment Plant only',
+  operator: 'Treatment Plant shift entry only',
   viewer: 'Read-only access across all modules',
 };
 
@@ -25,6 +27,7 @@ const ROLE_BADGE: Record<AppRole, string> = {
   management: 'bg-teal-600 text-white',
   stock_controller: 'bg-emerald-600 text-white',
   production: 'bg-cyan-600 text-white',
+  operator: 'bg-indigo-600 text-white',
   viewer: 'bg-gray-500 text-white',
 };
 
@@ -33,6 +36,7 @@ const ROLE_DOT: Record<AppRole, string> = {
   management: 'bg-teal-500',
   stock_controller: 'bg-emerald-500',
   production: 'bg-cyan-500',
+  operator: 'bg-indigo-500',
   viewer: 'bg-gray-400',
 };
 
@@ -41,6 +45,7 @@ const ROLE_AVATAR: Record<AppRole, string> = {
   management: 'bg-teal-100 text-teal-700',
   stock_controller: 'bg-emerald-100 text-emerald-700',
   production: 'bg-cyan-100 text-cyan-700',
+  operator: 'bg-indigo-100 text-indigo-700',
   viewer: 'bg-gray-100 text-gray-600',
 };
 
