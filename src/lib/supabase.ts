@@ -519,7 +519,7 @@ export type MaintenanceHistory = {
 // Phase 1 types
 // ─────────────────────────────────────────────────────────────────────────────
 
-export type DocumentCategory = 'SOP' | 'License' | 'Permit' | 'Policy' | 'Certificate' | 'Other';
+export type DocumentCategory = 'SOP' | 'Policy' | 'Risk Assessment' | 'Licence & Permit' | 'Template';
 
 export type AppDocument = {
   id: string;

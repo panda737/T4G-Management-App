@@ -163,6 +163,7 @@ function AuthenticatedLayout({ session }: { session: Session }) {
 
             {/* Documents */}
             <Route path="/documents" element={<DocumentLibrary />} />
+            <Route path="/documents/:category" element={<DocumentLibrary />} />
 
             {/* Employee Register */}
             <Route path="/employees" element={<EmployeeRegister />} />

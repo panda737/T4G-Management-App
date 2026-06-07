@@ -3,12 +3,13 @@ import { Upload, Loader, FileText } from 'lucide-react';
 import { supabase, AppDocument, DocumentCategory } from '../../lib/supabase';
 import Modal from '../../components/Modal';
 
-const CATEGORIES: DocumentCategory[] = ['SOP', 'License', 'Permit', 'Policy', 'Certificate', 'Other'];
+const CATEGORIES: DocumentCategory[] = ['SOP', 'Policy', 'Risk Assessment', 'Licence & Permit', 'Template'];
 
 const ACCEPT = '.pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.webp';
 
 interface Props {
   doc: AppDocument | null;
+  defaultCategory?: DocumentCategory;
   onClose: () => void;
   onSave: () => void;
 }
@@ -19,10 +20,10 @@ function formatBytes(bytes: number) {
   return `${(bytes / 1048576).toFixed(1)} MB`;
 }
 
-export default function DocumentFormModal({ doc, onClose, onSave }: Props) {
+export default function DocumentFormModal({ doc, defaultCategory, onClose, onSave }: Props) {
   const isEdit = !!doc;
   const [title, setTitle] = useState(doc?.title ?? '');
-  const [category, setCategory] = useState<DocumentCategory>(doc?.category ?? 'SOP');
+  const [category, setCategory] = useState<DocumentCategory>(doc?.category ?? defaultCategory ?? 'SOP');
   const [description, setDescription] = useState(doc?.description ?? '');
   const [expiryDate, setExpiryDate] = useState(doc?.expiry_date ?? '');
   const [file, setFile] = useState<File | null>(null);

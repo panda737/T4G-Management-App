@@ -110,7 +110,12 @@ const moduleGroups: ModuleGroup[] = [
     icon: FileText,
     color: 'text-violet-400',
     items: [
-      { path: '/documents', label: 'Document Library' },
+      { path: '/documents/sops',               label: 'SOPs' },
+      { path: '/documents/policies',            label: 'Policies' },
+      { path: '/documents/risk-assessments',    label: 'Risk Assessments' },
+      { path: '/documents/licences-permits',    label: 'Licences & Permits' },
+      { path: '/documents/templates',           label: 'Templates' },
+      { path: '/documents/archived',            label: 'Archived Documents' },
     ],
   },
   {
