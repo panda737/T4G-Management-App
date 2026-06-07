@@ -8,7 +8,6 @@ import { ToastProvider } from './lib/toast';
 import Sidebar from './components/Sidebar';
 import Login from './pages/Login';
 import GlobalDashboard from './pages/GlobalDashboard';
-import Dashboard from './pages/Dashboard';
 import StockMasterList from './pages/StockMasterList';
 import StockMovements from './pages/StockMovements';
 import StockTake from './pages/StockTake';
@@ -34,7 +33,6 @@ import TrainingSchedule from './pages/TrainingSchedule';
 import TrainingCertificates from './pages/TrainingCertificates';
 import TrainingModules from './pages/TrainingModules';
 import TrainingAssessment from './pages/TrainingAssessment';
-import MaintenanceDashboard from './pages/MaintenanceDashboard';
 import MaintenanceWorkOrders from './pages/MaintenanceWorkOrders';
 import MaintenanceAssets from './pages/MaintenanceAssets';
 import MaintenanceParts from './pages/MaintenanceParts';
@@ -122,7 +120,7 @@ function AuthenticatedLayout({ session }: { session: Session }) {
             <Route path="/" element={<GlobalDashboard />} />
 
             {/* Stock Management */}
-            <Route path="/stock" element={<Dashboard />} />
+            <Route path="/stock" element={<Navigate to="/stock/master-list" replace />} />
             <Route path="/stock/master-list" element={<StockMasterList />} />
             <Route path="/stock/movements" element={<StockMovements />} />
             <Route path="/stock/stock-take" element={<StockTake />} />
@@ -154,7 +152,7 @@ function AuthenticatedLayout({ session }: { session: Session }) {
             <Route path="/training/certificates" element={<TrainingCertificates />} />
 
             {/* Maintenance */}
-            <Route path="/maintenance" element={<MaintenanceDashboard />} />
+            <Route path="/maintenance" element={<Navigate to="/maintenance/plant-overview" replace />} />
             <Route path="/maintenance/plant-overview" element={<PlantOverview />} />
             <Route path="/maintenance/assets" element={<MaintenanceAssets />} />
             <Route path="/maintenance/parts" element={<MaintenanceParts />} />

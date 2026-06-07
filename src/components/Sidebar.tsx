@@ -37,7 +37,6 @@ const moduleGroups: ModuleGroup[] = [
     icon: Package,
     color: 'text-emerald-400',
     items: [
-      { path: '/stock', label: 'Stock Dashboard' },
       { path: '/stock/master-list', label: 'Master List' },
       { path: '/stock/movements', label: 'Movements' },
       { path: '/stock/stock-take', label: 'Stock Take' },
@@ -80,7 +79,6 @@ const moduleGroups: ModuleGroup[] = [
     icon: Wrench,
     color: 'text-orange-400',
     items: [
-      { path: '/maintenance', label: 'Maintenance Dashboard' },
       { path: '/maintenance/plant-overview', label: 'Plant Overview' },
       { path: '/maintenance/assets', label: 'Equipment Register' },
       { path: '/maintenance/parts', label: 'Spare Parts' },
