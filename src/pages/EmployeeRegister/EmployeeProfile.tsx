@@ -78,9 +78,9 @@ function fmt(dateStr: string | null | undefined) {
 export default function EmployeeProfile() {
   usePageTitle('Employee Profile');
   const { id } = useParams<{ id: string }>();
-  const { isAdmin, isManagement } = useUser();
+  const { isAdmin } = useUser();
   const { addToast } = useToast();
-  const canEdit = isAdmin || isManagement;
+  const canEdit = isAdmin;
 
   const [employee, setEmployee] = useState<Employee | null>(null);
   const [creatorName, setCreatorName] = useState<string | null>(null);

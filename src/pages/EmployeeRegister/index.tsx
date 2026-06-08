@@ -17,8 +17,8 @@ type SortKey = 'surname' | 'position' | 'status';
 
 export default function EmployeeRegister() {
   usePageTitle('Employee Register');
-  const { isAdmin, isManagement } = useUser();
-  const canEdit = isAdmin || isManagement;
+  const { isAdmin } = useUser();
+  const canEdit = isAdmin;
   const navigate = useNavigate();
 
   const { addToast } = useToast();
