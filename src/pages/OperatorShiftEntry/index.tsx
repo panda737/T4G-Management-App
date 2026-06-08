@@ -9,6 +9,11 @@ import SignaturePad from '../../components/SignaturePad';
 
 type Step = 'select' | 'form' | 'summary';
 
+interface DowntimeEntry {
+  reason: string;
+  minutes: string;
+}
+
 interface FormState {
   cycles: string;
   treated_kg: string;
@@ -16,8 +21,7 @@ interface FormState {
   lids_washed: string;
   wheelie_bins: string;
   has_downtime: boolean;
-  downtime_reason: string;
-  downtime_minutes: string;
+  downtimes: DowntimeEntry[];
   notes: string;
   team_ids: string[];
   team_names: string[];
@@ -30,8 +34,7 @@ const EMPTY_FORM: FormState = {
   lids_washed: '',
   wheelie_bins: '',
   has_downtime: false,
-  downtime_reason: '',
-  downtime_minutes: '',
+  downtimes: [{ reason: '', minutes: '' }],
   notes: '',
   team_ids: [],
   team_names: [],
@@ -197,9 +200,7 @@ export default function OperatorShiftEntry() {
         ruc_washed:       Number(form.ruc_washed) || 0,
         lids_washed:      Number(form.lids_washed) || 0,
         wheelie_bins:     Number(form.wheelie_bins) || 0,
-        has_downtime:     form.has_downtime,
-        downtime_reason:  form.downtime_reason,
-        downtime_minutes: Number(form.downtime_minutes) || 0,
+        has_downtime:     form.has_downtime && form.downtimes.some(d => d.minutes !== '' || d.reason.trim() !== ''),
         notes:            form.notes,
         signature_data:   signatureData,
         signed_at:        new Date().toISOString(),
@@ -220,6 +221,19 @@ export default function OperatorShiftEntry() {
           employee_id,
         }))
       );
+    }
+
+    if (form.has_downtime) {
+      const downtimeRows = form.downtimes
+        .filter(d => d.minutes !== '' || d.reason.trim() !== '')
+        .map(d => ({
+          shift_report_id: report.id,
+          reason: d.reason.trim(),
+          minutes: parseInt(d.minutes) || 0,
+        }));
+      if (downtimeRows.length > 0) {
+        await supabase.from('treatment_shift_downtimes').insert(downtimeRows);
+      }
     }
 
     // Upsert shift data into the daily log (creates the row if it doesn't exist).
@@ -277,11 +291,14 @@ export default function OperatorShiftEntry() {
       `Wheelie Bins: ${form.wheelie_bins || 0}`,
       '',
     ];
-    if (form.has_downtime) {
-      const delay = form.downtime_reason
-        ? `${form.downtime_reason}${form.downtime_minutes ? ` (${form.downtime_minutes} min)` : ''}`
-        : `${form.downtime_minutes} min`;
-      lines.push(`Delays: ${delay}`);
+    const activeDowntimes = form.has_downtime
+      ? form.downtimes.filter(d => d.minutes !== '' || d.reason.trim() !== '')
+      : [];
+    if (activeDowntimes.length > 0) {
+      activeDowntimes.forEach((d, i) => {
+        const mins = d.minutes ? ` (${d.minutes} min)` : '';
+        lines.push(`Delay ${i + 1}: ${d.reason || 'Downtime'}${mins}`);
+      });
     } else {
       lines.push('Delays: None');
     }
@@ -449,7 +466,7 @@ export default function OperatorShiftEntry() {
           <div className="flex gap-2">
             <button
               type="button"
-              onClick={() => setForm(f => ({ ...f, has_downtime: false, downtime_reason: '', downtime_minutes: '' }))}
+              onClick={() => setForm(f => ({ ...f, has_downtime: false, downtimes: [{ reason: '', minutes: '' }] }))}
               className={`flex-1 py-2.5 text-sm font-medium rounded-lg border transition ${
                 !form.has_downtime
                   ? 'bg-gray-800 text-white border-gray-800'
@@ -473,26 +490,51 @@ export default function OperatorShiftEntry() {
 
           {form.has_downtime && (
             <div className="space-y-3">
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Reason</label>
-                <input
-                  type="text"
-                  value={form.downtime_reason}
-                  onChange={e => setField('downtime_reason', e.target.value)}
-                  placeholder="e.g. Shredder clogged"
-                  className={INPUT}
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Duration (minutes)</label>
-                <input
-                  type="number" min="0"
-                  value={form.downtime_minutes}
-                  onChange={e => setField('downtime_minutes', e.target.value)}
-                  placeholder="0"
-                  className={INPUT}
-                />
-              </div>
+              {form.downtimes.map((entry, idx) => (
+                <div key={idx} className="flex gap-2 items-start">
+                  <div className="flex-1 space-y-2">
+                    <input
+                      type="text"
+                      value={entry.reason}
+                      onChange={e => {
+                        const updated = form.downtimes.map((d, i) => i === idx ? { ...d, reason: e.target.value } : d);
+                        setField('downtimes', updated);
+                      }}
+                      placeholder="e.g. Shredder clogged"
+                      className={INPUT}
+                    />
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number" min="0"
+                        value={entry.minutes}
+                        onChange={e => {
+                          const updated = form.downtimes.map((d, i) => i === idx ? { ...d, minutes: e.target.value } : d);
+                          setField('downtimes', updated);
+                        }}
+                        placeholder="0"
+                        className={`${INPUT} w-28`}
+                      />
+                      <span className="text-xs text-gray-400">min</span>
+                    </div>
+                  </div>
+                  {form.downtimes.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => setField('downtimes', form.downtimes.filter((_, i) => i !== idx))}
+                      className="mt-1 text-gray-400 hover:text-red-500 transition px-1 text-lg leading-none"
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={() => setField('downtimes', [...form.downtimes, { reason: '', minutes: '' }])}
+                className="flex items-center gap-1 text-xs text-cyan-600 hover:text-cyan-800 font-medium transition"
+              >
+                + Add downtime
+              </button>
             </div>
           )}
         </div>
@@ -595,8 +637,11 @@ export default function OperatorShiftEntry() {
   const teamDisplay = form.team_names.length > 0
     ? `${sup}, ${form.team_names.join(', ')}`
     : sup;
-  const delayDisplay = form.has_downtime
-    ? `${form.downtime_reason}${form.downtime_minutes ? ` (${form.downtime_minutes} min)` : ''}`
+  const activeDowntimes = form.has_downtime
+    ? form.downtimes.filter(d => d.minutes !== '' || d.reason.trim() !== '')
+    : [];
+  const delayDisplay = activeDowntimes.length > 0
+    ? activeDowntimes.map((d, i) => `${i + 1}. ${d.reason || 'Downtime'}${d.minutes ? ` (${d.minutes} min)` : ''}`).join(' · ')
     : 'None';
 
   const summaryRows = [
