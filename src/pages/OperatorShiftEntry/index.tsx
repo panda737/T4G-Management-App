@@ -647,8 +647,7 @@ export default function OperatorShiftEntry() {
   const summaryRows = [
     { label: 'Date',                value: shiftDate },
     { label: 'Shift',               value: `${shift} Shift` },
-    { label: 'Supervisor',          value: sup },
-    { label: 'Team',                value: form.team_names.length > 0 ? teamDisplay : sup },
+    { label: 'Team',                value: teamDisplay },
     { label: 'Cycles',              value: form.cycles || '0' },
     { label: 'KG Treated',          value: form.treated_kg || '0' },
     { label: 'RUC Washed',          value: form.ruc_washed || '0' },
