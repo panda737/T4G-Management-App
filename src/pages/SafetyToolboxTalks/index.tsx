@@ -1,10 +1,11 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
   Users, Plus, Eye, Trash2, Search, Calendar, AlertCircle,
-  ClipboardList, Library,
+  ClipboardList, Library, Paperclip, X as XIcon,
 } from 'lucide-react';
 import { useToast } from '../../lib/toast';
 import { usePageTitle } from '../../lib/usePageTitle';
+import { useUser } from '../../lib/UserContext';
 import DeleteConfirmModal from '../../components/DeleteConfirmModal';
 import { Spinner } from '../../components/Spinner';
 import { supabase, SafetyToolboxTalk, ToolboxTalkTopic } from '../../lib/supabase';
@@ -19,6 +20,8 @@ import TopicLibraryPicker from './TopicLibraryPicker';
 
 export default function SafetyToolboxTalks() {
   usePageTitle('Safety — Toolbox Talks');
+  const { isAdmin, isManagement } = useUser();
+  const canDelete = isAdmin || isManagement;
   const [talks, setTalks] = useState<SafetyToolboxTalk[]>([]);
   const [filteredTalks, setFilteredTalks] = useState<SafetyToolboxTalk[]>([]);
   const [topics, setTopics] = useState<ToolboxTalkTopic[]>([]);
@@ -80,6 +83,19 @@ export default function SafetyToolboxTalks() {
 
   async function handleSave() {
     const talk_number = await generateSequentialNumber('safety_toolbox_talks', 'talk_number', 'TBT');
+
+    let attachment_path = '';
+    const attachment_name = formData.attachment_name;
+    if (formData.attachment_file) {
+      const ext = formData.attachment_file.name.split('.').pop();
+      const filePath = `${new Date().getFullYear()}/${crypto.randomUUID()}.${ext}`;
+      const { error: upErr } = await supabase.storage
+        .from('toolbox-talks')
+        .upload(filePath, formData.attachment_file, { upsert: false });
+      if (upErr) { setOpError(upErr.message); return; }
+      attachment_path = filePath;
+    }
+
     let attendeeNames = '';
     if (formData.selected_attendee_ids.length > 0) {
       const { data: empData } = await supabase
@@ -90,7 +106,8 @@ export default function SafetyToolboxTalks() {
         attendeeNames = empData.map(e => `${e.first_name} ${e.surname}`).join(', ');
       }
     }
-    const { selected_attendee_ids, ...rest } = formData;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { selected_attendee_ids, attachment_file, attachment_path: _ap, attachment_name: _an, ...rest } = formData;
     const { data: insertedTalk, error } = await supabase
       .from('safety_toolbox_talks')
       .insert([{
@@ -98,6 +115,8 @@ export default function SafetyToolboxTalks() {
         talk_number,
         attendee_count: selected_attendee_ids.length,
         attendees: attendeeNames,
+        attachment_path,
+        attachment_name,
       }])
       .select('id')
       .single();
@@ -156,6 +175,11 @@ export default function SafetyToolboxTalks() {
 
   function resetForm() {
     setFormData({ ...EMPTY_FORM, talk_date: new Date().toISOString().split('T')[0] });
+  }
+
+  async function downloadAttachment(talk: SafetyToolboxTalk) {
+    const { data } = await supabase.storage.from('toolbox-talks').createSignedUrl(talk.attachment_path, 60);
+    if (data?.signedUrl) window.open(data.signedUrl, '_blank');
   }
 
   function openAddModal() {
@@ -345,7 +369,7 @@ export default function SafetyToolboxTalks() {
                             <td className="px-4 py-3 text-sm flex gap-2">
                               <button onClick={() => { setSelectedTalk(talk); setShowViewModal(true); }} className="text-gray-600 hover:text-gray-900 transition"><Eye className="w-4 h-4" /></button>
                               <button onClick={() => { setSelectedTalk(talk); setShowAttendanceModal(true); }} className="text-sky-600 hover:text-sky-800 transition" title="Attendance Register"><ClipboardList className="w-4 h-4" /></button>
-                              <button onClick={() => handleDelete(talk.id, talk.talk_number || 'this talk')} className="text-red-600 hover:text-red-700 transition"><Trash2 className="w-4 h-4" /></button>
+                              {canDelete && <button onClick={() => handleDelete(talk.id, talk.talk_number || 'this talk')} className="text-red-600 hover:text-red-700 transition"><Trash2 className="w-4 h-4" /></button>}
                             </td>
                           </tr>
                         ))}
@@ -368,7 +392,7 @@ export default function SafetyToolboxTalks() {
                         <div className="flex items-center gap-0.5 flex-shrink-0">
                           <button onClick={() => { setSelectedTalk(talk); setShowViewModal(true); }} className="p-2 text-gray-500 hover:bg-gray-50 rounded"><Eye size={15} /></button>
                           <button onClick={() => { setSelectedTalk(talk); setShowAttendanceModal(true); }} className="p-2 text-sky-600 hover:bg-sky-50 rounded"><ClipboardList size={15} /></button>
-                          <button onClick={() => handleDelete(talk.id, talk.talk_number || 'this talk')} className="p-2 text-red-500 hover:bg-red-50 rounded"><Trash2 size={15} /></button>
+                          {canDelete && <button onClick={() => handleDelete(talk.id, talk.talk_number || 'this talk')} className="p-2 text-red-500 hover:bg-red-50 rounded"><Trash2 size={15} /></button>}
                         </div>
                       </div>
                     ))}
@@ -391,7 +415,7 @@ export default function SafetyToolboxTalks() {
             <button onClick={handleSave} className="px-4 py-2 text-sm bg-gray-800 text-white rounded-lg hover:bg-gray-900 transition font-medium">Save</button>
           </>
         }>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Talk Date *</label>
               <input type="date" value={formData.talk_date} onChange={e => setFormData({ ...formData, talk_date: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500" />
@@ -437,6 +461,28 @@ export default function SafetyToolboxTalks() {
             </div>
 
             <div className="col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Attach Document <span className="text-gray-400 font-normal text-xs">(optional — PDF, Word, or image)</span>
+              </label>
+              {formData.attachment_file ? (
+                <div className="flex items-center gap-2 px-3 py-2.5 bg-green-50 border border-green-200 rounded-lg text-sm">
+                  <Paperclip className="w-4 h-4 text-green-600 flex-shrink-0" />
+                  <span className="truncate text-green-800 flex-1">{formData.attachment_file.name}</span>
+                  <button type="button" onClick={() => setFormData(p => ({ ...p, attachment_file: null, attachment_name: '', attachment_path: '' }))} className="text-green-600 hover:text-green-800 flex-shrink-0"><XIcon size={14} /></button>
+                </div>
+              ) : (
+                <label className="flex items-center gap-2 px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-gray-400 transition text-sm text-gray-500">
+                  <Paperclip className="w-4 h-4 flex-shrink-0" />
+                  <span>Tap to attach a file</span>
+                  <input type="file" className="hidden" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.webp" onChange={e => {
+                    const f = e.target.files?.[0];
+                    if (f) setFormData(p => ({ ...p, attachment_file: f, attachment_name: f.name }));
+                  }} />
+                </label>
+              )}
+            </div>
+
+            <div className="col-span-2">
               <label className="flex items-center gap-2">
                 <input type="checkbox" checked={formData.follow_up_required} onChange={e => setFormData({ ...formData, follow_up_required: e.target.checked })} className="rounded border-gray-300" />
                 <span className="text-sm font-medium text-gray-700">Follow-up Required</span>
@@ -475,6 +521,14 @@ export default function SafetyToolboxTalks() {
             <p className="text-xs font-semibold text-gray-600 uppercase mb-1">Description / Talking Points</p>
             <p className="text-sm text-gray-700 whitespace-pre-wrap">{selectedTalk.description || 'N/A'}</p>
           </div>
+          {selectedTalk.attachment_path && (
+            <div className="mt-4 pt-4 border-t border-gray-200">
+              <p className="text-xs font-semibold text-gray-600 uppercase mb-1">Attached Document</p>
+              <button onClick={() => downloadAttachment(selectedTalk)} className="flex items-center gap-2 text-sm text-sky-600 hover:underline">
+                <Paperclip size={14} /> {selectedTalk.attachment_name || 'Download attachment'}
+              </button>
+            </div>
+          )}
           {selectedTalk.follow_up_required && (
             <div className="mt-4">
               <p className="text-xs font-semibold text-gray-600 uppercase mb-1">Follow-up Notes</p>

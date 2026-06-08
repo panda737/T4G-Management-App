@@ -291,6 +291,8 @@ export type SafetyToolboxTalk = {
   location: string;
   follow_up_required: boolean;
   follow_up_notes: string;
+  attachment_path: string;
+  attachment_name: string;
   created_at: string;
   updated_at: string;
 };

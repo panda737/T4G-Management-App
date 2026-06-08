@@ -208,7 +208,7 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
   const isOperator = role === 'operator';
 
   useEffect(() => {
-    if (isOperator) setExpandedGroups(new Set(['treatment']));
+    if (isOperator) setExpandedGroups(new Set(['treatment', 'safety']));
   }, [isOperator]);
 
   const displayName = profile?.display_name ?? userEmail ?? 'User';
@@ -216,16 +216,27 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
   const roleColor = role ? ROLE_COLORS[role] : 'bg-gray-500/20 text-gray-400';
 
   const visibleGroups: ModuleGroup[] = isOperator
-    ? [{
-        id: 'treatment',
-        label: 'Treatment Plant',
-        icon: Factory,
-        color: 'text-cyan-400',
-        items: [
-          { path: '/treatment', label: 'Plant Dashboard' },
-          { path: '/shift-report', label: 'Add Shift Record' },
-        ],
-      }]
+    ? [
+        {
+          id: 'treatment',
+          label: 'Treatment Plant',
+          icon: Factory,
+          color: 'text-cyan-400',
+          items: [
+            { path: '/treatment', label: 'Plant Dashboard' },
+            { path: '/shift-report', label: 'Add Shift Record' },
+          ],
+        },
+        {
+          id: 'safety',
+          label: 'Health & Safety',
+          icon: ShieldAlert,
+          color: 'text-amber-400',
+          items: [
+            { path: '/safety/toolbox-talks', label: 'Toolbox Talks' },
+          ],
+        },
+      ]
     : moduleGroups.filter(g => isAdmin || !['commercial', 'logistics'].includes(g.id));
 
   const navContent = (isMobileDrawer: boolean) => {
