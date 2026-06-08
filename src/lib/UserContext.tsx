@@ -60,6 +60,10 @@ export function UserProvider({ session, children }: { session: Session; children
         .maybeSingle();
 
       if (mounted) {
+        if (data && !data.is_active) {
+          await supabase.auth.signOut();
+          return;
+        }
         setProfile(data ?? null);
         setLoading(false);
       }
