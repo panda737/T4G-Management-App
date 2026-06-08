@@ -291,13 +291,31 @@ export default function OperatorShiftEntry() {
     return lines.join('\n');
   }
 
-  async function handleCopy() {
-    try {
-      await navigator.clipboard.writeText(buildClipboardText());
+  function handleCopy() {
+    const text = buildClipboardText();
+
+    function onSuccess() {
       setCopied(true);
       setTimeout(() => setCopied(false), 2500);
-    } catch {
-      addToast('Could not copy to clipboard', 'error');
+    }
+
+    function fallback() {
+      const el = document.createElement('textarea');
+      el.value = text;
+      el.style.cssText = 'position:fixed;left:-9999px;top:-9999px;opacity:0';
+      document.body.appendChild(el);
+      el.focus();
+      el.select();
+      const ok = document.execCommand('copy');
+      document.body.removeChild(el);
+      if (ok) onSuccess();
+      else addToast('Could not copy to clipboard', 'error');
+    }
+
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(text).then(onSuccess).catch(fallback);
+    } else {
+      fallback();
     }
   }
 
