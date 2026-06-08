@@ -7,7 +7,7 @@ interface ModalProps {
   children: React.ReactNode;
   footer?: React.ReactNode;
   size?: 'sm' | 'md' | 'lg' | 'xl';
-  accent?: 'green' | 'red' | 'cyan' | 'blue' | 'amber' | 'orange' | 'gray';
+  accent?: 'green' | 'red' | 'cyan' | 'blue' | 'amber' | 'orange' | 'gray' | 'indigo';
 }
 
 const FOCUSABLE = 'a[href],button:not([disabled]),textarea,input,select,[tabindex]:not([tabindex="-1"])';
@@ -58,6 +58,7 @@ export default function Modal({ title, onClose, children, footer, size = 'md', a
     amber:  { border: 'sm:border-t-4 sm:border-t-amber-500',   headerBg: 'bg-amber-50',   titleColor: 'text-amber-900' },
     orange: { border: 'sm:border-t-4 sm:border-t-orange-500',  headerBg: 'bg-orange-50',  titleColor: 'text-orange-900' },
     gray:   { border: 'sm:border-t-4 sm:border-t-slate-500',   headerBg: 'bg-slate-50',   titleColor: 'text-slate-900' },
+    indigo: { border: 'sm:border-t-4 sm:border-t-indigo-500', headerBg: 'bg-indigo-50',  titleColor: 'text-indigo-900' },
   };
 
   const a = accent ? accentStyles[accent] : { border: '', headerBg: 'bg-white', titleColor: 'text-gray-900' };
