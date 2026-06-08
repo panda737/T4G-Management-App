@@ -532,9 +532,9 @@ export default function OperatorShiftEntry() {
               <button
                 type="button"
                 onClick={() => setField('downtimes', [...form.downtimes, { reason: '', minutes: '' }])}
-                className="flex items-center gap-1 text-xs text-cyan-600 hover:text-cyan-800 font-medium transition"
+                className="w-full py-2 rounded-lg border border-dashed border-cyan-400 text-cyan-600 text-sm font-medium hover:bg-cyan-50 active:bg-cyan-100 transition"
               >
-                + Add downtime
+                + Add another downtime
               </button>
             </div>
           )}
