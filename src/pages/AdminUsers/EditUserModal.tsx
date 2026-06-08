@@ -31,7 +31,7 @@ export default function EditUserModal({ user: initialUser, onClose, onSave }: Pr
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [saving, setSaving] = useState(false);
 
-  const inp = 'w-full px-3.5 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent';
+  const inp = 'w-full px-3.5 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent';
 
   useEffect(() => {
     supabase
@@ -58,7 +58,7 @@ export default function EditUserModal({ user: initialUser, onClose, onSave }: Pr
   }
 
   return (
-    <Modal title="Edit User" onClose={onClose} size="md">
+    <Modal title="Edit User" onClose={onClose} size="md" accent="indigo">
       <div className="space-y-4">
         <div>
           <label className="block text-sm font-semibold text-gray-700 mb-1.5">Display Name</label>
