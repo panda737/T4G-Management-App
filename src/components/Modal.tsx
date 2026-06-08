@@ -15,11 +15,17 @@ const FOCUSABLE = 'a[href],button:not([disabled]),textarea,input,select,[tabinde
 export default function Modal({ title, onClose, children, footer, size = 'md', accent }: ModalProps) {
   const panelRef = useRef<HTMLDivElement>(null);
 
+  // Initial focus + scroll lock — runs once on mount only
   useEffect(() => {
     const getFocusable = () => Array.from(panelRef.current?.querySelectorAll<HTMLElement>(FOCUSABLE) ?? []);
-
     getFocusable()[0]?.focus();
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = ''; };
+  }, []);
 
+  // Keydown handler — re-registers when onClose changes, but does NOT move focus
+  useEffect(() => {
+    const getFocusable = () => Array.from(panelRef.current?.querySelectorAll<HTMLElement>(FOCUSABLE) ?? []);
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'Escape') { onClose(); return; }
       if (e.key !== 'Tab') return;
@@ -33,13 +39,8 @@ export default function Modal({ title, onClose, children, footer, size = 'md', a
         if (document.activeElement === last) { e.preventDefault(); first.focus(); }
       }
     };
-
     document.addEventListener('keydown', handler);
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.removeEventListener('keydown', handler);
-      document.body.style.overflow = '';
-    };
+    return () => document.removeEventListener('keydown', handler);
   }, [onClose]);
 
   const widths: Record<string, string> = {
