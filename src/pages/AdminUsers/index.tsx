@@ -52,6 +52,7 @@ const ROLE_AVATAR: Record<AppRole, string> = {
 export default function AdminUsers() {
   const { profile: myProfile, isAdmin } = useUser();
   const [users, setUsers] = useState<UserProfile[]>([]);
+  const [emailMap, setEmailMap] = useState<Map<string, string>>(new Map());
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [showCreate, setShowCreate] = useState(false);
@@ -65,8 +66,12 @@ export default function AdminUsers() {
 
   async function load() {
     setLoading(true);
-    const { data: profiles } = await supabase.from('user_profiles').select('id, auth_user_id, display_name, role, is_active, created_at').order('created_at');
+    const [{ data: profiles }, { data: emailRows }] = await Promise.all([
+      supabase.from('user_profiles').select('id, auth_user_id, display_name, role, is_active, created_at').order('created_at'),
+      supabase.rpc('get_auth_user_emails'),
+    ]);
     setUsers((profiles ?? []) as UserProfile[]);
+    setEmailMap(new Map((emailRows ?? []).map((r: { auth_user_id: string; email: string }) => [r.auth_user_id, r.email])));
     setLoading(false);
   }
 
@@ -107,8 +112,14 @@ export default function AdminUsers() {
   }
 
   const filtered = useMemo(() =>
-    users.filter(u => !search || u.display_name.toLowerCase().includes(search.toLowerCase()) || u.role.toLowerCase().includes(search.toLowerCase())),
-    [users, search]
+    users.filter(u => {
+      if (!search) return true;
+      const q = search.toLowerCase();
+      return u.display_name.toLowerCase().includes(q)
+        || u.role.toLowerCase().includes(q)
+        || (emailMap.get(u.auth_user_id) ?? '').toLowerCase().includes(q);
+    }),
+    [users, search, emailMap]
   );
 
   const stats = { total: users.length, active: users.filter(u => u.is_active).length, admins: users.filter(u => u.role === 'admin').length };
@@ -228,6 +239,7 @@ export default function AdminUsers() {
                           </div>
                           <div>
                             <p className="text-sm font-semibold text-gray-900">{user.display_name}</p>
+                            <p className="text-xs text-gray-400">{emailMap.get(user.auth_user_id) ?? '—'}</p>
                             {isMe && <span className="text-[11px] text-emerald-600 font-medium bg-emerald-50 px-1.5 py-0.5 rounded">you</span>}
                           </div>
                         </div>
@@ -297,6 +309,7 @@ export default function AdminUsers() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-semibold text-gray-900 truncate">{user.display_name}</p>
+                        <p className="text-xs text-gray-400 truncate">{emailMap.get(user.auth_user_id) ?? '—'}</p>
                         {isMe && <span className="text-[11px] text-emerald-600 font-medium bg-emerald-50 px-1.5 py-0.5 rounded">you</span>}
                       </div>
                     </div>
