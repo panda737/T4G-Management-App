@@ -124,6 +124,7 @@ export type Employee = {
   notes: string;
   created_at: string;
   updated_at: string;
+  created_by?: string | null;
 };
 
 export type ToolboxAttendee = {

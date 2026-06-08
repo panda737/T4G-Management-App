@@ -20,6 +20,7 @@ export default function EmployeeFormModal({
     surname: employee?.surname || '',
     first_name: employee?.first_name || '',
     gender: employee?.gender || 'Male',
+    date_of_birth: employee?.date_of_birth || '',
     id_number: employee?.id_number || '',
     contact_number: employee?.contact_number || '',
     email: employee?.email || '',
@@ -54,13 +55,18 @@ export default function EmployeeFormModal({
     setSaving(true);
     setError('');
 
-    const payload = { ...form, updated_at: new Date().toISOString() };
+    const basePayload = {
+      ...form,
+      date_of_birth: form.date_of_birth || null,
+      updated_at: new Date().toISOString(),
+    };
 
     if (employee) {
-      const { error: err } = await supabase.from('employees').update(payload).eq('id', employee.id);
+      const { error: err } = await supabase.from('employees').update(basePayload).eq('id', employee.id);
       if (err) { setError(err.message); setSaving(false); return; }
     } else {
-      const { error: err } = await supabase.from('employees').insert(payload);
+      const { data: { session } } = await supabase.auth.getSession();
+      const { error: err } = await supabase.from('employees').insert({ ...basePayload, created_by: session?.user?.id ?? null });
       if (err) { setError(err.message); setSaving(false); return; }
     }
 
@@ -69,18 +75,30 @@ export default function EmployeeFormModal({
   }
 
   return (
-    <Modal title={employee ? 'Edit Employee' : 'Add Employee'} onClose={onClose} size="xl">
+    <Modal title={employee ? 'Edit Employee' : 'Add Employee'} onClose={onClose} size="xl" accent="green">
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <Field label="Employee Number *" value={form.employee_number} onChange={v => update('employee_number', v)} />
         <Field label="Surname *" value={form.surname} onChange={v => update('surname', v)} />
         <Field label="First Name *" value={form.first_name} onChange={v => update('first_name', v)} />
         <SelectField label="Gender" value={form.gender} options={['Male', 'Female', 'Other']} onChange={v => update('gender', v)} />
+        <Field label="Date of Birth" type="date" value={form.date_of_birth} onChange={v => update('date_of_birth', v)} />
         <Field label="ID Number" value={form.id_number} onChange={v => update('id_number', v)} />
         <Field label="Contact Number" value={form.contact_number} onChange={v => update('contact_number', v)} />
         <Field label="Email" value={form.email} onChange={v => update('email', v)} />
         <SelectField label="Position" value={form.position} options={POSITIONS} onChange={v => update('position', v)} />
         <Field label="Department" value={form.department} onChange={v => update('department', v)} />
-        <SelectField label="H&S Role" value={form.hs_role} options={['employee', 'supervisor', 'hs_staff']} onChange={v => update('hs_role', v)} />
+        <div>
+          <label className="block text-xs font-medium text-gray-700 mb-1">H&S Role</label>
+          <select
+            value={form.hs_role}
+            onChange={e => update('hs_role', e.target.value)}
+            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
+          >
+            <option value="employee">Employee</option>
+            <option value="supervisor">Supervisor</option>
+            <option value="hs_staff">H&S Staff</option>
+          </select>
+        </div>
         <SelectField label="Status" value={form.status} options={['active', 'inactive']} onChange={v => update('status', v)} />
 
         <div className="sm:col-span-2 lg:col-span-3">

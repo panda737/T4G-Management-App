@@ -83,6 +83,7 @@ export default function EmployeeProfile() {
   const canEdit = isAdmin || isManagement;
 
   const [employee, setEmployee] = useState<Employee | null>(null);
+  const [creatorName, setCreatorName] = useState<string | null>(null);
   const [activity, setActivity] = useState<ActivityData>(EMPTY_ACTIVITY);
   const [loading, setLoading] = useState(true);
   const [activityLoading, setActivityLoading] = useState(true);
@@ -125,6 +126,10 @@ export default function EmployeeProfile() {
     setLoading(true);
     const { data } = await supabase.from('employees').select('*').eq('id', empId).maybeSingle();
     setEmployee(data);
+    if (data?.created_by) {
+      supabase.from('user_profiles').select('display_name').eq('auth_user_id', data.created_by).maybeSingle()
+        .then(({ data: p }) => setCreatorName(p?.display_name ?? null));
+    }
     setLoading(false);
   }
 
@@ -674,6 +679,8 @@ export default function EmployeeProfile() {
             <InfoRow label="Date of Birth" value={fmt(employee.date_of_birth)} />
             <InfoRow label="Medical Fund" value={employee.medical_fund} />
             <InfoRow label="Chronic Medication" value={employee.chronic_medication} />
+            <InfoRow label="Date Added" value={fmt(employee.created_at)} />
+            <InfoRow label="Added By" value={creatorName ?? '—'} />
           </dl>
         </div>
 

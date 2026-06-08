@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Search, Plus, ChevronDown, Phone, User, Truck, AlertCircle } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Search, Plus, ChevronDown, ChevronUp, Phone, User, Truck, AlertCircle, Download } from 'lucide-react';
+import { downloadCSV } from '../../lib/csvExport';
 import { supabase } from '../../lib/supabase';
 import { usePageTitle } from '../../lib/usePageTitle';
 import { useToast } from '../../lib/toast';
@@ -12,10 +13,13 @@ import { useUser } from '../../lib/UserContext';
 import { POSITIONS } from './constants';
 import EmployeeFormModal from './EmployeeFormModal';
 
+type SortKey = 'surname' | 'position' | 'status';
+
 export default function EmployeeRegister() {
   usePageTitle('Employee Register');
   const { isAdmin, isManagement } = useUser();
   const canEdit = isAdmin || isManagement;
+  const navigate = useNavigate();
 
   const { addToast } = useToast();
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -24,6 +28,8 @@ export default function EmployeeRegister() {
   const [positionFilter, setPositionFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('active');
   const [hsRoleFilter, setHsRoleFilter] = useState('');
+  const [sortKey, setSortKey] = useState<SortKey>('surname');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const [showForm, setShowForm] = useState(false);
   const [editEmployee, setEditEmployee] = useState<Employee | null>(null);
   const [loadError, setLoadError] = useState('');
@@ -36,8 +42,7 @@ export default function EmployeeRegister() {
     try {
       const { data, error } = await supabase
         .from('employees')
-        .select('*')
-        .order('surname', { ascending: true });
+        .select('*');
       if (error) throw error;
       setEmployees(data || []);
     } catch (err: unknown) {
@@ -47,14 +52,49 @@ export default function EmployeeRegister() {
     }
   }
 
-  const filtered = employees.filter(e => {
-    const matchesSearch = !search || [e.surname, e.first_name, e.employee_number, e.contact_number]
-      .some(f => f?.toLowerCase().includes(search.toLowerCase()));
-    const matchesPosition = !positionFilter || e.position === positionFilter;
-    const matchesStatus = !statusFilter || e.status === statusFilter;
-    const matchesHsRole = !hsRoleFilter || e.hs_role === hsRoleFilter;
-    return matchesSearch && matchesPosition && matchesStatus && matchesHsRole;
-  });
+  const filtered = employees
+    .filter(e => {
+      const matchesSearch = !search || [e.surname, e.first_name, e.employee_number, e.contact_number]
+        .some(f => f?.toLowerCase().includes(search.toLowerCase()));
+      const matchesPosition = !positionFilter || e.position === positionFilter;
+      const matchesStatus = !statusFilter || e.status === statusFilter;
+      const matchesHsRole = !hsRoleFilter || e.hs_role === hsRoleFilter;
+      return matchesSearch && matchesPosition && matchesStatus && matchesHsRole;
+    })
+    .sort((a, b) => {
+      const aVal = (a[sortKey] ?? '') as string;
+      const bVal = (b[sortKey] ?? '') as string;
+      return sortDir === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+    });
+
+  function handleSort(key: SortKey) {
+    if (sortKey === key) { setSortDir(d => d === 'asc' ? 'desc' : 'asc'); }
+    else { setSortKey(key); setSortDir('asc'); }
+  }
+
+  function SortIcon({ k }: { k: SortKey }) {
+    if (sortKey !== k) return <ChevronDown size={10} className="ml-1 opacity-30 inline" />;
+    return sortDir === 'asc'
+      ? <ChevronUp size={10} className="ml-1 text-emerald-300 inline" />
+      : <ChevronDown size={10} className="ml-1 text-emerald-300 inline" />;
+  }
+
+  function handleExport() {
+    const rows = filtered.map(e => ({
+      'Employee Number': e.employee_number,
+      'Surname': e.surname,
+      'First Name': e.first_name,
+      'Position': e.position,
+      'Department': e.department,
+      'H&S Role': HS_ROLE_LABELS[e.hs_role],
+      'Status': e.status === 'active' ? 'Active' : 'Inactive',
+      'Contact': e.contact_number,
+      'Email': e.email,
+      'Date Joined': e.date_joined ?? '',
+      'Truck Handler': e.is_truck_handler ? 'Yes' : 'No',
+    }));
+    downloadCSV(rows, 'employees');
+  }
 
   const hsRoleOptions: { value: EmployeeHsRole; label: string }[] = [
     { value: 'employee', label: 'Employee' },
@@ -133,6 +173,13 @@ export default function EmployeeRegister() {
           </select>
           <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
         </div>
+        <button
+          onClick={handleExport}
+          disabled={filtered.length === 0}
+          className="flex items-center gap-1.5 text-sm bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 px-3 py-2 rounded-lg transition disabled:opacity-40 whitespace-nowrap"
+        >
+          <Download size={15} /> Export
+        </button>
       </div>
 
       {/* Table */}
@@ -171,19 +218,26 @@ export default function EmployeeRegister() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-gray-800 text-white">
-                    <th className="text-left px-4 py-2.5 font-medium text-xs uppercase tracking-wider">Employee</th>
-                    <th className="text-left px-4 py-2.5 font-medium text-xs uppercase tracking-wider">Position</th>
+                    <th className="text-left px-4 py-2.5 font-medium text-xs uppercase tracking-wider cursor-pointer select-none" onClick={() => handleSort('surname')}>
+                      Employee <SortIcon k="surname" />
+                    </th>
+                    <th className="text-left px-4 py-2.5 font-medium text-xs uppercase tracking-wider cursor-pointer select-none" onClick={() => handleSort('position')}>
+                      Position <SortIcon k="position" />
+                    </th>
                     <th className="text-left px-4 py-2.5 font-medium text-xs uppercase tracking-wider hidden lg:table-cell">H&S Role</th>
                     <th className="text-left px-4 py-2.5 font-medium text-xs uppercase tracking-wider hidden md:table-cell">Contact</th>
                     <th className="text-center px-4 py-2.5 font-medium text-xs uppercase tracking-wider w-20 hidden lg:table-cell">Handler</th>
-                    <th className="text-center px-4 py-2.5 font-medium text-xs uppercase tracking-wider w-24">Status</th>
+                    <th className="text-center px-4 py-2.5 font-medium text-xs uppercase tracking-wider w-24 cursor-pointer select-none" onClick={() => handleSort('status')}>
+                      Status <SortIcon k="status" />
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {filtered.map((emp, idx) => (
                     <tr
                       key={emp.id}
-                      className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'} hover:bg-emerald-50/40 transition-colors ${emp.status === 'inactive' ? 'opacity-60' : ''}`}
+                      onClick={() => navigate(`/employees/${emp.id}`)}
+                      className={`cursor-pointer ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'} hover:bg-emerald-50/40 transition-colors ${emp.status === 'inactive' ? 'opacity-60' : ''}`}
                     >
                       <td className="px-4 py-3">
                         <Link to={`/employees/${emp.id}`} className="flex items-center gap-3 group">
