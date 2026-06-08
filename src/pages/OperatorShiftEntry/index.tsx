@@ -130,8 +130,8 @@ export default function OperatorShiftEntry() {
         const linked = linkedId ? data.find(e => e.id === linkedId) : null;
         setSupervisorName(
           linked
-            ? `${linked.first_name} ${linked.surname}`
-            : (profile?.display_name ?? '')
+            ? linked.first_name
+            : (profile?.display_name ?? '').split(' ')[0]
         );
         const excluded = data
           .filter(e =>
@@ -275,8 +275,9 @@ export default function OperatorShiftEntry() {
 
   function buildClipboardText(): string {
     const sup = supervisorName || profile?.display_name || 'Unknown';
-    const teamStr = form.team_names.length > 0
-      ? `${sup}, ${form.team_names.join(', ')}`
+    const firstNames = form.team_names.map(n => n.split(' ')[0]);
+    const teamStr = firstNames.length > 0
+      ? `${sup}, ${firstNames.join(', ')}`
       : sup;
     const lines: string[] = [
       `Date: ${shiftDate}`,
@@ -634,8 +635,9 @@ export default function OperatorShiftEntry() {
 
   // ── Step 3: Summary ───────────────────────────────────────────────────────
   const sup = supervisorName || profile?.display_name || 'Unknown';
-  const teamDisplay = form.team_names.length > 0
-    ? `${sup}, ${form.team_names.join(', ')}`
+  const teamFirstNames = form.team_names.map(n => n.split(' ')[0]);
+  const teamDisplay = teamFirstNames.length > 0
+    ? `${sup}, ${teamFirstNames.join(', ')}`
     : sup;
   const activeDowntimes = form.has_downtime
     ? form.downtimes.filter(d => d.minutes !== '' || d.reason.trim() !== '')
