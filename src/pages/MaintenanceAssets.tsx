@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { Plus, Search, X, Save, Settings, ChevronDown } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { usePageTitle } from '../lib/usePageTitle';
 import { useToast } from '../lib/toast';
 import type { Equipment } from '../lib/supabase';
 import Modal from '../components/Modal';
@@ -9,6 +10,7 @@ import { equipmentStatusColors as STATUS_COLORS } from '../lib/badgeColors';
 const STATUSES = ['Operational', 'Under Maintenance', 'Faulty', 'Decommissioned'];
 
 export default function MaintenanceAssets() {
+  usePageTitle('Maintenance — Equipment');
   const [equipment, setEquipment] = useState<Equipment[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');

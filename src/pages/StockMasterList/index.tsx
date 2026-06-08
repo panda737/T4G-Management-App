@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { Plus, Search, Edit2, AlertCircle, ChevronDown, ChevronRight, ArrowDownCircle, ArrowUpCircle, Package } from 'lucide-react';
 import { supabase, StockItem, getStockStatus } from '../../lib/supabase';
+import { usePageTitle } from '../../lib/usePageTitle';
 import { useToast } from '../../lib/toast';
 import StatusBadge from '../../components/StatusBadge';
 import QuickMovementModal from './QuickMovementModal';
@@ -11,6 +12,7 @@ const STATUSES = ['All', 'In Stock', 'Low Stock', 'Out of Stock'];
 const CATEGORY_ORDER = ['Liners', 'Sharps', 'External Customer Containers', 'Anatomical (Specibins)', 'Pharmaceutical', 'Box Sets', 'Other'];
 
 export default function StockMasterList() {
+  usePageTitle('Stock — Master List');
   const { addToast } = useToast();
   const [items, setItems] = useState<StockItem[]>([]);
   const [loading, setLoading] = useState(true);

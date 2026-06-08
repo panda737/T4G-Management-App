@@ -41,7 +41,7 @@ const moduleGroups: ModuleGroup[] = [
       { path: '/stock/movements', label: 'Movements' },
       { path: '/stock/stock-take', label: 'Stock Take' },
       { path: '/stock/reports', label: 'Reports' },
-      { path: '/stock/settings', label: 'Stock Settings' },
+      { path: '/stock/settings', label: 'Stock Categories' },
     ],
   },
   {
@@ -226,7 +226,7 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
           { path: '/shift-report', label: 'Add Shift Record' },
         ],
       }]
-    : moduleGroups;
+    : moduleGroups.filter(g => isAdmin || !['commercial', 'logistics'].includes(g.id));
 
   const navContent = (isMobileDrawer: boolean) => {
     const showLabels = isMobileDrawer || !collapsed;

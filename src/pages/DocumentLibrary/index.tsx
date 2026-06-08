@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { Plus, Search, FileText, Download, Pencil, Trash2, AlertTriangle, Archive, RotateCcw, Loader } from 'lucide-react';
 import { supabase, AppDocument, DocumentCategory } from '../../lib/supabase';
+import { usePageTitle } from '../../lib/usePageTitle';
 import { useUser } from '../../lib/UserContext';
 import { useToast } from '../../lib/toast';
 import DeleteConfirmModal from '../../components/DeleteConfirmModal';
@@ -48,6 +49,7 @@ function expiryStatus(expiry: string | null): 'expired' | 'soon' | 'ok' | 'none'
 }
 
 export default function DocumentLibrary() {
+  usePageTitle('Document Library');
   const { category: categorySlug } = useParams<{ category?: string }>();
   const { isAdmin, isManagement } = useUser();
   const { addToast } = useToast();

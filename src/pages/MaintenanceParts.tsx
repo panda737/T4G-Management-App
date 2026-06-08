@@ -1,11 +1,13 @@
 import { useEffect, useState, useMemo } from 'react';
 import { Plus, Search, X, Save, Package, ChevronDown, AlertTriangle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { usePageTitle } from '../lib/usePageTitle';
 import { useToast } from '../lib/toast';
 import type { Part, Equipment } from '../lib/supabase';
 import Modal from '../components/Modal';
 
 export default function MaintenanceParts() {
+  usePageTitle('Maintenance — Spare Parts');
   const [parts, setParts] = useState<Part[]>([]);
   const [equipment, setEquipment] = useState<Equipment[]>([]);
   const [loading, setLoading] = useState(true);

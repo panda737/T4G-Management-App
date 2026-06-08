@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { Plus, ChevronDown } from 'lucide-react';
 import { supabase, TreatmentWasteTransfer, TreatmentMonthlySummary } from '../../lib/supabase';
+import { usePageTitle } from '../../lib/usePageTitle';
 import { fmtMonth } from '../../lib/formatters';
 import { PageSpinner } from '../../components/Spinner';
 import { type ActiveTab, type TransferWithDate, type DailyLogRef } from './constants';
@@ -13,6 +14,7 @@ import { useUser } from '../../lib/UserContext';
 import { useToast } from '../../lib/toast';
 
 export default function TreatmentTransfers() {
+  usePageTitle('Treatment — Transfers');
   const { isAdmin } = useUser();
   const { addToast } = useToast();
   const [activeTab, setActiveTab] = useState<ActiveTab>('Transfers');

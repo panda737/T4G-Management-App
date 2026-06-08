@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Search, Plus, ChevronDown, Phone, User, Truck, AlertCircle } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { usePageTitle } from '../../lib/usePageTitle';
 import { useToast } from '../../lib/toast';
 import type { Employee } from '../../lib/supabase';
 import { HS_ROLE_LABELS, HS_ROLE_COLORS } from '../../lib/supabase';
@@ -12,6 +13,7 @@ import { POSITIONS } from './constants';
 import EmployeeFormModal from './EmployeeFormModal';
 
 export default function EmployeeRegister() {
+  usePageTitle('Employee Register');
   const { isAdmin, isManagement } = useUser();
   const canEdit = isAdmin || isManagement;
 

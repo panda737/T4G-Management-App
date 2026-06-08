@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import { Plus, CreditCard as Edit2, Power, AlertTriangle } from 'lucide-react';
 import { supabase, StockCategory } from '../lib/supabase';
+import { usePageTitle } from '../lib/usePageTitle';
 import Modal from '../components/Modal';
 import { Spinner } from '../components/Spinner';
 
 export default function Settings() {
+  usePageTitle('Stock Categories');
   const [categories, setCategories] = useState<StockCategory[]>([]);
   const [loading, setLoading] = useState(true);
 

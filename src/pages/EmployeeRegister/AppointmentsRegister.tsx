@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { Search, AlertTriangle, ChevronDown, Briefcase, ExternalLink } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { supabase, LegalAppointment, LegalAppointmentType } from '../../lib/supabase';
+import { usePageTitle } from '../../lib/usePageTitle';
 
 const APPOINTMENT_TYPES: LegalAppointmentType[] = [
   'First Aider', 'Fire Fighter', 'Emergency Coordinator', 'Safety Representative',
@@ -26,6 +27,7 @@ function fmt(d: string | null) {
 }
 
 export default function AppointmentsRegister() {
+  usePageTitle('Legal Appointments');
   const [appointments, setAppointments] = useState<AppointmentWithEmployee[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');

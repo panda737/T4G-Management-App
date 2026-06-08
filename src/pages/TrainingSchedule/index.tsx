@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { CalendarDays, Plus, Search, Eye, Edit2, Trash2 } from 'lucide-react';
 import { supabase, TrainingSchedule, TrainingCourse } from '../../lib/supabase';
+import { usePageTitle } from '../../lib/usePageTitle';
 import { useToast } from '../../lib/toast';
 import DeleteConfirmModal from '../../components/DeleteConfirmModal';
 import SessionFormModal, { SessionFormData, SESSION_STATUS_COLORS } from './SessionFormModal';
@@ -21,6 +22,7 @@ const EMPTY_FORM: SessionFormData = {
 };
 
 export default function TrainingSchedulePage() {
+  usePageTitle('Training — Schedule');
   const [sessions, setSessions] = useState<TrainingSchedule[]>([]);
   const [courses, setCourses] = useState<TrainingCourse[]>([]);
   const [loading, setLoading] = useState(true);

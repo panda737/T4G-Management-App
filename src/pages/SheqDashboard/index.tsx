@@ -9,6 +9,7 @@ import {
   Siren,
   RefreshCw,
 } from 'lucide-react';
+import { usePageTitle } from '../../lib/usePageTitle';
 import {
   supabase,
   SafetyIncident,
@@ -29,6 +30,7 @@ interface DashboardStats {
 }
 
 export default function SheqDashboard() {
+  usePageTitle('Health & Safety');
   const [stats, setStats] = useState<DashboardStats>({
     incidentsThisYear: 0,
     openIncidents: 0,

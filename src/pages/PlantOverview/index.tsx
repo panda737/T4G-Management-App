@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { Spinner, PageSpinner } from '../../components/Spinner';
 import { supabase } from '../../lib/supabase';
+import { usePageTitle } from '../../lib/usePageTitle';
 import type { Equipment, Part, MaintenanceHistory } from '../../lib/supabase';
 import { PLANT_STEPS, STEP_COLORS } from '../../data/plantEquipment';
 import type { PlantStep } from '../../data/plantEquipment';
@@ -36,6 +37,7 @@ function matchStepKey(eq: Equipment): string | null {
 }
 
 export default function PlantOverview() {
+  usePageTitle('Maintenance — Plant Overview');
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [equipByStep, setEquipByStep] = useState<Record<string, Equipment>>({});
   const [allParts, setAllParts] = useState<Part[]>([]);

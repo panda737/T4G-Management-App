@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Shield, Plus, Search, Eye, Edit2, Trash2 } from 'lucide-react';
 import { supabase, SafetyRiskAssessment } from '../../lib/supabase';
+import { usePageTitle } from '../../lib/usePageTitle';
 import { useToast } from '../../lib/toast';
 import DeleteConfirmModal from '../../components/DeleteConfirmModal';
 import { getRiskRatingColor, riskLevelColors, riskAssessmentStatusColors } from '../../lib/badgeColors';
@@ -10,6 +11,7 @@ import RiskAssessmentFormModal from './RiskAssessmentFormModal';
 import RiskAssessmentViewModal from './RiskAssessmentViewModal';
 
 export default function SafetyRiskAssessments() {
+  usePageTitle('Safety — Risk Assessments');
   const [assessments, setAssessments] = useState<SafetyRiskAssessment[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Package, Factory, ShieldCheck, ShieldAlert, Users, RefreshCw } from 'lucide-react';
 import { PageSpinner } from '../../components/Spinner';
 import { supabase } from '../../lib/supabase';
+import { usePageTitle } from '../../lib/usePageTitle';
 import type { MonthlyTreatment, RecentMovement, UpcomingEvent } from './constants';
 import { KpiCard } from './DashboardStatCards';
 import TreatmentPanel from './TreatmentPanel';
@@ -13,6 +14,7 @@ import StockAlertsWidget, { type StockAlertItem } from './StockAlertsWidget';
 import UpcomingEventsWidget from './UpcomingEventsWidget';
 
 export default function GlobalDashboard() {
+  usePageTitle('Dashboard');
   const [loading, setLoading] = useState(true);
   const [employeeCount, setEmployeeCount] = useState(0);
   const [stockStats, setStockStats] = useState({ total: 0, outOfStock: 0, lowStock: 0, inStock: 0 });
@@ -46,19 +48,17 @@ export default function GlobalDashboard() {
     const yDate = new Date(now);
     yDate.setDate(yDate.getDate() - 1);
     const yesterdayStr = yDate.toISOString().split('T')[0];
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
     const in30Days = new Date(now.getTime() + 30 * 86400000).toISOString().split('T')[0];
     const in14Days = new Date(now.getTime() + 14 * 86400000).toISOString().split('T')[0];
     const in7Days = new Date(now.getTime() + 7 * 86400000).toISOString().split('T')[0];
     const twelveMonthsAgo = new Date(now.getFullYear() - 1, now.getMonth(), 1).toISOString().split('T')[0];
 
     const [
-      itemsRes, movCountRes, recentMovRes, empRes, treatAllRes,
+      itemsRes, recentMovRes, empRes, treatAllRes,
       incidentsRes, actionsRes, drillsRes, inspectionsRes,
       coursesRes, certsRes, scheduleRes,
     ] = await Promise.all([
       supabase.from('stock_items').select('id, stock_code, stock_item, category, current_quantity, minimum_stock_level').eq('active', true),
-      supabase.from('stock_movements').select('id', { count: 'exact', head: true }).gte('created_at', startOfMonth),
       supabase.from('stock_movements').select('id, movement_type, quantity, movement_date, stock_items(stock_item)').order('created_at', { ascending: false }).limit(6),
       supabase.from('employees').select('id', { count: 'exact' }).eq('status', 'active'),
       supabase.from('treatment_daily_log').select('date, total_cycles, total_treated_kg, chemical_litres, downtime_minutes, day_shift_cycles, day_shift_treated_kg, afternoon_shift_cycles, afternoon_shift_treated_kg, night_shift_cycles, night_shift_treated_kg').gte('date', twelveMonthsAgo),
@@ -207,7 +207,6 @@ export default function GlobalDashboard() {
     events.sort((a, b) => a.date.localeCompare(b.date));
     setUpcomingEvents(events);
 
-    void movCountRes;
     setLastFetched(new Date());
     setLoading(false);
   }

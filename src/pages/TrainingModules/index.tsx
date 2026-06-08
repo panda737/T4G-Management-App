@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { BookOpen, Plus, Eye, Trash2, Search, Users, AlertTriangle, Clock, Award } from 'lucide-react';
 import { supabase, TrainingModule, TrainingModuleQuestion, TrainingAssessment } from '../../lib/supabase';
+import { usePageTitle } from '../../lib/usePageTitle';
 import { useToast } from '../../lib/toast';
 import DeleteConfirmModal from '../../components/DeleteConfirmModal';
 import ModuleFormModal from './ModuleFormModal';
@@ -25,6 +26,7 @@ function StatCard({ icon: Icon, label, value, color }: { icon: typeof BookOpen; 
 }
 
 export default function TrainingModules() {
+  usePageTitle('Training — Modules');
   const navigate = useNavigate();
   const [modules, setModules] = useState<TrainingModule[]>([]);
   const [questions, setQuestions] = useState<Record<string, TrainingModuleQuestion[]>>({});

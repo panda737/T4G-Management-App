@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { CheckCircle, Plus, AlertCircle } from 'lucide-react';
 import { supabase, SafetyCorrectiveAction } from '../../lib/supabase';
+import { usePageTitle } from '../../lib/usePageTitle';
 import { useToast } from '../../lib/toast';
 import ActionFormModal from './ActionFormModal';
 import ActionViewModal from './ActionViewModal';
@@ -45,6 +46,7 @@ function StatCard({ label, value, variant = 'default' }: { label: string; value:
 }
 
 export default function SafetyCorrectiveActions() {
+  usePageTitle('Safety — Corrective Actions');
   const { addToast } = useToast();
   const [actions, setActions] = useState<SafetyCorrectiveAction[]>([]);
   const [filters, setFilters] = useState<FilterState>({ search: '', source_type: '', priority: '', status: '' });

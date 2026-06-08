@@ -4,6 +4,7 @@ import {
   ClipboardList, Library,
 } from 'lucide-react';
 import { useToast } from '../../lib/toast';
+import { usePageTitle } from '../../lib/usePageTitle';
 import DeleteConfirmModal from '../../components/DeleteConfirmModal';
 import { Spinner } from '../../components/Spinner';
 import { supabase, SafetyToolboxTalk, ToolboxTalkTopic } from '../../lib/supabase';
@@ -17,6 +18,7 @@ import TopicLibraryView from './TopicLibraryView';
 import TopicLibraryPicker from './TopicLibraryPicker';
 
 export default function SafetyToolboxTalks() {
+  usePageTitle('Safety — Toolbox Talks');
   const [talks, setTalks] = useState<SafetyToolboxTalk[]>([]);
   const [filteredTalks, setFilteredTalks] = useState<SafetyToolboxTalk[]>([]);
   const [topics, setTopics] = useState<ToolboxTalkTopic[]>([]);

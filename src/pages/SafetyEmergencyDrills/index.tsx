@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Siren, Plus, Search, Flame, Droplets, Heart, Lock, AlertCircle, Eye, Edit2, Trash2, CheckCircle, XCircle } from 'lucide-react';
 import { supabase, SafetyEmergencyDrill } from '../../lib/supabase';
+import { usePageTitle } from '../../lib/usePageTitle';
 import { useToast } from '../../lib/toast';
 import DeleteConfirmModal from '../../components/DeleteConfirmModal';
 import { drillStatusColors, badgeColor } from '../../lib/badgeColors';
@@ -44,6 +45,7 @@ function formatEvacTime(seconds: number | null, target: number | null) {
 }
 
 export default function SafetyEmergencyDrills() {
+  usePageTitle('Safety — Emergency Drills');
   const [drills, setDrills] = useState<SafetyEmergencyDrill[]>([]);
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('');

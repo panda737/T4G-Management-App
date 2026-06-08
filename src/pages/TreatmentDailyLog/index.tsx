@@ -2,9 +2,11 @@ import { useEffect, useState, useMemo } from 'react';
 import { Plus, Search, ChevronDown, AlertTriangle } from 'lucide-react';
 import { supabase, TreatmentDailyLog as TDL, Employee } from '../../lib/supabase';
 import { useToast } from '../../lib/toast';
+import { usePageTitle } from '../../lib/usePageTitle';
 import DailyLogFormModal from './DailyLogFormModal';
 
 export default function TreatmentDailyLog() {
+  usePageTitle('Treatment — Daily Log');
   const { addToast } = useToast();
   const [logs, setLogs] = useState<TDL[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);

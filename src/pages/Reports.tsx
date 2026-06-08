@@ -1,10 +1,12 @@
 import { useEffect, useState, useMemo } from 'react';
 import { Download, TrendingUp, TrendingDown, AlertTriangle } from 'lucide-react';
 import { supabase, StockItem, StockMovement, getStockStatus } from '../lib/supabase';
+import { usePageTitle } from '../lib/usePageTitle';
 import StatusBadge from '../components/StatusBadge';
 import { PageSpinner } from '../components/Spinner';
 
 export default function Reports() {
+  usePageTitle('Stock — Reports');
   const [items, setItems] = useState<StockItem[]>([]);
   const [movements, setMovements] = useState<StockMovement[]>([]);
   const [loading, setLoading] = useState(true);

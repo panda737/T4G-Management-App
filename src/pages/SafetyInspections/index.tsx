@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { ClipboardCheck, Plus, Search, Eye, Edit2, Trash2, AlertCircle, CheckCircle2, HardHat, Shield, Zap, Flame, Truck } from 'lucide-react';
 import { supabase, SafetyInspection } from '../../lib/supabase';
+import { usePageTitle } from '../../lib/usePageTitle';
 import { useToast } from '../../lib/toast';
 import DeleteConfirmModal from '../../components/DeleteConfirmModal';
 import { inspectionStatusColors, badgeColor } from '../../lib/badgeColors';
@@ -21,6 +22,7 @@ const TYPE_ICONS: Record<string, React.ReactNode> = {
 };
 
 export default function SafetyInspections() {
+  usePageTitle('Safety — Inspections');
   const [inspections, setInspections] = useState<SafetyInspection[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');

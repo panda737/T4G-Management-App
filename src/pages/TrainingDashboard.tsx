@@ -10,8 +10,10 @@ import {
   Loader,
 } from 'lucide-react';
 import { supabase, TrainingCourse, TrainingRecord, TrainingCertificate, TrainingSchedule } from '../lib/supabase';
+import { usePageTitle } from '../lib/usePageTitle';
 
 export default function TrainingDashboard() {
+  usePageTitle('Training');
   const [loading, setLoading] = useState(true);
   const [courses, setCourses] = useState<TrainingCourse[]>([]);
   const [records, setRecords] = useState<TrainingRecord[]>([]);

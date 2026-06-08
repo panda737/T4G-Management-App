@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { Plus, Search, ArrowDownCircle, ArrowUpCircle, Scale, Pencil, Trash2, ChevronDown, ExternalLink, Zap } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { supabase, WasteReceipt, TreatmentWasteTransfer, TreatmentDailyLog } from '../../lib/supabase';
+import { usePageTitle } from '../../lib/usePageTitle';
 import { useUser } from '../../lib/UserContext';
 import { useToast } from '../../lib/toast';
 import DeleteConfirmModal from '../../components/DeleteConfirmModal';
@@ -14,6 +15,7 @@ function fmt(d: string) {
 }
 
 export default function WasteOnFloor() {
+  usePageTitle('Treatment — Waste on Floor');
   const { isAdmin, isManagement } = useUser();
   const { addToast } = useToast();
   const canEdit = isAdmin || isManagement;

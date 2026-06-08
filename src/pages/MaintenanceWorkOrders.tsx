@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { Plus, Search, X, Save, Calendar, ChevronDown } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { usePageTitle } from '../lib/usePageTitle';
 import { useToast } from '../lib/toast';
 import type { MaintenanceHistory, Equipment } from '../lib/supabase';
 import Modal from '../components/Modal';
@@ -9,6 +10,7 @@ import { maintenanceTypeColors as TYPE_COLORS } from '../lib/badgeColors';
 const TYPES = ['Scheduled', 'Corrective', 'Preventive', 'Emergency'];
 
 export default function MaintenanceWorkOrders() {
+  usePageTitle('Maintenance — Service History');
   const [history, setHistory] = useState<MaintenanceHistory[]>([]);
   const [equipment, setEquipment] = useState<Equipment[]>([]);
   const [loading, setLoading] = useState(true);

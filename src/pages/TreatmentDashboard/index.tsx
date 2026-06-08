@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { PageSpinner } from '../../components/Spinner';
 import { supabase, TreatmentDailyLog, TreatmentMonthlySummary, Employee } from '../../lib/supabase';
+import { usePageTitle } from '../../lib/usePageTitle';
 import { fmtKgTons as fmtKg, fmtKgRaw } from '../../lib/formatters';
 
 type EmployeeName = Pick<Employee, 'id' | 'first_name' | 'surname' | 'position'>;
@@ -20,6 +21,7 @@ import DeleteConfirmModal from '../../components/DeleteConfirmModal';
 import { useUser } from '../../lib/UserContext';
 
 export default function TreatmentDashboard() {
+  usePageTitle('Treatment Plant');
   const { isAdmin, isOperator } = useUser();
   const [logs, setLogs] = useState<TreatmentDailyLog[]>([]);
   const [monthlySummaries, setMonthlySummaries] = useState<TreatmentMonthlySummary[]>([]);

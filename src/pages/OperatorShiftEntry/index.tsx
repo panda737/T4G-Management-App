@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Sun, Sunset, Moon, ClipboardCopy, Check, CheckCircle, AlertTriangle, Loader, PenLine, RotateCcw, ChevronLeft } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { usePageTitle } from '../../lib/usePageTitle';
 import type { ShiftType } from '../../lib/supabase';
 import { useUser } from '../../lib/UserContext';
 import { useToast } from '../../lib/toast';
@@ -103,6 +104,7 @@ const SHIFT_CONFIG: Record<ShiftType, {
 const INPUT = 'w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 bg-white';
 
 export default function OperatorShiftEntry() {
+  usePageTitle('Shift Report');
   const { profile } = useUser();
   const { addToast } = useToast();
 
@@ -529,13 +531,15 @@ export default function OperatorShiftEntry() {
                   )}
                 </div>
               ))}
-              <button
-                type="button"
-                onClick={() => setField('downtimes', [...form.downtimes, { reason: '', minutes: '' }])}
-                className="flex items-center gap-1.5 text-sm text-cyan-600 hover:text-cyan-700 font-medium transition"
-              >
-                + Add downtime
-              </button>
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setField('downtimes', [...form.downtimes, { reason: '', minutes: '' }])}
+                  className="flex items-center gap-1.5 text-sm text-cyan-600 hover:text-cyan-700 font-medium transition"
+                >
+                  + Add downtime
+                </button>
+              </div>
             </div>
           )}
         </div>

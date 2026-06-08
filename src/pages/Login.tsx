@@ -12,13 +12,21 @@ export default function Login() {
   const [resetSent, setResetSent] = useState(false);
   const [resetLoading, setResetLoading] = useState(false);
 
+  function friendlyAuthError(msg: string): string {
+    if (/invalid login credentials|invalid email or password/i.test(msg)) return 'Incorrect email or password.';
+    if (/email not confirmed/i.test(msg)) return 'Please confirm your email address before signing in.';
+    if (/too many requests/i.test(msg)) return 'Too many attempts. Please wait a moment and try again.';
+    if (/network|fetch|failed to fetch/i.test(msg)) return 'Unable to connect. Please check your internet connection.';
+    return 'An error occurred. Please try again.';
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
     setLoading(true);
     const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
     if (authError) {
-      setError(authError.message);
+      setError(friendlyAuthError(authError.message));
     }
     setLoading(false);
   }
@@ -32,7 +40,7 @@ export default function Login() {
     });
     setResetLoading(false);
     if (resetError) {
-      setError(resetError.message);
+      setError(friendlyAuthError(resetError.message));
     } else {
       setResetSent(true);
     }

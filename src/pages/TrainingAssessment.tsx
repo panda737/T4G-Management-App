@@ -5,10 +5,12 @@ import {
   Award, AlertTriangle, Loader, BookOpen, User,
 } from 'lucide-react';
 import { supabase, TrainingModule, TrainingModuleQuestion, Employee } from '../lib/supabase';
+import { usePageTitle } from '../lib/usePageTitle';
 
 type Step = 'select-employee' | 'reading' | 'quiz' | 'results';
 
 export default function TrainingAssessment() {
+  usePageTitle('Training — Assessment');
   const { moduleId } = useParams<{ moduleId: string }>();
   const navigate = useNavigate();
   const [module, setModule] = useState<TrainingModule | null>(null);

@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { ClipboardList, Plus, Eye, Edit2, Trash2, User, BookOpen, AlertCircle, Download } from 'lucide-react';
 import { supabase, TrainingRecord, TrainingCourse, TrainingModule, TrainingAssessment, Employee } from '../../lib/supabase';
+import { usePageTitle } from '../../lib/usePageTitle';
 import { useToast } from '../../lib/toast';
 import { downloadCSV } from '../../lib/csvExport';
 import DeleteConfirmModal from '../../components/DeleteConfirmModal';
@@ -26,6 +27,7 @@ const EMPTY_FORM: RecordFormData = {
 };
 
 export default function TrainingRecords() {
+  usePageTitle('Training — Records');
   const [records, setRecords] = useState<TrainingRecord[]>([]);
   const [courses, setCourses] = useState<TrainingCourse[]>([]);
   const [modules, setModules] = useState<TrainingModule[]>([]);

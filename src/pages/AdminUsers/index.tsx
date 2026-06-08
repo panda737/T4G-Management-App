@@ -4,6 +4,7 @@ import {
   CheckCircle, XCircle, AlertTriangle, Loader, RefreshCw, UserCog,
 } from 'lucide-react';
 import { supabase, UserProfile, AppRole, ROLE_LABELS } from '../../lib/supabase';
+import { usePageTitle } from '../../lib/usePageTitle';
 import { useUser } from '../../lib/UserContext';
 import { useToast } from '../../lib/toast';
 import DeleteConfirmModal from '../../components/DeleteConfirmModal';
@@ -50,6 +51,7 @@ const ROLE_AVATAR: Record<AppRole, string> = {
 };
 
 export default function AdminUsers() {
+  usePageTitle('Admin — Users');
   const { profile: myProfile, isAdmin } = useUser();
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [emailMap, setEmailMap] = useState<Map<string, string>>(new Map());

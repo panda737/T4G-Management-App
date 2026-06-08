@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { BookOpen, Plus, Eye, Edit2, Trash2, Search } from 'lucide-react';
 import { supabase, TrainingCourse } from '../../lib/supabase';
+import { usePageTitle } from '../../lib/usePageTitle';
 import { useToast } from '../../lib/toast';
 import DeleteConfirmModal from '../../components/DeleteConfirmModal';
 import CourseFormModal, { CourseFormData } from './CourseFormModal';
@@ -42,6 +43,7 @@ const EMPTY_FORM: CourseFormData = {
 };
 
 export default function TrainingCourses() {
+  usePageTitle('Training — Courses');
   const [courses, setCourses] = useState<TrainingCourse[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');

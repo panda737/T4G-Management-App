@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import { usePageTitle } from '../../lib/usePageTitle';
 import { ArrowLeft, User, Phone, Mail, MapPin, AlertTriangle, ClipboardCheck, Users, GraduationCap, Award, Shield, ShieldAlert, CheckCircle, Calendar, CreditCard as Edit, Loader, Building, CreditCard, Activity, Briefcase, Plus, Pencil, Trash2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import type { Employee, LegalAppointment } from '../../lib/supabase';
@@ -75,6 +76,7 @@ function fmt(dateStr: string | null | undefined) {
 }
 
 export default function EmployeeProfile() {
+  usePageTitle('Employee Profile');
   const { id } = useParams<{ id: string }>();
   const { isAdmin, isManagement } = useUser();
   const { addToast } = useToast();

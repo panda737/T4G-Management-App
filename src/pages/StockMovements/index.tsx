@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { Plus, Search, ChevronRight, Package, ArrowLeftRight, ClipboardCheck, Download } from 'lucide-react';
 import { supabase, StockItem } from '../../lib/supabase';
+import { usePageTitle } from '../../lib/usePageTitle';
 import { useToast } from '../../lib/toast';
 import { downloadCSV } from '../../lib/csvExport';
 import { MOVEMENT_TYPES, INCREASE_TYPES, DECREASE_TYPES, EITHER_TYPES, MovementWithItem, OrderGroup, buildGroups, directionColor } from './constants';
@@ -16,6 +17,7 @@ function GroupTypeIcon({ type }: { type: string }) {
 }
 
 export default function StockMovements() {
+  usePageTitle('Stock — Movements');
   const { addToast } = useToast();
   const [movements, setMovements] = useState<MovementWithItem[]>([]);
   const [items, setItems] = useState<StockItem[]>([]);

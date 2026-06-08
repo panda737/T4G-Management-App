@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Award, Plus, Eye, Edit2, Trash2, Search, Download } from 'lucide-react';
 import { supabase, TrainingCertificate } from '../../lib/supabase';
+import { usePageTitle } from '../../lib/usePageTitle';
 import { useToast } from '../../lib/toast';
 import { downloadCSV } from '../../lib/csvExport';
 import DeleteConfirmModal from '../../components/DeleteConfirmModal';
@@ -58,6 +59,7 @@ const EMPTY_FORM: CertFormData = {
 };
 
 export default function TrainingCertificates() {
+  usePageTitle('Training — Certificates');
   const [certificates, setCertificates] = useState<TrainingCertificate[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');

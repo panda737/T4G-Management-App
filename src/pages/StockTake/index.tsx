@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Plus, ChevronRight, CheckCheck } from 'lucide-react';
 import { supabase, StockItem, StockTakeSession, StockTakeLineItem } from '../../lib/supabase';
+import { usePageTitle } from '../../lib/usePageTitle';
 import Modal from '../../components/Modal';
 import { PageSpinner } from '../../components/Spinner';
 import { STATUS_STYLE, STATUS_ICON } from './constants';
@@ -10,6 +11,7 @@ import StockTakeReport from './StockTakeReport';
 type View = 'list' | 'count' | 'report';
 
 export default function StockTake() {
+  usePageTitle('Stock — Stock Take');
   const [sessions, setSessions] = useState<StockTakeSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [showNew, setShowNew] = useState(false);

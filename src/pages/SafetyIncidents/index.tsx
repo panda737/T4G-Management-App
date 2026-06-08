@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { AlertTriangle, Plus, Eye, Trash2, Search, Calendar, AlertCircle, Download } from 'lucide-react';
 import { supabase, SafetyIncident } from '../../lib/supabase';
+import { usePageTitle } from '../../lib/usePageTitle';
 import { useToast } from '../../lib/toast';
 import { downloadCSV } from '../../lib/csvExport';
 import DeleteConfirmModal from '../../components/DeleteConfirmModal';
@@ -46,6 +47,7 @@ const EMPTY_FORM: IncidentFormData = {
 };
 
 export default function SafetyIncidents() {
+  usePageTitle('Safety — Incidents');
   const [incidents, setIncidents] = useState<SafetyIncident[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');

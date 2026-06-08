@@ -1,5 +1,5 @@
 import { useState, useEffect, Component, type ReactNode } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Menu, XCircle } from 'lucide-react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from './lib/supabase';
@@ -85,9 +85,56 @@ function RootRedirect() {
   return <GlobalDashboard />;
 }
 
+const ROUTE_LABELS: Record<string, string> = {
+  '/': 'Dashboard',
+  '/shift-report': 'Shift Report',
+  '/stock/master-list': 'Master List',
+  '/stock/movements': 'Movements',
+  '/stock/stock-take': 'Stock Take',
+  '/stock/reports': 'Reports',
+  '/stock/settings': 'Stock Categories',
+  '/treatment': 'Treatment Plant',
+  '/treatment/daily-log': 'Daily Log',
+  '/treatment/transfers': 'Transfers',
+  '/treatment/waste-on-floor': 'Waste on Floor',
+  '/safety': 'Health & Safety',
+  '/safety/incidents': 'Incidents',
+  '/safety/inspections': 'Inspections',
+  '/safety/risk-assessments': 'Risk Assessments',
+  '/safety/corrective-actions': 'Corrective Actions',
+  '/safety/toolbox-talks': 'Toolbox Talks',
+  '/safety/drills': 'Emergency Drills',
+  '/training': 'Training',
+  '/training/modules': 'Training Modules',
+  '/training/courses': 'Course Register',
+  '/training/records': 'Staff Records',
+  '/training/schedule': 'Schedule',
+  '/training/certificates': 'Certificates',
+  '/maintenance/plant-overview': 'Plant Overview',
+  '/maintenance/assets': 'Equipment Register',
+  '/maintenance/parts': 'Spare Parts',
+  '/maintenance/work-orders': 'Service History',
+  '/compliance': 'Compliance',
+  '/documents': 'Document Library',
+  '/employees': 'Employee Register',
+  '/employees/appointments': 'Legal Appointments',
+  '/admin/users': 'User Management',
+  '/admin/settings': 'Settings',
+};
+
+function usePageLabel(): string {
+  const { pathname } = useLocation();
+  if (ROUTE_LABELS[pathname]) return ROUTE_LABELS[pathname];
+  if (pathname.startsWith('/documents/')) return 'Document Library';
+  if (pathname.startsWith('/employees/')) return 'Employee Profile';
+  if (pathname.startsWith('/training/modules/')) return 'Assessment';
+  return 'Tech4Green';
+}
+
 function AuthenticatedLayout({ session }: { session: Session }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const pageLabel = usePageLabel();
 
   return (
     <UserProvider session={session}>
@@ -115,7 +162,7 @@ function AuthenticatedLayout({ session }: { session: Session }) {
             <Menu size={22} />
           </button>
           <img src="/T4G_Small_Logo.png" alt="Tech4Green" className="w-7 h-7 rounded-lg object-contain" />
-          <p className="text-sm font-bold text-white tracking-tight">Tech4Green</p>
+          <p className="text-sm font-bold text-white tracking-tight">{pageLabel}</p>
         </div>
       </div>
 
