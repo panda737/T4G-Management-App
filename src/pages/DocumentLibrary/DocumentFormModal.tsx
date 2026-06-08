@@ -26,6 +26,7 @@ export default function DocumentFormModal({ doc, defaultCategory, onClose, onSav
   const [category, setCategory] = useState<DocumentCategory>(doc?.category ?? defaultCategory ?? 'SOP');
   const [description, setDescription] = useState(doc?.description ?? '');
   const [expiryDate, setExpiryDate] = useState(doc?.expiry_date ?? '');
+  const [reviewDate, setReviewDate] = useState(doc?.review_date ?? '');
   const [file, setFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -48,6 +49,23 @@ export default function DocumentFormModal({ doc, defaultCategory, onClose, onSav
       let fileSizeBytes = doc?.file_size_bytes ?? 0;
 
       if (file) {
+        // Snapshot old file to version history when replacing during an edit
+        if (isEdit && doc.file_path) {
+          const { count } = await supabase
+            .from('document_versions')
+            .select('*', { count: 'exact', head: true })
+            .eq('document_id', doc.id);
+          await supabase.from('document_versions').insert({
+            document_id: doc.id,
+            version_number: (count ?? 0) + 1,
+            file_path: doc.file_path,
+            file_name: doc.file_name,
+            file_size_bytes: doc.file_size_bytes,
+            replaced_by: session.user.id,
+            replaced_at: new Date().toISOString(),
+          });
+        }
+
         const ext = file.name.split('.').pop()?.toLowerCase() ?? 'bin';
         const safeCat = category.toLowerCase().replace(/\s+/g, '-');
         const year = new Date().getFullYear();
@@ -67,6 +85,7 @@ export default function DocumentFormModal({ doc, defaultCategory, onClose, onSav
         category,
         description: description.trim(),
         expiry_date: expiryDate || null,
+        review_date: reviewDate || null,
         file_path: filePath,
         file_name: fileName,
         file_size_bytes: fileSizeBytes,
@@ -101,16 +120,21 @@ export default function DocumentFormModal({ doc, defaultCategory, onClose, onSav
           <input type="text" value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Medical Waste SOP v3" className={inp} />
         </div>
 
+        <div>
+          <label className="block text-sm font-semibold text-gray-700 mb-1">Category *</label>
+          <select value={category} onChange={e => setCategory(e.target.value as DocumentCategory)} className={inp}>
+            {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </div>
+
         <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">Category *</label>
-            <select value={category} onChange={e => setCategory(e.target.value as DocumentCategory)} className={inp}>
-              {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
-          </div>
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-1">Expiry Date</label>
             <input type="date" value={expiryDate} onChange={e => setExpiryDate(e.target.value)} className={inp} />
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-1">Next Review Date</label>
+            <input type="date" value={reviewDate} onChange={e => setReviewDate(e.target.value)} className={inp} />
           </div>
         </div>
 

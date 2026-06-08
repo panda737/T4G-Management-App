@@ -1,12 +1,14 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
-import { Plus, Search, FileText, Download, Pencil, Trash2, AlertTriangle, Archive, RotateCcw, Loader } from 'lucide-react';
+import { Plus, Search, FileText, Download, Pencil, Trash2, AlertTriangle, Archive, RotateCcw, Loader, ChevronUp, ChevronDown as ChevronDownIcon } from 'lucide-react';
 import { supabase, AppDocument, DocumentCategory } from '../../lib/supabase';
 import { usePageTitle } from '../../lib/usePageTitle';
 import { useUser } from '../../lib/UserContext';
 import { useToast } from '../../lib/toast';
+import { downloadCSV } from '../../lib/csvExport';
 import DeleteConfirmModal from '../../components/DeleteConfirmModal';
 import DocumentFormModal from './DocumentFormModal';
+import DocumentDetailModal from './DocumentDetailModal';
 
 const SLUG_TO_CATEGORY: Record<string, DocumentCategory | 'Archived'> = {
   'sops':              'SOP',
@@ -34,18 +36,34 @@ const CAT_BADGE: Record<DocumentCategory, string> = {
   Template:          'bg-emerald-100 text-emerald-700',
 };
 
+type SortKey = 'title' | 'expiry_date' | 'created_at';
+
 function formatBytes(bytes: number) {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1048576) return `${(bytes / 1024).toFixed(0)} KB`;
   return `${(bytes / 1048576).toFixed(1)} MB`;
 }
 
-function expiryStatus(expiry: string | null): 'expired' | 'soon' | 'ok' | 'none' {
+function formatDate(d: string | null | undefined) {
+  if (!d) return null;
+  return new Date(d).toLocaleDateString('en-ZA');
+}
+
+function expiryStatus(expiry: string | null | undefined): 'expired' | 'soon' | 'ok' | 'none' {
   if (!expiry) return 'none';
   const days = (new Date(expiry).getTime() - Date.now()) / 86400000;
   if (days < 0) return 'expired';
   if (days <= 30) return 'soon';
   return 'ok';
+}
+
+function documentAlertStatus(doc: AppDocument): 'expired' | 'soon' | 'ok' | 'none' {
+  const es = expiryStatus(doc.expiry_date);
+  const rs = expiryStatus(doc.review_date);
+  if (es === 'expired' || rs === 'expired') return 'expired';
+  if (es === 'soon' || rs === 'soon') return 'soon';
+  if (es === 'ok' || rs === 'ok') return 'ok';
+  return 'none';
 }
 
 export default function DocumentLibrary() {
@@ -62,10 +80,14 @@ export default function DocumentLibrary() {
   const activeCategory = isArchiveView ? undefined : (activeFilter as DocumentCategory | undefined);
 
   const [docs, setDocs] = useState<AppDocument[]>([]);
+  const [uploaderMap, setUploaderMap] = useState<Map<string, string>>(new Map());
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [sortKey, setSortKey] = useState<SortKey>('title');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const [showForm, setShowForm] = useState(false);
   const [editDoc, setEditDoc] = useState<AppDocument | null>(null);
+  const [viewDoc, setViewDoc] = useState<AppDocument | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<AppDocument | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [downloading, setDownloading] = useState<string | null>(null);
@@ -76,12 +98,16 @@ export default function DocumentLibrary() {
 
   async function loadDocs() {
     setLoading(true);
-    const { data } = await supabase
-      .from('documents')
-      .select('*')
-      .order('category')
-      .order('title');
-    setDocs((data ?? []) as AppDocument[]);
+    const [{ data: docsData }, { data: profilesData }] = await Promise.all([
+      supabase.from('documents').select('*').order('category').order('title'),
+      supabase.from('user_profiles').select('auth_user_id, display_name'),
+    ]);
+    setDocs((docsData ?? []) as AppDocument[]);
+    const map = new Map<string, string>();
+    for (const p of (profilesData ?? [])) {
+      map.set(p.auth_user_id, p.display_name);
+    }
+    setUploaderMap(map);
     setLoading(false);
   }
 
@@ -122,9 +148,18 @@ export default function DocumentLibrary() {
     loadDocs();
   }
 
+  function handleSort(key: SortKey) {
+    if (sortKey === key) {
+      setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortKey(key);
+      setSortDir('asc');
+    }
+  }
+
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
-    return docs.filter(d => {
+    let result = docs.filter(d => {
       if (isArchiveView) {
         if (d.is_active) return false;
       } else if (activeCategory) {
@@ -135,22 +170,56 @@ export default function DocumentLibrary() {
       if (q) return d.title.toLowerCase().includes(q) || d.description.toLowerCase().includes(q);
       return true;
     });
-  }, [docs, search, activeCategory, isArchiveView]);
+
+    result = [...result].sort((a, b) => {
+      let cmp = 0;
+      if (sortKey === 'title') {
+        cmp = a.title.localeCompare(b.title);
+      } else if (sortKey === 'expiry_date') {
+        const aVal = a.expiry_date ?? '9999-12-31';
+        const bVal = b.expiry_date ?? '9999-12-31';
+        cmp = aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
+      } else if (sortKey === 'created_at') {
+        cmp = a.created_at < b.created_at ? -1 : a.created_at > b.created_at ? 1 : 0;
+      }
+      return sortDir === 'asc' ? cmp : -cmp;
+    });
+
+    return result;
+  }, [docs, search, activeCategory, isArchiveView, sortKey, sortDir]);
 
   const expiringSoon = useMemo(() => docs.filter(d => {
     if (!d.is_active) return false;
-    const s = expiryStatus(d.expiry_date);
+    const s = documentAlertStatus(d);
     return s === 'expired' || s === 'soon';
   }).length, [docs]);
 
   const pageTitle = activeFilter ? CATEGORY_LABELS[activeFilter] : 'Document Library';
+
+  function SortIcon({ k }: { k: SortKey }) {
+    if (sortKey !== k) return <span className="inline-block w-3 ml-1 opacity-30"><ChevronUp size={10} /></span>;
+    return sortDir === 'asc'
+      ? <ChevronUp size={10} className="inline ml-1" />
+      : <ChevronDownIcon size={10} className="inline ml-1" />;
+  }
+
+  function SortableTh({ label, k }: { label: string; k: SortKey }) {
+    return (
+      <th
+        onClick={() => handleSort(k)}
+        className="text-left px-4 py-3 text-xs font-medium uppercase tracking-wider whitespace-nowrap cursor-pointer select-none hover:text-violet-300 transition-colors"
+      >
+        {label}<SortIcon k={k} />
+      </th>
+    );
+  }
 
   function renderActions(doc: AppDocument) {
     if (isArchiveView) {
       return (
         <div className="flex items-center justify-end gap-1.5">
           <button
-            onClick={() => handleDownload(doc)}
+            onClick={e => { e.stopPropagation(); handleDownload(doc); }}
             disabled={downloading === doc.id}
             className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-violet-600 hover:bg-violet-50 border border-violet-200 rounded-lg transition disabled:opacity-50"
           >
@@ -160,14 +229,14 @@ export default function DocumentLibrary() {
           {canEdit && (
             <>
               <button
-                onClick={() => handleRestore(doc)}
+                onClick={e => { e.stopPropagation(); handleRestore(doc); }}
                 disabled={restoring === doc.id}
                 className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-emerald-600 hover:bg-emerald-50 border border-emerald-200 rounded-lg transition disabled:opacity-50"
               >
                 {restoring === doc.id ? <Loader size={12} className="animate-spin" /> : <RotateCcw size={12} />}
                 Restore
               </button>
-              <button onClick={() => setDeleteTarget(doc)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition">
+              <button onClick={e => { e.stopPropagation(); setDeleteTarget(doc); }} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition">
                 <Trash2 size={14} />
               </button>
             </>
@@ -178,7 +247,7 @@ export default function DocumentLibrary() {
     return (
       <div className="flex items-center justify-end gap-1.5">
         <button
-          onClick={() => handleDownload(doc)}
+          onClick={e => { e.stopPropagation(); handleDownload(doc); }}
           disabled={downloading === doc.id}
           className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-violet-600 hover:bg-violet-50 border border-violet-200 rounded-lg transition disabled:opacity-50"
         >
@@ -187,18 +256,18 @@ export default function DocumentLibrary() {
         </button>
         {canEdit && (
           <>
-            <button onClick={() => { setEditDoc(doc); setShowForm(true); }} className="p-1.5 text-gray-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg transition">
+            <button onClick={e => { e.stopPropagation(); setEditDoc(doc); setShowForm(true); }} className="p-1.5 text-gray-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg transition">
               <Pencil size={14} />
             </button>
             <button
-              onClick={() => handleArchive(doc)}
+              onClick={e => { e.stopPropagation(); handleArchive(doc); }}
               disabled={archiving === doc.id}
               className="p-1.5 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition disabled:opacity-50"
               title="Archive document"
             >
               {archiving === doc.id ? <Loader size={14} className="animate-spin" /> : <Archive size={14} />}
             </button>
-            <button onClick={() => setDeleteTarget(doc)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition">
+            <button onClick={e => { e.stopPropagation(); setDeleteTarget(doc); }} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition">
               <Trash2 size={14} />
             </button>
           </>
@@ -211,15 +280,15 @@ export default function DocumentLibrary() {
     if (isArchiveView) {
       return (
         <div className="flex items-center gap-1 flex-shrink-0">
-          <button onClick={() => handleDownload(doc)} disabled={downloading === doc.id} className="p-1.5 text-violet-600 hover:bg-violet-50 rounded-lg transition disabled:opacity-50">
+          <button onClick={e => { e.stopPropagation(); handleDownload(doc); }} disabled={downloading === doc.id} className="p-1.5 text-violet-600 hover:bg-violet-50 rounded-lg transition disabled:opacity-50">
             {downloading === doc.id ? <Loader size={14} className="animate-spin" /> : <Download size={14} />}
           </button>
           {canEdit && (
             <>
-              <button onClick={() => handleRestore(doc)} disabled={restoring === doc.id} className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg transition disabled:opacity-50">
+              <button onClick={e => { e.stopPropagation(); handleRestore(doc); }} disabled={restoring === doc.id} className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg transition disabled:opacity-50">
                 {restoring === doc.id ? <Loader size={14} className="animate-spin" /> : <RotateCcw size={14} />}
               </button>
-              <button onClick={() => setDeleteTarget(doc)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition">
+              <button onClick={e => { e.stopPropagation(); setDeleteTarget(doc); }} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition">
                 <Trash2 size={14} />
               </button>
             </>
@@ -229,24 +298,40 @@ export default function DocumentLibrary() {
     }
     return (
       <div className="flex items-center gap-1 flex-shrink-0">
-        <button onClick={() => handleDownload(doc)} disabled={downloading === doc.id} className="p-1.5 text-violet-600 hover:bg-violet-50 rounded-lg transition disabled:opacity-50">
+        <button onClick={e => { e.stopPropagation(); handleDownload(doc); }} disabled={downloading === doc.id} className="p-1.5 text-violet-600 hover:bg-violet-50 rounded-lg transition disabled:opacity-50">
           {downloading === doc.id ? <Loader size={14} className="animate-spin" /> : <Download size={14} />}
         </button>
         {canEdit && (
           <>
-            <button onClick={() => { setEditDoc(doc); setShowForm(true); }} className="p-1.5 text-gray-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg transition">
+            <button onClick={e => { e.stopPropagation(); setEditDoc(doc); setShowForm(true); }} className="p-1.5 text-gray-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg transition">
               <Pencil size={14} />
             </button>
-            <button onClick={() => handleArchive(doc)} disabled={archiving === doc.id} className="p-1.5 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition disabled:opacity-50">
+            <button onClick={e => { e.stopPropagation(); handleArchive(doc); }} disabled={archiving === doc.id} className="p-1.5 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition disabled:opacity-50">
               {archiving === doc.id ? <Loader size={14} className="animate-spin" /> : <Archive size={14} />}
             </button>
-            <button onClick={() => setDeleteTarget(doc)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition">
+            <button onClick={e => { e.stopPropagation(); setDeleteTarget(doc); }} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition">
               <Trash2 size={14} />
             </button>
           </>
         )}
       </div>
     );
+  }
+
+  function handleExportCSV() {
+    const rows = filtered.map(d => ({
+      'Title': d.title,
+      'Category': d.category,
+      'Description': d.description,
+      'File Name': d.file_name,
+      'File Size': formatBytes(d.file_size_bytes),
+      'Expiry Date': formatDate(d.expiry_date) ?? '',
+      'Next Review Date': formatDate(d.review_date) ?? '',
+      'Uploaded By': uploaderMap.get(d.uploaded_by ?? '') ?? '',
+      'Date Uploaded': formatDate(d.created_at) ?? '',
+      'Last Modified': formatDate(d.updated_at) ?? '',
+    }));
+    downloadCSV(rows, `documents-${pageTitle.toLowerCase().replace(/\s+/g, '-')}`);
   }
 
   return (
@@ -256,20 +341,31 @@ export default function DocumentLibrary() {
           <h1 className="text-2xl font-bold text-gray-900">{pageTitle}</h1>
           <p className="text-sm text-gray-500 mt-1">SOPs, licences, permits, policies and templates</p>
         </div>
-        {canEdit && !isArchiveView && (
-          <button
-            onClick={() => { setEditDoc(null); setShowForm(true); }}
-            className="flex items-center gap-1.5 text-sm bg-violet-600 hover:bg-violet-700 text-white px-4 py-2 rounded-lg font-medium transition shadow-sm whitespace-nowrap"
-          >
-            <Plus size={16} /> Upload Document
-          </button>
-        )}
+        <div className="flex items-center gap-2 flex-wrap">
+          {filtered.length > 0 && (
+            <button
+              onClick={handleExportCSV}
+              className="flex items-center gap-1.5 text-sm border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 px-3 py-2 rounded-lg font-medium transition shadow-sm"
+              title="Export to CSV"
+            >
+              <Download size={14} /> <span className="hidden sm:inline">Export</span>
+            </button>
+          )}
+          {canEdit && !isArchiveView && (
+            <button
+              onClick={() => { setEditDoc(null); setShowForm(true); }}
+              className="flex items-center gap-1.5 text-sm bg-violet-600 hover:bg-violet-700 text-white px-4 py-2 rounded-lg font-medium transition shadow-sm whitespace-nowrap"
+            >
+              <Plus size={16} /> Upload Document
+            </button>
+          )}
+        </div>
       </div>
 
       {expiringSoon > 0 && (
         <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 text-amber-800 text-sm rounded-lg px-4 py-2.5">
           <AlertTriangle size={15} className="flex-shrink-0" />
-          <span><strong>{expiringSoon}</strong> document{expiringSoon !== 1 ? 's' : ''} expired or expiring within 30 days</span>
+          <span><strong>{expiringSoon}</strong> document{expiringSoon !== 1 ? 's' : ''} expired or due for review within 30 days</span>
         </div>
       )}
 
@@ -300,20 +396,28 @@ export default function DocumentLibrary() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-gray-800 text-white">
-                    <th className="text-left px-4 py-3 text-xs font-medium uppercase tracking-wider">Title</th>
+                    <SortableTh label="Title" k="title" />
                     {isArchiveView && (
                       <th className="text-left px-4 py-3 text-xs font-medium uppercase tracking-wider whitespace-nowrap">Category</th>
                     )}
-                    <th className="text-left px-4 py-3 text-xs font-medium uppercase tracking-wider whitespace-nowrap">Expiry Date</th>
+                    <SortableTh label="Expiry / Review" k="expiry_date" />
                     <th className="text-left px-4 py-3 text-xs font-medium uppercase tracking-wider whitespace-nowrap">File</th>
+                    <SortableTh label="Uploaded" k="created_at" />
                     <th className="text-right px-4 py-3 text-xs font-medium uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {filtered.map(doc => {
+                    const as_ = documentAlertStatus(doc);
                     const es = expiryStatus(doc.expiry_date);
+                    const rs = expiryStatus(doc.review_date);
+                    const uploaderName = uploaderMap.get(doc.uploaded_by ?? '') ?? null;
                     return (
-                      <tr key={doc.id} className={`hover:bg-gray-50 transition ${es === 'expired' ? 'bg-red-50/40' : es === 'soon' ? 'bg-amber-50/40' : ''}`}>
+                      <tr
+                        key={doc.id}
+                        onClick={() => setViewDoc(doc)}
+                        className={`hover:bg-gray-50 transition cursor-pointer ${as_ === 'expired' ? 'bg-red-50/40' : as_ === 'soon' ? 'bg-amber-50/40' : ''}`}
+                      >
                         <td className="px-4 py-3">
                           <p className="font-medium text-gray-900">{doc.title}</p>
                           {doc.description && <p className="text-xs text-gray-400 mt-0.5 truncate max-w-[300px]">{doc.description}</p>}
@@ -325,17 +429,33 @@ export default function DocumentLibrary() {
                         )}
                         <td className="px-4 py-3 whitespace-nowrap">
                           {doc.expiry_date ? (
-                            <span className={`text-sm font-medium ${es === 'expired' ? 'text-red-600' : es === 'soon' ? 'text-amber-600' : 'text-gray-600'}`}>
-                              {es === 'expired' && <AlertTriangle size={12} className="inline mr-1" />}
-                              {new Date(doc.expiry_date).toLocaleDateString('en-ZA')}
-                            </span>
+                            <div>
+                              <span className={`text-sm font-medium ${es === 'expired' ? 'text-red-600' : es === 'soon' ? 'text-amber-600' : 'text-gray-600'}`}>
+                                {es === 'expired' && <AlertTriangle size={12} className="inline mr-1" />}
+                                {formatDate(doc.expiry_date)}
+                              </span>
+                              <p className="text-[10px] text-gray-400">Expiry</p>
+                            </div>
                           ) : (
                             <span className="text-gray-300 text-sm">—</span>
+                          )}
+                          {doc.review_date && (
+                            <div className="mt-1">
+                              <span className={`text-xs font-medium ${rs === 'expired' ? 'text-red-600' : rs === 'soon' ? 'text-amber-600' : 'text-gray-500'}`}>
+                                {rs === 'expired' && <AlertTriangle size={10} className="inline mr-1" />}
+                                {formatDate(doc.review_date)}
+                              </span>
+                              <p className="text-[10px] text-gray-400">Review</p>
+                            </div>
                           )}
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap">
                           <span className="text-xs text-gray-500 truncate max-w-[160px] block">{doc.file_name}</span>
                           <span className="text-[10px] text-gray-400">{formatBytes(doc.file_size_bytes)}</span>
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          {uploaderName && <p className="text-xs text-gray-600">{uploaderName}</p>}
+                          <p className="text-[10px] text-gray-400">{formatDate(doc.created_at)}</p>
                         </td>
                         <td className="px-4 py-3">
                           {renderActions(doc)}
@@ -350,9 +470,14 @@ export default function DocumentLibrary() {
             {/* Mobile cards */}
             <div className="md:hidden divide-y divide-gray-100">
               {filtered.map(doc => {
+                const as_ = documentAlertStatus(doc);
                 const es = expiryStatus(doc.expiry_date);
                 return (
-                  <div key={doc.id} className={`px-4 py-3 ${es === 'expired' ? 'bg-red-50/40' : es === 'soon' ? 'bg-amber-50/40' : ''}`}>
+                  <div
+                    key={doc.id}
+                    onClick={() => setViewDoc(doc)}
+                    className={`px-4 py-3 cursor-pointer ${as_ === 'expired' ? 'bg-red-50/40' : as_ === 'soon' ? 'bg-amber-50/40' : ''}`}
+                  >
                     <div className="flex items-start gap-2">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
@@ -365,7 +490,7 @@ export default function DocumentLibrary() {
                           {doc.file_name} · {formatBytes(doc.file_size_bytes)}
                           {doc.expiry_date && (
                             <span className={`ml-1 ${es === 'expired' ? 'text-red-600 font-medium' : es === 'soon' ? 'text-amber-600 font-medium' : ''}`}>
-                              · Exp {new Date(doc.expiry_date).toLocaleDateString('en-ZA')}
+                              · Exp {formatDate(doc.expiry_date)}
                             </span>
                           )}
                         </p>
@@ -379,6 +504,18 @@ export default function DocumentLibrary() {
           </>
         )}
       </div>
+
+      {viewDoc && (
+        <DocumentDetailModal
+          doc={viewDoc}
+          uploaderName={uploaderMap.get(viewDoc.uploaded_by ?? '') ?? null}
+          canEdit={canEdit}
+          onClose={() => setViewDoc(null)}
+          onDownload={handleDownload}
+          downloading={downloading}
+          onEdit={doc => { setViewDoc(null); setEditDoc(doc); setShowForm(true); }}
+        />
+      )}
 
       {showForm && (
         <DocumentFormModal

@@ -562,10 +562,22 @@ export type AppDocument = {
   file_name: string;
   file_size_bytes: number;
   expiry_date: string | null;
+  review_date?: string | null;
   is_active: boolean;
   uploaded_by: string | null;
   created_at: string;
   updated_at: string;
+};
+
+export type DocumentVersion = {
+  id: string;
+  document_id: string;
+  version_number: number;
+  file_path: string;
+  file_name: string;
+  file_size_bytes: number;
+  replaced_by: string | null;
+  replaced_at: string;
 };
 
 export type LegalAppointmentType =
