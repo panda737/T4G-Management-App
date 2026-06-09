@@ -412,6 +412,15 @@ export type TrainingModuleQuestion = {
   created_at: string;
 };
 
+// Safe view — no correct_answer or explanation. Use for quiz display.
+export type SafeQuestion = Omit<TrainingModuleQuestion, 'correct_answer' | 'explanation'>;
+
+// Safe view — no PII. Use for dropdowns and cross-module references.
+export type EmployeeDirectorySafe = Pick<Employee,
+  'id' | 'employee_number' | 'first_name' | 'surname' |
+  'position' | 'department' | 'hs_role' | 'is_truck_handler' | 'status'
+>;
+
 export type TrainingAssessment = {
   id: string;
   employee_id: string;
