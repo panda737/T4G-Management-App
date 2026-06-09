@@ -4,27 +4,39 @@ import {
   ArrowLeft, ArrowRight, CheckCircle, XCircle,
   Award, AlertTriangle, Loader, BookOpen, User,
 } from 'lucide-react';
-import { supabase, TrainingModule, TrainingModuleQuestion, Employee } from '../lib/supabase';
+import { supabase, TrainingModule, SafeQuestion, EmployeeDirectorySafe } from '../lib/supabase';
 import { usePageTitle } from '../lib/usePageTitle';
 
 type Step = 'select-employee' | 'reading' | 'quiz' | 'results';
+
+type ReviewItem = {
+  question_id: string;
+  question_text: string;
+  your_answer: string;
+  your_answer_text: string;
+  correct_answer: string;
+  correct_answer_text: string;
+  is_correct: boolean;
+  explanation: string;
+};
 
 export default function TrainingAssessment() {
   usePageTitle('Training — Assessment');
   const { moduleId } = useParams<{ moduleId: string }>();
   const navigate = useNavigate();
   const [module, setModule] = useState<TrainingModule | null>(null);
-  const [questions, setQuestions] = useState<TrainingModuleQuestion[]>([]);
-  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [questions, setQuestions] = useState<SafeQuestion[]>([]);
+  const [employees, setEmployees] = useState<EmployeeDirectorySafe[]>([]);
   const [loading, setLoading] = useState(true);
 
   const [step, setStep] = useState<Step>('select-employee');
-  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
+  const [selectedEmployee, setSelectedEmployee] = useState<EmployeeDirectorySafe | null>(null);
   const [employeeSearch, setEmployeeSearch] = useState('');
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [submitted, setSubmitted] = useState(false);
   const [score, setScore] = useState(0);
   const [result, setResult] = useState<'Pass' | 'Fail'>('Fail');
+  const [reviewData, setReviewData] = useState<ReviewItem[]>([]);
   const [saving, setSaving] = useState(false);
   const [opError, setOpError] = useState('');
   const startTimeRef = useRef<number>(0);
@@ -38,8 +50,8 @@ export default function TrainingAssessment() {
     setLoading(true);
     const [modRes, qRes, empRes] = await Promise.all([
       supabase.from('training_modules').select('*').eq('id', moduleId).maybeSingle(),
-      supabase.from('training_module_questions').select('*').eq('module_id', moduleId).order('sort_order'),
-      supabase.from('employees').select('*').eq('status', 'active').order('first_name'),
+      supabase.from('training_questions_safe').select('*').eq('module_id', moduleId).order('sort_order'),
+      supabase.from('employee_directory_safe').select('*').eq('status', 'active').order('first_name'),
     ]);
     setModule(modRes.data);
     setQuestions(qRes.data || []);
@@ -63,47 +75,33 @@ export default function TrainingAssessment() {
     setSaving(true);
     setOpError('');
 
-    let correct = 0;
-    questions.forEach(q => {
-      if (answers[q.id] === q.correct_answer) correct++;
-    });
-
-    const pct = Math.round((correct / questions.length) * 100);
-    const pass = pct >= module.pass_mark;
     const timeTaken = Math.round((Date.now() - startTimeRef.current) / 1000);
 
-    setScore(pct);
-    setResult(pass ? 'Pass' : 'Fail');
+    const { data: rpcData, error: rpcError } = await supabase.rpc('score_training_assessment', {
+      p_module_id: module.id,
+      p_employee_id: selectedEmployee.id,
+      p_answers: answers,
+      p_time_taken_seconds: timeTaken,
+    });
+
+    if (rpcError) {
+      setOpError(rpcError.message);
+      setSaving(false);
+      return;
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const res = rpcData as any;
+    if (res?.error) {
+      setOpError(res.error);
+      setSaving(false);
+      return;
+    }
+
+    setScore(res.score);
+    setResult(res.result as 'Pass' | 'Fail');
+    setReviewData(res.review as ReviewItem[]);
     setSubmitted(true);
-
-    const employeeName = `${selectedEmployee.first_name} ${selectedEmployee.surname}`;
-
-    const { error: aErr } = await supabase.from('training_assessments').insert([{
-      employee_id: selectedEmployee.id,
-      employee_name: employeeName,
-      module_id: module.id,
-      module_title: module.title,
-      answers,
-      score: pct,
-      result: pass ? 'Pass' : 'Fail',
-      time_taken_seconds: timeTaken,
-    }]);
-    if (aErr) { setOpError(aErr.message); setSaving(false); return; }
-
-    const today = new Date().toISOString().split('T')[0];
-    const { error: rErr } = await supabase.from('training_records').insert([{
-      employee_id: selectedEmployee.id,
-      employee_name: employeeName,
-      course_name: module.title,
-      completion_date: today,
-      score: pct,
-      result: pass ? 'Pass' : 'Fail',
-      instructor: 'Self-Assessment',
-      notes: `Module: ${module.category} - ${module.subcategory}. Time: ${formatTime(timeTaken)}`,
-      status: 'Completed',
-    }]);
-    if (rErr) { setOpError(rErr.message); setSaving(false); return; }
-
     setSaving(false);
     setStep('results');
   }
@@ -267,7 +265,7 @@ export default function TrainingAssessment() {
                 <p className="text-sm font-medium text-gray-900 mb-4">{q.question_text}</p>
                 <div className="space-y-2">
                   {(['A', 'B', 'C', 'D'] as const).map(letter => {
-                    const optionText = q[`option_${letter.toLowerCase()}` as keyof TrainingModuleQuestion] as string;
+                    const optionText = q[`option_${letter.toLowerCase()}` as keyof SafeQuestion] as string;
                     const isSelected = answers[q.id] === letter;
                     return (
                       <button
@@ -328,31 +326,27 @@ export default function TrainingAssessment() {
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
               <h3 className="text-sm font-bold text-gray-900 mb-4">Question Review</h3>
               <div className="space-y-4">
-                {questions.map((q, idx) => {
-                  const userAnswer = answers[q.id];
-                  const isCorrect = userAnswer === q.correct_answer;
-                  return (
-                    <div key={q.id} className={`rounded-lg p-4 border ${isCorrect ? 'border-emerald-200 bg-emerald-50/50' : 'border-red-200 bg-red-50/50'}`}>
-                      <div className="flex items-start gap-2 mb-2">
-                        {isCorrect ? <CheckCircle className="w-4 h-4 text-emerald-500 mt-0.5 flex-shrink-0" /> : <XCircle className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />}
-                        <p className="text-sm font-medium text-gray-900">{idx + 1}. {q.question_text}</p>
-                      </div>
-                      <div className="ml-6 space-y-1">
-                        {!isCorrect && (
-                          <p className="text-xs text-red-600">
-                            Your answer: {userAnswer}. {q[`option_${userAnswer.toLowerCase()}` as keyof TrainingModuleQuestion]}
-                          </p>
-                        )}
-                        <p className="text-xs text-emerald-700">
-                          Correct: {q.correct_answer}. {q[`option_${q.correct_answer.toLowerCase()}` as keyof TrainingModuleQuestion]}
-                        </p>
-                        {q.explanation && (
-                          <p className="text-xs text-gray-500 italic mt-1">{q.explanation}</p>
-                        )}
-                      </div>
+                {reviewData.map((item, idx) => (
+                  <div key={item.question_id} className={`rounded-lg p-4 border ${item.is_correct ? 'border-emerald-200 bg-emerald-50/50' : 'border-red-200 bg-red-50/50'}`}>
+                    <div className="flex items-start gap-2 mb-2">
+                      {item.is_correct ? <CheckCircle className="w-4 h-4 text-emerald-500 mt-0.5 flex-shrink-0" /> : <XCircle className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />}
+                      <p className="text-sm font-medium text-gray-900">{idx + 1}. {item.question_text}</p>
                     </div>
-                  );
-                })}
+                    <div className="ml-6 space-y-1">
+                      {!item.is_correct && item.your_answer && (
+                        <p className="text-xs text-red-600">
+                          Your answer: {item.your_answer}. {item.your_answer_text}
+                        </p>
+                      )}
+                      <p className="text-xs text-emerald-700">
+                        Correct: {item.correct_answer}. {item.correct_answer_text}
+                      </p>
+                      {item.explanation && (
+                        <p className="text-xs text-gray-500 italic mt-1">{item.explanation}</p>
+                      )}
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
 
@@ -368,6 +362,7 @@ export default function TrainingAssessment() {
                   onClick={() => {
                     setAnswers({});
                     setSubmitted(false);
+                    setReviewData([]);
                     setStep('reading');
                   }}
                   className="px-6 py-2.5 bg-sky-600 text-white rounded-lg text-sm hover:bg-sky-700 transition font-medium w-full sm:w-auto"
@@ -381,10 +376,4 @@ export default function TrainingAssessment() {
       </div>
     </div>
   );
-}
-
-function formatTime(seconds: number): string {
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  return `${m}m ${s}s`;
 }
