@@ -159,7 +159,7 @@ interface SidebarProps {
 export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose, userEmail, onSignOut }: SidebarProps) {
   const navigate = useNavigate();
   const location = useLocation();
-  const { role, profile } = useUser();
+  const { role, profile, isStockController } = useUser();
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(() => {
     const activeGroup = moduleGroups.find(g =>
       g.items.some(item => location.pathname === item.path || location.pathname.startsWith(item.path + '/'))
@@ -211,6 +211,10 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
     if (isOperator) setExpandedGroups(new Set(['treatment', 'safety']));
   }, [isOperator]);
 
+  useEffect(() => {
+    if (isStockController) setExpandedGroups(new Set(['stock']));
+  }, [isStockController]);
+
   const displayName = profile?.display_name ?? userEmail ?? 'User';
   const roleLabel = role ? ROLE_LABELS[role] : 'Loading...';
   const roleColor = role ? ROLE_COLORS[role] : 'bg-gray-500/20 text-gray-400';
@@ -237,7 +241,9 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
           ],
         },
       ]
-    : moduleGroups.filter(g => isAdmin || !['commercial', 'logistics'].includes(g.id));
+    : isStockController
+      ? moduleGroups.filter(g => g.id === 'stock')
+      : moduleGroups.filter(g => isAdmin || !['commercial', 'logistics'].includes(g.id));
 
   const navContent = (isMobileDrawer: boolean) => {
     const showLabels = isMobileDrawer || !collapsed;
@@ -270,7 +276,7 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
 
         {/* Nav */}
         <nav className="flex-1 py-3 overflow-y-auto">
-          {!isOperator && (
+          {!isOperator && !isStockController && (
             <>
               <button
                 onClick={() => handleNavigate('/')}
