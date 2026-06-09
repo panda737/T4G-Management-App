@@ -8,6 +8,7 @@ interface UserContextValue {
   isAdmin: boolean;
   isManagement: boolean;
   isOperator: boolean;
+  isStockController: boolean;
   canWrite: (module: 'stock' | 'treatment' | 'safety' | 'training' | 'admin') => boolean;
   loading: boolean;
 }
@@ -18,6 +19,7 @@ const UserContext = createContext<UserContextValue>({
   isAdmin: false,
   isManagement: false,
   isOperator: false,
+  isStockController: false,
   canWrite: () => false,
   loading: true,
 });
@@ -81,6 +83,7 @@ export function UserProvider({ session, children }: { session: Session; children
     isAdmin: role === 'admin',
     isManagement: role === 'management',
     isOperator: role === 'operator',
+    isStockController: role === 'stock_controller',
     canWrite: (module) => resolveCanWrite(role, module),
     loading,
   };

@@ -79,10 +79,21 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | 
 }
 
 function RootRedirect() {
-  const { isOperator, loading } = useUser();
+  const { isOperator, isStockController, loading } = useUser();
   if (loading) return null;
   if (isOperator) return <Navigate to="/shift-report" replace />;
+  if (isStockController) return <Navigate to="/stock/master-list" replace />;
   return <GlobalDashboard />;
+}
+
+function StockControllerGuard({ children }: { children: ReactNode }) {
+  const { isStockController, loading } = useUser();
+  const location = useLocation();
+  if (loading) return null;
+  if (isStockController && !location.pathname.startsWith('/stock')) {
+    return <Navigate to="/stock/master-list" replace />;
+  }
+  return <>{children}</>;
 }
 
 const ROUTE_LABELS: Record<string, string> = {
@@ -171,6 +182,7 @@ function AuthenticatedLayout({ session }: { session: Session }) {
       >
         <div className="min-h-screen p-3 sm:p-4 lg:p-6 max-w-screen-2xl mx-auto">
           <ErrorBoundary>
+          <StockControllerGuard>
           <Routes>
             <Route path="/" element={<RootRedirect />} />
 
@@ -235,6 +247,7 @@ function AuthenticatedLayout({ session }: { session: Session }) {
             {/* Catch-all */}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
+          </StockControllerGuard>
           </ErrorBoundary>
         </div>
       </main>
