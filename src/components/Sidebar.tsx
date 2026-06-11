@@ -38,8 +38,11 @@ const moduleGroups: ModuleGroup[] = [
     color: 'text-emerald-400',
     items: [
       { path: '/stock/master-list', label: 'Master List' },
+      { path: '/stock/orders', label: 'Orders & Deliveries' },
+      { path: '/stock/clients', label: 'Clients' },
       { path: '/stock/movements', label: 'Movements' },
       { path: '/stock/stock-take', label: 'Stock Take' },
+      { path: '/stock/day-end', label: 'Day-End Report' },
       { path: '/stock/reports', label: 'Reports' },
       { path: '/stock/settings', label: 'Stock Categories' },
     ],

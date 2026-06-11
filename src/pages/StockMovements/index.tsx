@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import { Plus, Search, ChevronRight, Package, ArrowLeftRight, ClipboardCheck, Download } from 'lucide-react';
 import { supabase, StockItem } from '../../lib/supabase';
 import { usePageTitle } from '../../lib/usePageTitle';
@@ -27,22 +27,27 @@ export default function StockMovements() {
   const [filterType, setFilterType] = useState('All');
   const [directionTab, setDirectionTab] = useState<'All' | 'In' | 'Out' | 'Adjustment'>('All');
   const [detailGroup, setDetailGroup] = useState<OrderGroup | null>(null);
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
 
-  useEffect(() => { load(); }, []);
-
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true);
+    let movQuery = supabase.from('stock_movements')
+      .select('*, stock_items(stock_item, description, current_quantity)')
+      .order('movement_date', { ascending: false });
+    if (fromDate) movQuery = movQuery.gte('movement_date', new Date(`${fromDate}T00:00:00`).toISOString());
+    if (toDate) movQuery = movQuery.lt('movement_date', new Date(new Date(`${toDate}T00:00:00`).getTime() + 24 * 60 * 60 * 1000).toISOString());
+    if (!fromDate && !toDate) movQuery = movQuery.limit(500);
     const [movRes, itemRes] = await Promise.all([
-      supabase.from('stock_movements')
-        .select('*, stock_items(stock_item, description, current_quantity)')
-        .order('movement_date', { ascending: false })
-        .limit(500),
+      movQuery,
       supabase.from('stock_items').select('*').eq('active', true).order('category').order('stock_item'),
     ]);
     setMovements(movRes.data || []);
     setItems(itemRes.data || []);
     setLoading(false);
-  }
+  }, [fromDate, toDate]);
+
+  useEffect(() => { load(); }, [load]);
 
   const groups = useMemo(() => buildGroups(movements), [movements]);
 
@@ -159,8 +164,13 @@ export default function StockMovements() {
         </div>
         <select value={filterType} onChange={e => setFilterType(e.target.value)} className="border border-gray-200 rounded-lg text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white w-full sm:w-auto">
           <option value="All">All Movement Types</option>
-          {MOVEMENT_TYPES.map(t => <option key={t}>{t}</option>)}
+          {[...MOVEMENT_TYPES, 'Customer Delivery'].map(t => <option key={t}>{t}</option>)}
         </select>
+        <div className="flex items-center gap-2">
+          <input type="date" value={fromDate} onChange={e => setFromDate(e.target.value)} className="border border-gray-200 rounded-lg text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white" title="From date" />
+          <span className="text-xs text-gray-400">to</span>
+          <input type="date" value={toDate} onChange={e => setToDate(e.target.value)} className="border border-gray-200 rounded-lg text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white" title="To date" />
+        </div>
       </div>
 
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">

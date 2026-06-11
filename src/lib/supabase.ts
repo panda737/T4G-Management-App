@@ -40,6 +40,9 @@ export type StockMovement = {
   captured_by: string;
   notes: string;
   created_at: string;
+  movement_group_id: string | null;
+  movement_group_label: string;
+  created_by_user_id: string | null;
 };
 
 export type StockTakeSession = {
@@ -80,7 +83,8 @@ export type MovementType =
   | 'Stock Transferred'
   | 'Stock Damaged'
   | 'Stock Returned'
-  | 'Stock Take Correction';
+  | 'Stock Take Correction'
+  | 'Customer Delivery';
 
 export type EmployeeHsRole = 'employee' | 'supervisor' | 'hs_staff';
 
@@ -633,6 +637,86 @@ export type WasteReceipt = {
   updated_at: string;
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Customer Orders & Delivery Notes
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type Client = {
+  id: string;
+  client_code: string;
+  client_name: string;
+  contact_person: string;
+  email: string;
+  phone: string;
+  address_line_1: string;
+  address_line_2: string;
+  address_line_3: string;
+  postal_code: string;
+  notes: string;
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type OrderSource = 'OrderCo' | 'Email' | 'Phone' | 'Other';
+
+export type StockOrderStatus =
+  | 'Open'
+  | 'Dispatched'
+  | 'Awaiting Confirmation'
+  | 'Completed'
+  | 'Cancelled';
+
+export type StockOrder = {
+  id: string;
+  order_number: string;
+  client_id: string;
+  client_name: string;
+  order_date: string;
+  source: OrderSource;
+  customer_reference: string;
+  status: StockOrderStatus;
+  notes: string;
+  printed_at: string | null;
+  dispatched_at: string | null;
+  signed_note_path: string | null;
+  signed_note_name: string;
+  signed_note_size_bytes: number | null;
+  signed_note_uploaded_by: string | null;
+  signed_note_uploaded_at: string | null;
+  confirmed_by: string | null;
+  confirmed_at: string | null;
+  confirmation_note: string;
+  movement_group_id: string | null;
+  cancelled_reason: string;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type StockOrderItem = {
+  id: string;
+  order_id: string;
+  stock_item_id: string | null;
+  stock_code: string;
+  stock_item: string;
+  description: string;
+  unit_of_measure: string;
+  qty_ordered: number;
+  qty_delivered: number | null;
+  variance_note: string;
+  line_no: number;
+  created_at: string;
+};
+
+export const ORDER_STATUS_COLORS: Record<StockOrderStatus, string> = {
+  'Open': 'bg-blue-50 text-blue-700 border border-blue-200',
+  'Dispatched': 'bg-amber-50 text-amber-700 border border-amber-200',
+  'Awaiting Confirmation': 'bg-violet-50 text-violet-700 border border-violet-200',
+  'Completed': 'bg-emerald-50 text-emerald-700 border border-emerald-200',
+  'Cancelled': 'bg-gray-100 text-gray-500 border border-gray-200',
+};
+
 export function getStockStatus(item: StockItem): 'Out of Stock' | 'Low Stock' | 'In Stock' {
   if (item.current_quantity <= 0) return 'Out of Stock';
   if (item.minimum_stock_level > 0 && item.current_quantity < item.minimum_stock_level) return 'Low Stock';
@@ -647,6 +731,7 @@ export function getQuantityDelta(movementType: MovementType, quantity: number): 
       return Math.abs(quantity);
     case 'Stock Issued':
     case 'Stock Damaged':
+    case 'Customer Delivery':
       return -Math.abs(quantity);
     default:
       return quantity; // can be +/-

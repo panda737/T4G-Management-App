@@ -93,25 +93,29 @@ export default function StockTakeCount({ session, onBack, onSessionUpdate, onRep
     const groupLabel = `Stock Take Correction · ${session.stock_take_name}`;
     const now = new Date().toISOString();
 
-    for (const line of linesWithVariance) {
-      const { error: movErr } = await supabase.from('stock_movements').insert({
-        movement_date: now,
-        stock_item_id: line.stock_item_id,
-        stock_code: line.stock_code,
-        movement_type: 'Stock Take Correction',
-        quantity: line.variance,
-        reference_number: session.stock_take_name,
-        notes: line.comment || `Stock take correction: variance ${line.variance}`,
-        captured_by: session.approved_by || session.conducted_by,
-        movement_group_id: groupId,
-        movement_group_label: groupLabel,
-      });
-      if (movErr) { setOpError(movErr.message); setApplyingCorrections(false); return; }
-      const { error: updErr } = await supabase.from('stock_items').update({
-        current_quantity: line.system_quantity + line.variance,
-        updated_at: now,
-      }).eq('id', line.stock_item_id);
-      if (updErr) { setOpError(updErr.message); setApplyingCorrections(false); return; }
+    const movements = linesWithVariance.map(line => ({
+      stock_item_id: line.stock_item_id,
+      stock_code: line.stock_code,
+      stock_item: line.stock_item,
+      movement_type: 'Stock Take Correction',
+      quantity: line.variance,
+      delta: line.variance,
+      notes: line.comment || `Stock take correction: variance ${line.variance}`,
+    }));
+
+    const { error: rpcErr } = await supabase.rpc('record_stock_movement_group', {
+      p_movements: movements,
+      p_movement_date: now,
+      p_reference_number: session.stock_take_name,
+      p_captured_by: session.approved_by || session.conducted_by,
+      p_movement_group_id: groupId,
+      p_movement_group_label: groupLabel,
+    });
+
+    if (rpcErr) {
+      setOpError(rpcErr.message);
+      setApplyingCorrections(false);
+      return;
     }
 
     const { data: updated } = await supabase

@@ -7,12 +7,12 @@ export const MOVEMENT_TYPES: MovementType[] = [
 ];
 
 export const INCREASE_TYPES = ['Opening Stock', 'Stock Received', 'Stock Returned'];
-export const DECREASE_TYPES = ['Stock Issued', 'Stock Damaged'];
+// 'Customer Delivery' is written only by the confirm_stock_order RPC — it is
+// deliberately absent from MOVEMENT_TYPES so it can't be entered manually.
+export const DECREASE_TYPES = ['Stock Issued', 'Stock Damaged', 'Customer Delivery'];
 export const EITHER_TYPES = ['Stock Adjusted', 'Stock Transferred', 'Stock Take Correction'];
 
 export type MovementWithItem = StockMovement & {
-  movement_group_id?: string | null;
-  movement_group_label?: string;
   stock_items?: { stock_item: string; description: string; current_quantity: number } | null;
 };
 

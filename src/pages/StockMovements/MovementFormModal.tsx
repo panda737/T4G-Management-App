@@ -32,23 +32,31 @@ export default function MovementFormModal({ items, onClose, onSave }: Props) {
 
     let delta = getQuantityDelta(movementType, quantity);
     if (isEither) delta = direction === 'in' ? Math.abs(quantity) : -Math.abs(quantity);
+    const storedQuantity = isEither ? delta : quantity;
 
-    const { error: movErr } = await supabase.from('stock_movements').insert({
-      movement_date: new Date(movementDate).toISOString(),
-      stock_item_id: selectedItemId,
-      stock_code: selectedItem?.stock_code || '',
-      movement_type: movementType,
-      quantity: isEither ? delta : quantity,
-      reference_number: reference,
-      supplier_client_department: supplierClient,
-      captured_by: capturedBy,
-      notes,
+    const { error: rpcErr } = await supabase.rpc('record_stock_movement_group', {
+      p_movements: [{
+        stock_item_id: selectedItemId,
+        stock_code: selectedItem?.stock_code || '',
+        stock_item: selectedItem?.stock_item || '',
+        movement_type: movementType,
+        quantity: storedQuantity,
+        delta,
+      }],
+      p_movement_date: new Date(movementDate).toISOString(),
+      p_reference_number: reference,
+      p_supplier_client_dept: supplierClient,
+      p_captured_by: capturedBy,
+      p_group_notes: notes,
     });
 
-    if (movErr) { setError(movErr.message); setSaving(false); return; }
-
-    const newQty = (selectedItem?.current_quantity || 0) + delta;
-    await supabase.from('stock_items').update({ current_quantity: newQty, updated_at: new Date().toISOString() }).eq('id', selectedItemId);
+    if (rpcErr) {
+      setError(rpcErr.message.includes('Insufficient stock')
+        ? rpcErr.message.replace(/^.*?(Insufficient)/, '$1')
+        : rpcErr.message);
+      setSaving(false);
+      return;
+    }
 
     setSaving(false);
     onSave();
@@ -81,8 +89,11 @@ export default function MovementFormModal({ items, onClose, onSave }: Props) {
         <div>
           <label className="block text-xs font-medium text-gray-700 mb-1">Movement Type *</label>
           <select value={movementType} onChange={e => setMovementType(e.target.value as MovementType)} className={inputCls}>
-            {MOVEMENT_TYPES.map(t => <option key={t}>{t}</option>)}
+            {MOVEMENT_TYPES.map(t => <option key={t} value={t}>{t === 'Stock Issued' ? 'Stock Issued (Internal)' : t}</option>)}
           </select>
+          {movementType === 'Stock Issued' && (
+            <p className="text-xs text-gray-400 mt-1">For internal issues only — customer deliveries go through Orders &amp; Deliveries.</p>
+          )}
         </div>
         <div>
           <label className="block text-xs font-medium text-gray-700 mb-1">

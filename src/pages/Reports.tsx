@@ -1,9 +1,16 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import { Download, TrendingUp, TrendingDown, AlertTriangle } from 'lucide-react';
 import { supabase, StockItem, StockMovement, getStockStatus } from '../lib/supabase';
 import { usePageTitle } from '../lib/usePageTitle';
+import { downloadCSV } from '../lib/csvExport';
 import StatusBadge from '../components/StatusBadge';
 import { PageSpinner } from '../components/Spinner';
+
+function daysAgoStr(days: number) {
+  const d = new Date();
+  d.setDate(d.getDate() - days);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
 
 export default function Reports() {
   usePageTitle('Stock — Reports');
@@ -11,19 +18,24 @@ export default function Reports() {
   const [movements, setMovements] = useState<StockMovement[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'overview' | 'movements' | 'variance'>('overview');
+  const [fromDate, setFromDate] = useState(daysAgoStr(30));
+  const [toDate, setToDate] = useState(daysAgoStr(0));
 
-  useEffect(() => { load(); }, []);
-
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true);
+    let movQuery = supabase.from('stock_movements').select('*').order('movement_date', { ascending: false });
+    if (fromDate) movQuery = movQuery.gte('movement_date', new Date(`${fromDate}T00:00:00`).toISOString());
+    if (toDate) movQuery = movQuery.lt('movement_date', new Date(new Date(`${toDate}T00:00:00`).getTime() + 24 * 60 * 60 * 1000).toISOString());
     const [itemsRes, movRes] = await Promise.all([
       supabase.from('stock_items').select('*').eq('active', true).order('category').order('stock_item'),
-      supabase.from('stock_movements').select('*').order('movement_date', { ascending: false }),
+      movQuery,
     ]);
     setItems(itemsRes.data || []);
     setMovements(movRes.data || []);
     setLoading(false);
-  }
+  }, [fromDate, toDate]);
+
+  useEffect(() => { load(); }, [load]);
 
   const byCategory = useMemo(() => {
     const map: Record<string, StockItem[]> = {};
@@ -40,22 +52,8 @@ export default function Reports() {
     return Object.entries(map).sort((a, b) => b[1] - a[1]);
   }, [movements]);
 
-  function exportCSV(data: Record<string, string | number>[], filename: string) {
-    if (data.length === 0) return;
-    const headers = Object.keys(data[0]);
-    const rows = data.map(row => headers.map(h => JSON.stringify(row[h] ?? '')).join(','));
-    const csv = [headers.join(','), ...rows].join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    a.click();
-    URL.revokeObjectURL(url);
-  }
-
   function exportStockList() {
-    exportCSV(items.map(i => ({
+    downloadCSV(items.map(i => ({
       stock_code: i.stock_code,
       stock_item: i.stock_item,
       category: i.category,
@@ -65,11 +63,11 @@ export default function Reports() {
       minimum_stock_level: i.minimum_stock_level,
       maximum_stock_level: i.maximum_stock_level,
       status: getStockStatus(i),
-    })), `tech4green_stock_list_${new Date().toISOString().slice(0, 10)}.csv`);
+    })), `tech4green_stock_list_${new Date().toISOString().slice(0, 10)}`);
   }
 
   function exportMovements() {
-    exportCSV(movements.map(m => ({
+    downloadCSV(movements.map(m => ({
       date: new Date(m.movement_date).toLocaleDateString(),
       stock_code: m.stock_code,
       movement_type: m.movement_type,
@@ -78,7 +76,7 @@ export default function Reports() {
       supplier_client: m.supplier_client_department,
       captured_by: m.captured_by,
       notes: m.notes,
-    })), `tech4green_movements_${new Date().toISOString().slice(0, 10)}.csv`);
+    })), `tech4green_movements_${fromDate}_to_${toDate}`);
   }
 
   const tabs = [
@@ -102,6 +100,16 @@ export default function Reports() {
             <Download size={13} /> <span className="hidden sm:inline">Export Movements</span>
           </button>
         </div>
+      </div>
+
+      <div className="bg-white rounded-xl border border-gray-200 p-3.5 shadow-sm flex flex-col sm:flex-row gap-3 sm:items-center">
+        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider flex-shrink-0">Movement period</p>
+        <div className="flex items-center gap-2">
+          <input type="date" value={fromDate} onChange={e => setFromDate(e.target.value)} className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white" />
+          <span className="text-xs text-gray-400">to</span>
+          <input type="date" value={toDate} onChange={e => setToDate(e.target.value)} className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white" />
+        </div>
+        <p className="text-xs text-gray-400">{movements.length} movement{movements.length !== 1 ? 's' : ''} in range</p>
       </div>
 
       {/* Tabs */}

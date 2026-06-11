@@ -79,27 +79,38 @@ export default function QuickMovementModal({ direction, items, onClose, onSave }
     const groupLabel = `${isIn ? 'Stock In' : 'Stock Out'}${reference ? ` · ${reference}` : ''} · ${itemCount} item${itemCount !== 1 ? 's' : ''}`;
     const now = new Date().toISOString();
 
-    for (const line of validLines) {
+    const movements = validLines.map(line => {
       const stockItem = items.find(i => i.id === line.itemId)!;
       const delta = isIn ? line.quantity : -line.quantity;
-      const { error: movErr } = await supabase.from('stock_movements').insert({
-        movement_date: now,
+      return {
         stock_item_id: line.itemId,
         stock_code: stockItem.stock_code || '',
+        stock_item: stockItem.stock_item,
         movement_type: isIn ? 'Stock Received' : 'Stock Issued',
         quantity: line.quantity,
-        reference_number: reference,
-        supplier_client_department: supplierClient,
-        captured_by: capturedBy,
-        notes,
-        movement_group_id: groupId,
-        movement_group_label: groupLabel,
-      });
-      if (movErr) { setError(movErr.message); setSaving(false); return; }
-      const newQty = Math.max(0, stockItem.current_quantity + delta);
-      const { error: updErr } = await supabase.from('stock_items').update({ current_quantity: newQty, updated_at: new Date().toISOString() }).eq('id', line.itemId);
-      if (updErr) { setError(updErr.message); setSaving(false); return; }
+        delta,
+      };
+    });
+
+    const { error: rpcErr } = await supabase.rpc('record_stock_movement_group', {
+      p_movements: movements,
+      p_movement_date: now,
+      p_reference_number: reference,
+      p_supplier_client_dept: supplierClient,
+      p_captured_by: capturedBy,
+      p_movement_group_id: groupId,
+      p_movement_group_label: groupLabel,
+    });
+
+    if (rpcErr) {
+      const msg = rpcErr.message.includes('Insufficient stock')
+        ? rpcErr.message.replace(/^.*?(Insufficient)/, '$1')
+        : rpcErr.message;
+      setError(msg);
+      setSaving(false);
+      return;
     }
+
     setSaving(false);
     onSave();
   }
@@ -110,14 +121,14 @@ export default function QuickMovementModal({ direction, items, onClose, onSave }
 
   return (
     <Modal
-      title={isIn ? 'Stock In — Receive Stock' : 'Stock Out — Issue Stock'}
+      title={isIn ? 'Stock In — Receive Stock' : 'Stock Out — Internal Issue'}
       onClose={onClose}
       size="xl"
       accent={isIn ? 'green' : 'red'}
     >
       <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold mb-3 ${isIn ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
         {isIn ? <ArrowDownCircle size={12} /> : <ArrowUpCircle size={12} />}
-        {isIn ? 'Recording stock received into store' : 'Recording stock issued out of store'}
+        {isIn ? 'Recording stock received into store' : 'Internal issues only — customer deliveries go through Orders & Deliveries'}
       </div>
 
       <div className={`rounded-xl border-2 ${isIn ? 'border-emerald-200' : 'border-red-200'}`}>
@@ -247,8 +258,8 @@ export default function QuickMovementModal({ direction, items, onClose, onSave }
         <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Movement Details</p>
         <div className="grid grid-cols-2 gap-2">
           <div>
-            <label className="block text-[11px] font-semibold text-gray-600 mb-0.5">{isIn ? 'Supplier' : 'Client / Department'}</label>
-            <input value={supplierClient} onChange={e => setSupplierClient(e.target.value)} className={`${inputBase} ${focusRing}`} placeholder={isIn ? 'e.g. Pailpac, Mediwaste' : 'e.g. Hospital ABC'} />
+            <label className="block text-[11px] font-semibold text-gray-600 mb-0.5">{isIn ? 'Supplier' : 'Department'}</label>
+            <input value={supplierClient} onChange={e => setSupplierClient(e.target.value)} className={`${inputBase} ${focusRing}`} placeholder={isIn ? 'e.g. Pailpac, Mediwaste' : 'e.g. Treatment Plant, Workshop'} />
           </div>
           <div>
             <label className="block text-[11px] font-semibold text-gray-600 mb-0.5">Reference Number</label>
