@@ -260,13 +260,6 @@ export default function EmployeeProfile() {
   const toolboxTotal = activity.toolboxPresented.length + activity.toolboxAttended.length;
   const trainingTotal = activity.trainingRecords.length + activity.trainingAttendance.length;
 
-  const statCards = [
-    { icon: AlertTriangle, label: 'Incidents', value: incidentTotal, color: 'text-orange-600', bg: 'bg-orange-50', border: 'border-orange-200', tab: 'incidents' as ProfileTab },
-    { icon: ClipboardCheck, label: 'Inspections', value: activity.inspections.length, color: 'text-sky-600', bg: 'bg-sky-50', border: 'border-sky-200', tab: 'inspections' as ProfileTab },
-    { icon: Users, label: 'Toolbox Talks', value: toolboxTotal, color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-200', tab: 'toolbox' as ProfileTab },
-    { icon: GraduationCap, label: 'Training', value: trainingTotal, color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-200', tab: 'training' as ProfileTab },
-  ];
-
   const tabs: { id: ProfileTab; label: string; count: number; icon: React.ReactNode }[] = [
     { id: 'incidents', label: 'H&S Incidents', count: incidentTotal, icon: <AlertTriangle size={14} /> },
     { id: 'inspections', label: 'Inspections', count: activity.inspections.length, icon: <ClipboardCheck size={14} /> },
@@ -366,28 +359,6 @@ export default function EmployeeProfile() {
             </div>
           </div>
         </div>
-      </div>
-
-      {/* Activity Summary Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {statCards.map(card => {
-          const Icon = card.icon;
-          return (
-            <button
-              key={card.tab}
-              onClick={() => setActiveTab(card.tab)}
-              className={`bg-white rounded-xl border p-4 text-left transition-all hover:shadow-md ${
-                activeTab === card.tab ? `${card.border} shadow-md ring-2 ring-offset-1 ring-emerald-300` : 'border-gray-200'
-              }`}
-            >
-              <div className={`w-10 h-10 rounded-xl ${card.bg} flex items-center justify-center mb-3`}>
-                <Icon size={20} className={card.color} />
-              </div>
-              <p className="text-2xl font-bold text-gray-900">{card.value}</p>
-              <p className="text-xs text-gray-500 mt-0.5">{card.label}</p>
-            </button>
-          );
-        })}
       </div>
 
       {/* Tabbed Activity History */}
