@@ -1,3 +1,4 @@
+import { Pencil, CheckCircle } from 'lucide-react';
 import { SafetyCorrectiveAction } from '../../lib/supabase';
 import Modal from '../../components/Modal';
 
@@ -23,13 +24,29 @@ function StatusBadge({ status }: { status: string }) {
 
 interface Props {
   action: SafetyCorrectiveAction;
+  canEdit?: boolean;
+  onEdit?: () => void;
+  onComplete?: () => void;
   onClose: () => void;
 }
 
-export default function ActionViewModal({ action, onClose }: Props) {
+export default function ActionViewModal({ action, canEdit = false, onEdit, onComplete, onClose }: Props) {
+  const isClosed = ['Completed', 'Verified'].includes(action.status);
   return (
     <Modal onClose={onClose} title={action.action_number} size="lg" footer={
-      <button onClick={onClose} className="px-4 py-2 text-sm bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition font-medium">Close</button>
+      <>
+        <button onClick={onClose} className="px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition">Close</button>
+        {canEdit && !isClosed && onComplete && (
+          <button onClick={onComplete} className="flex items-center gap-1.5 px-4 py-2 text-sm bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition font-medium">
+            <CheckCircle size={15} /> Mark Complete
+          </button>
+        )}
+        {canEdit && onEdit && (
+          <button onClick={onEdit} className="flex items-center gap-1.5 px-4 py-2 text-sm bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition font-medium">
+            <Pencil size={15} /> Edit
+          </button>
+        )}
+      </>
     }>
       <div className="space-y-4">
         <div className="grid grid-cols-2 gap-4">

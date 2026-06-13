@@ -39,6 +39,7 @@ import MaintenanceParts from './pages/MaintenanceParts';
 import PlantOverview from './pages/PlantOverview';
 import AdminUsers from './pages/AdminUsers';
 import DocumentLibrary from './pages/DocumentLibrary';
+import ComplianceExpiry from './pages/ComplianceExpiry';
 import AppointmentsRegister from './pages/EmployeeRegister/AppointmentsRegister';
 import WasteOnFloor from './pages/TreatmentWasteOnFloor';
 import OperatorShiftEntry from './pages/OperatorShiftEntry';
@@ -133,6 +134,7 @@ const ROUTE_LABELS: Record<string, string> = {
   '/maintenance/work-orders': 'Service History',
   '/compliance': 'Compliance',
   '/documents': 'Document Library',
+  '/documents/expiry-dashboard': 'Expiry Dashboard',
   '/employees': 'Employee Register',
   '/employees/appointments': 'Legal Appointments',
   '/admin/users': 'User Management',
@@ -242,6 +244,7 @@ function AuthenticatedLayout({ session }: { session: Session }) {
 
             {/* Documents */}
             <Route path="/documents" element={<DocumentLibrary />} />
+            <Route path="/documents/expiry-dashboard" element={<ComplianceExpiry />} />
             <Route path="/documents/:category" element={<DocumentLibrary />} />
 
             {/* Employee Register */}

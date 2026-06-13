@@ -1,17 +1,18 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { usePageTitle } from '../../lib/usePageTitle';
-import { ArrowLeft, User, Phone, Mail, MapPin, AlertTriangle, ClipboardCheck, Users, GraduationCap, Award, Shield, ShieldAlert, CheckCircle, Calendar, CreditCard as Edit, Loader, Building, CreditCard, Activity, Briefcase, Plus, Pencil, Trash2 } from 'lucide-react';
+import { ArrowLeft, User, Phone, Mail, MapPin, AlertTriangle, ClipboardCheck, Users, GraduationCap, Award, Shield, ShieldAlert, CheckCircle, Calendar, CreditCard as Edit, Loader, Building, CreditCard, Activity, Briefcase, Plus, Pencil, Trash2, Syringe, Download } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
-import type { Employee, LegalAppointment } from '../../lib/supabase';
+import type { Employee, LegalAppointment, EmployeeMedicalRecord } from '../../lib/supabase';
 import { HS_ROLE_LABELS, HS_ROLE_COLORS } from '../../lib/supabase';
 import { useUser } from '../../lib/UserContext';
 import { useToast } from '../../lib/toast';
 import EmployeeFormModal from './EmployeeFormModal';
 import LegalAppointmentModal from './LegalAppointmentModal';
+import MedicalRecordModal from './MedicalRecordModal';
 import DeleteConfirmModal from '../../components/DeleteConfirmModal';
 
-type ProfileTab = 'incidents' | 'inspections' | 'toolbox' | 'training' | 'legal';
+type ProfileTab = 'incidents' | 'inspections' | 'toolbox' | 'training' | 'legal' | 'medical';
 
 interface ActivityData {
   incidentsReported: any[];
@@ -78,9 +79,10 @@ function fmt(dateStr: string | null | undefined) {
 export default function EmployeeProfile() {
   usePageTitle('Employee Profile');
   const { id } = useParams<{ id: string }>();
-  const { isAdmin } = useUser();
+  const { isAdmin, isManagement } = useUser();
   const { addToast } = useToast();
   const canEdit = isAdmin;
+  const canViewMedical = isAdmin || isManagement;
 
   const [employee, setEmployee] = useState<Employee | null>(null);
   const [creatorName, setCreatorName] = useState<string | null>(null);
@@ -94,14 +96,50 @@ export default function EmployeeProfile() {
   const [editAppointment, setEditAppointment] = useState<LegalAppointment | null>(null);
   const [deleteAppointment, setDeleteAppointment] = useState<LegalAppointment | null>(null);
   const [deletingAppointment, setDeletingAppointment] = useState(false);
+  const [medicalRecords, setMedicalRecords] = useState<EmployeeMedicalRecord[]>([]);
+  const [showMedicalModal, setShowMedicalModal] = useState(false);
+  const [editMedical, setEditMedical] = useState<EmployeeMedicalRecord | null>(null);
+  const [deleteMedical, setDeleteMedical] = useState<EmployeeMedicalRecord | null>(null);
+  const [deletingMedical, setDeletingMedical] = useState(false);
+  const [downloadingMedical, setDownloadingMedical] = useState<string | null>(null);
 
   useEffect(() => {
     if (id) {
       loadEmployee(id);
       loadActivity(id);
       loadAppointments(id);
+      if (canViewMedical) loadMedical(id);
     }
-  }, [id]);
+  }, [id, canViewMedical]);
+
+  async function loadMedical(empId: string) {
+    const { data } = await supabase
+      .from('employee_medical_records')
+      .select('*')
+      .eq('employee_id', empId)
+      .order('date_administered', { ascending: false });
+    setMedicalRecords((data ?? []) as EmployeeMedicalRecord[]);
+  }
+
+  async function handleDownloadMedical(rec: EmployeeMedicalRecord) {
+    if (!rec.file_path) return;
+    setDownloadingMedical(rec.id);
+    const { data, error } = await supabase.storage.from('employee-medical').createSignedUrl(rec.file_path, 3600);
+    setDownloadingMedical(null);
+    if (error || !data) { addToast('Download failed — ' + (error?.message ?? 'unknown error'), 'error'); return; }
+    window.open(data.signedUrl, '_blank');
+  }
+
+  async function handleDeleteMedical() {
+    if (!deleteMedical) return;
+    setDeletingMedical(true);
+    if (deleteMedical.file_path) await supabase.storage.from('employee-medical').remove([deleteMedical.file_path]);
+    await supabase.from('employee_medical_records').delete().eq('id', deleteMedical.id);
+    setDeletingMedical(false);
+    setDeleteMedical(null);
+    addToast('Medical record removed');
+    if (id) loadMedical(id);
+  }
 
   async function loadAppointments(empId: string) {
     const { data } = await supabase
@@ -235,6 +273,7 @@ export default function EmployeeProfile() {
     { id: 'toolbox', label: 'Toolbox Talks', count: toolboxTotal, icon: <Users size={14} /> },
     { id: 'training', label: 'Training', count: trainingTotal, icon: <GraduationCap size={14} /> },
     { id: 'legal', label: 'Legal Appointments', count: appointments.length, icon: <Briefcase size={14} /> },
+    ...(canViewMedical ? [{ id: 'medical' as ProfileTab, label: 'Medical', count: medicalRecords.length, icon: <Syringe size={14} /> }] : []),
   ];
 
   const hsRole = employee.hs_role ?? 'employee';
@@ -662,6 +701,68 @@ export default function EmployeeProfile() {
               )}
             </div>
           )}
+
+          {activeTab === 'medical' && canViewMedical && (
+            <div className="space-y-3">
+              <div className="flex justify-end">
+                <button
+                  onClick={() => { setEditMedical(null); setShowMedicalModal(true); }}
+                  className="flex items-center gap-1.5 text-sm bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg font-medium transition"
+                >
+                  <Plus size={14} /> Add Medical Record
+                </button>
+              </div>
+              {medicalRecords.length === 0 ? (
+                <EmptyState message="No medical records on record" />
+              ) : (
+                medicalRecords.map(rec => {
+                  const today = new Date();
+                  const expiry = rec.expiry_date ? new Date(rec.expiry_date) : null;
+                  const daysToExpiry = expiry ? (expiry.getTime() - today.getTime()) / 86400000 : null;
+                  const isExpired = daysToExpiry !== null && daysToExpiry < 0;
+                  const isSoon = daysToExpiry !== null && daysToExpiry >= 0 && daysToExpiry <= 30;
+                  return (
+                    <div
+                      key={rec.id}
+                      className={`flex items-start justify-between p-3 rounded-lg border transition-colors ${
+                        isExpired ? 'bg-red-50/50 border-red-200' : isSoon ? 'bg-amber-50/50 border-amber-200' : 'bg-gray-50/50 border-gray-100 hover:border-gray-200'
+                      }`}
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="text-sm font-semibold text-gray-900">{rec.name || rec.record_type}</p>
+                          <span className="text-xs bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-medium">{rec.record_type}</span>
+                        </div>
+                        <p className="text-xs text-gray-500 mt-0.5">
+                          {rec.date_administered ? `Administered ${fmt(rec.date_administered)}` : 'No date'}
+                          {rec.provider && ` · ${rec.provider}`}
+                        </p>
+                        {rec.expiry_date && (
+                          <p className={`text-xs mt-0.5 font-medium ${isExpired ? 'text-red-600' : isSoon ? 'text-amber-600' : 'text-gray-400'}`}>
+                            {isExpired ? '⚠ Expired' : isSoon ? '⚠ Due soon' : 'Next due'} {fmt(rec.expiry_date)}
+                          </p>
+                        )}
+                        {rec.notes && <p className="text-xs text-gray-400 mt-0.5">{rec.notes}</p>}
+                      </div>
+                      <div className="flex items-center gap-1 ml-2 flex-shrink-0">
+                        {rec.file_path && (
+                          <button onClick={() => handleDownloadMedical(rec)} disabled={downloadingMedical === rec.id} className="p-1.5 text-gray-400 hover:text-emerald-600 rounded-lg transition disabled:opacity-50" title="Download attachment">
+                            {downloadingMedical === rec.id ? <Loader size={13} className="animate-spin" /> : <Download size={13} />}
+                          </button>
+                        )}
+                        <button onClick={() => { setEditMedical(rec); setShowMedicalModal(true); }} className="p-1.5 text-gray-400 hover:text-emerald-600 rounded-lg transition">
+                          <Pencil size={13} />
+                        </button>
+                        <button onClick={() => setDeleteMedical(rec)} className="p-1.5 text-gray-400 hover:text-red-600 rounded-lg transition">
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -735,6 +836,22 @@ export default function EmployeeProfile() {
           onConfirm={handleDeleteAppointment}
           onClose={() => setDeleteAppointment(null)}
           deleting={deletingAppointment}
+        />
+      )}
+      {showMedicalModal && canViewMedical && (
+        <MedicalRecordModal
+          employeeId={id!}
+          record={editMedical}
+          onClose={() => { setShowMedicalModal(false); setEditMedical(null); }}
+          onSave={() => { setShowMedicalModal(false); setEditMedical(null); addToast('Medical record saved'); if (id) loadMedical(id); }}
+        />
+      )}
+      {deleteMedical && (
+        <DeleteConfirmModal
+          label={deleteMedical.name || deleteMedical.record_type}
+          onConfirm={handleDeleteMedical}
+          onClose={() => setDeleteMedical(null)}
+          deleting={deletingMedical}
         />
       )}
     </div>

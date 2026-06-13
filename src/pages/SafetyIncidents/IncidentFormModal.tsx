@@ -27,17 +27,18 @@ export interface IncidentFormData {
 
 interface Props {
   formData: IncidentFormData;
+  isEdit?: boolean;
   onChange: (data: IncidentFormData) => void;
   onSave: () => void;
   onClose: () => void;
 }
 
-export default function IncidentFormModal({ formData, onChange, onSave, onClose }: Props) {
+export default function IncidentFormModal({ formData, isEdit = false, onChange, onSave, onClose }: Props) {
   const set = (patch: Partial<IncidentFormData>) => onChange({ ...formData, ...patch });
 
   return (
     <Modal
-      title="Report Safety Incident"
+      title={isEdit ? 'Edit Incident' : 'Report Safety Incident'}
       onClose={onClose}
       size="xl"
       accent="amber"

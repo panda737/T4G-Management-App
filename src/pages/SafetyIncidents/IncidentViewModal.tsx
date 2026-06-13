@@ -1,14 +1,44 @@
+import { Pencil, CheckCircle } from 'lucide-react';
 import { SafetyIncident } from '../../lib/supabase';
 import Modal from '../../components/Modal';
 
 interface Props {
   incident: SafetyIncident;
+  canEdit?: boolean;
+  onEdit?: () => void;
+  onCloseIncident?: () => void;
   onClose: () => void;
 }
 
-export default function IncidentViewModal({ incident, onClose }: Props) {
+export default function IncidentViewModal({ incident, canEdit = false, onEdit, onCloseIncident, onClose }: Props) {
+  const isClosed = incident.status === 'Closed';
   return (
-    <Modal title="Incident Details" onClose={onClose} size="lg" accent="green">
+    <Modal
+      title="Incident Details"
+      onClose={onClose}
+      size="lg"
+      accent="green"
+      footer={canEdit ? (
+        <>
+          {!isClosed && onCloseIncident && (
+            <button
+              onClick={onCloseIncident}
+              className="flex items-center gap-1.5 px-4 py-2 text-sm bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition font-medium"
+            >
+              <CheckCircle size={15} /> Close Incident
+            </button>
+          )}
+          {onEdit && (
+            <button
+              onClick={onEdit}
+              className="flex items-center gap-1.5 px-4 py-2 text-sm bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition font-medium"
+            >
+              <Pencil size={15} /> Edit
+            </button>
+          )}
+        </>
+      ) : undefined}
+    >
       <div className="mb-4 p-3 rounded-lg bg-gradient-to-r from-amber-50 to-orange-50 border-l-4 border-amber-500">
         <p className="text-sm text-amber-900 font-semibold">Severity: {incident.severity}</p>
       </div>
@@ -20,6 +50,7 @@ export default function IncidentViewModal({ incident, onClose }: Props) {
           ['Type', incident.incident_type],
           ['Severity', incident.severity],
           ['Status', incident.status],
+          ['Closed Date', incident.closed_date ? new Date(incident.closed_date).toLocaleDateString() : 'N/A'],
           ['Location', incident.location],
           ['Reported By', incident.reported_by],
           ['Injured Person', incident.injured_person || 'N/A'],

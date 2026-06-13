@@ -16,6 +16,7 @@ const SLUG_TO_CATEGORY: Record<string, DocumentCategory | 'Archived'> = {
   'risk-assessments':  'Risk Assessment',
   'licences-permits':  'Licence & Permit',
   'templates':         'Template',
+  'company':           'Company',
   'archived':          'Archived',
 };
 
@@ -25,6 +26,7 @@ const CATEGORY_LABELS: Record<DocumentCategory | 'Archived', string> = {
   'Risk Assessment': 'Risk Assessments',
   'Licence & Permit':'Licences & Permits',
   Template:          'Templates',
+  Company:           'Company & Compliance',
   Archived:          'Archived Documents',
 };
 
@@ -34,6 +36,7 @@ const CAT_BADGE: Record<DocumentCategory, string> = {
   'Risk Assessment': 'bg-orange-100 text-orange-700',
   'Licence & Permit':'bg-purple-100 text-purple-700',
   Template:          'bg-emerald-100 text-emerald-700',
+  Company:           'bg-rose-100 text-rose-700',
 };
 
 type SortKey = 'title' | 'expiry_date' | 'created_at';
@@ -78,6 +81,8 @@ export default function DocumentLibrary() {
     : null;
   const isArchiveView = activeFilter === 'Archived';
   const activeCategory = isArchiveView ? undefined : (activeFilter as DocumentCategory | undefined);
+  // 'Company' is admin-only; non-admins should never reach this view (RLS also blocks rows).
+  const adminOnlyBlocked = activeCategory === 'Company' && !isAdmin;
 
   const [docs, setDocs] = useState<AppDocument[]>([]);
   const [uploaderMap, setUploaderMap] = useState<Map<string, string>>(new Map());
@@ -332,6 +337,15 @@ export default function DocumentLibrary() {
       'Last Modified': formatDate(d.updated_at) ?? '',
     }));
     downloadCSV(rows, `documents-${pageTitle.toLowerCase().replace(/\s+/g, '-')}`);
+  }
+
+  if (adminOnlyBlocked) {
+    return (
+      <div className="text-center py-20">
+        <FileText size={40} className="text-gray-300 mx-auto mb-3" />
+        <p className="text-gray-500">This section is restricted to administrators.</p>
+      </div>
+    );
   }
 
   return (

@@ -9,6 +9,7 @@ const CAT_BADGE: Record<DocumentCategory, string> = {
   'Risk Assessment': 'bg-orange-100 text-orange-700',
   'Licence & Permit':'bg-purple-100 text-purple-700',
   Template:          'bg-emerald-100 text-emerald-700',
+  Company:           'bg-rose-100 text-rose-700',
 };
 
 function formatBytes(bytes: number) {

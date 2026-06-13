@@ -3,6 +3,7 @@ import { CheckCircle, Plus, AlertCircle } from 'lucide-react';
 import { supabase, SafetyCorrectiveAction } from '../../lib/supabase';
 import { usePageTitle } from '../../lib/usePageTitle';
 import { useToast } from '../../lib/toast';
+import { useUser } from '../../lib/UserContext';
 import ActionFormModal from './ActionFormModal';
 import ActionViewModal from './ActionViewModal';
 
@@ -48,11 +49,26 @@ function StatCard({ label, value, variant = 'default' }: { label: string; value:
 export default function SafetyCorrectiveActions() {
   usePageTitle('Safety — Corrective Actions');
   const { addToast } = useToast();
+  const { canWrite } = useUser();
+  const canEditSafety = canWrite('safety');
   const [actions, setActions] = useState<SafetyCorrectiveAction[]>([]);
   const [filters, setFilters] = useState<FilterState>({ search: '', source_type: '', priority: '', status: '' });
   const [isAddOpen, setIsAddOpen] = useState(false);
+  const [editAction, setEditAction] = useState<SafetyCorrectiveAction | null>(null);
   const [isViewOpen, setIsViewOpen] = useState(false);
   const [selectedAction, setSelectedAction] = useState<SafetyCorrectiveAction | null>(null);
+
+  async function handleComplete(action: SafetyCorrectiveAction) {
+    const { error } = await supabase
+      .from('safety_corrective_actions')
+      .update({ status: 'Completed', completed_date: new Date().toISOString().split('T')[0], updated_at: new Date().toISOString() })
+      .eq('id', action.id);
+    if (error) { addToast('Could not complete action', 'error'); return; }
+    addToast('Action marked complete');
+    setIsViewOpen(false);
+    setSelectedAction(null);
+    load();
+  }
   const [statusTab, setStatusTab] = useState('All');
   const [loadError, setLoadError] = useState('');
 
@@ -114,14 +130,16 @@ export default function SafetyCorrectiveActions() {
             <CheckCircle className="w-8 h-8 text-gray-900 flex-shrink-0" />
             <h1 className="text-3xl font-bold text-gray-900">Corrective Actions</h1>
           </div>
-          <button
-            onClick={() => { setSelectedAction(null); setIsAddOpen(true); }}
-            className="flex items-center gap-2 bg-gray-900 text-white px-4 py-2 rounded-lg hover:bg-gray-800 transition w-full sm:w-auto justify-center sm:justify-start"
-          >
-            <Plus className="w-5 h-5" />
-            <span className="hidden sm:inline">New Action</span>
-            <span className="sm:hidden">New</span>
-          </button>
+          {canEditSafety && (
+            <button
+              onClick={() => { setEditAction(null); setIsAddOpen(true); }}
+              className="flex items-center gap-2 bg-gray-900 text-white px-4 py-2 rounded-lg hover:bg-gray-800 transition w-full sm:w-auto justify-center sm:justify-start"
+            >
+              <Plus className="w-5 h-5" />
+              <span className="hidden sm:inline">New Action</span>
+              <span className="sm:hidden">New</span>
+            </button>
+          )}
         </div>
 
         <div className="flex items-center gap-1.5 flex-wrap mb-4">
@@ -260,8 +278,22 @@ export default function SafetyCorrectiveActions() {
         </div>
       </div>
 
-      {isAddOpen && <ActionFormModal onClose={() => setIsAddOpen(false)} onSave={() => { addToast('Action saved'); load(); }} />}
-      {isViewOpen && selectedAction && <ActionViewModal action={selectedAction} onClose={() => setIsViewOpen(false)} />}
+      {(isAddOpen || editAction) && (
+        <ActionFormModal
+          action={editAction}
+          onClose={() => { setIsAddOpen(false); setEditAction(null); }}
+          onSave={() => { addToast(editAction ? 'Action updated' : 'Action saved'); load(); }}
+        />
+      )}
+      {isViewOpen && selectedAction && (
+        <ActionViewModal
+          action={selectedAction}
+          canEdit={canEditSafety}
+          onEdit={() => { setIsViewOpen(false); setEditAction(selectedAction); }}
+          onComplete={() => handleComplete(selectedAction)}
+          onClose={() => setIsViewOpen(false)}
+        />
+      )}
     </div>
   );
 }

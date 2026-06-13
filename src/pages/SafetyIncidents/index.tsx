@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { AlertTriangle, Plus, Eye, Trash2, Search, Calendar, AlertCircle, Download } from 'lucide-react';
+import { AlertTriangle, Plus, Eye, Trash2, Search, Calendar, AlertCircle, Download, Pencil } from 'lucide-react';
 import { supabase, SafetyIncident } from '../../lib/supabase';
 import { usePageTitle } from '../../lib/usePageTitle';
 import { useToast } from '../../lib/toast';
+import { useUser } from '../../lib/UserContext';
 import { downloadCSV } from '../../lib/csvExport';
 import DeleteConfirmModal from '../../components/DeleteConfirmModal';
 import { severityColors, incidentStatusColors, badgeColor } from '../../lib/badgeColors';
@@ -57,8 +58,11 @@ export default function SafetyIncidents() {
   const [statusTab, setStatusTab] = useState('All');
   const [monthFilter, setMonthFilter] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [showViewModal, setShowViewModal] = useState(false);
   const [selectedIncident, setSelectedIncident] = useState<SafetyIncident | null>(null);
+  const { canWrite } = useUser();
+  const canEditSafety = canWrite('safety');
   const [sortConfig, setSortConfig] = useState<{ key: string; ascending: boolean }>({
     key: 'incident_date',
     ascending: false,
@@ -124,15 +128,63 @@ export default function SafetyIncidents() {
 
   const handleSave = async () => {
     try {
-      const incident_number = await generateSequentialNumber('safety_incidents', 'incident_number', 'INC');
-      const { error } = await supabase.from('safety_incidents').insert([{ ...formData, incident_number }]);
-      if (error) throw error;
-      addToast('Incident saved');
+      if (editingId) {
+        const { error } = await supabase
+          .from('safety_incidents')
+          .update({ ...formData, updated_at: new Date().toISOString() })
+          .eq('id', editingId);
+        if (error) throw error;
+        addToast('Incident updated');
+      } else {
+        const incident_number = await generateSequentialNumber('safety_incidents', 'incident_number', 'INC');
+        const { error } = await supabase.from('safety_incidents').insert([{ ...formData, incident_number }]);
+        if (error) throw error;
+        addToast('Incident saved');
+      }
       setShowAddModal(false);
+      setEditingId(null);
       loadIncidents();
     } catch (error) {
       console.error('Error saving incident:', error);
+      addToast('Could not save incident', 'error');
     }
+  };
+
+  const openEditModal = (incident: SafetyIncident) => {
+    setEditingId(incident.id);
+    setFormData({
+      incident_date: incident.incident_date,
+      incident_time: incident.incident_time,
+      incident_type: incident.incident_type,
+      severity: incident.severity,
+      location: incident.location,
+      reported_by: incident.reported_by,
+      reported_by_id: incident.reported_by_id,
+      description: incident.description,
+      immediate_action: incident.immediate_action,
+      injured_person: incident.injured_person,
+      injured_person_id: incident.injured_person_id,
+      injury_type: incident.injury_type,
+      body_part: incident.body_part,
+      witnesses: incident.witnesses,
+      root_cause: incident.root_cause,
+      status: incident.status,
+      closed_date: incident.closed_date,
+    });
+    setShowViewModal(false);
+    setShowAddModal(true);
+  };
+
+  const handleCloseIncident = async (incident: SafetyIncident) => {
+    const { error } = await supabase
+      .from('safety_incidents')
+      .update({ status: 'Closed', closed_date: new Date().toISOString().split('T')[0], updated_at: new Date().toISOString() })
+      .eq('id', incident.id);
+    if (error) { addToast('Could not close incident', 'error'); return; }
+    addToast('Incident closed');
+    setShowViewModal(false);
+    setSelectedIncident(null);
+    loadIncidents();
   };
 
   const handleDelete = (id: string, label: string) => {
@@ -156,6 +208,7 @@ export default function SafetyIncidents() {
   };
 
   const openAddModal = () => {
+    setEditingId(null);
     setFormData({ ...EMPTY_FORM, incident_date: new Date().toISOString().split('T')[0] });
     setShowAddModal(true);
   };
@@ -383,15 +436,28 @@ export default function SafetyIncidents() {
                           <button
                             onClick={() => { setSelectedIncident(incident); setShowViewModal(true); }}
                             className="text-amber-600 hover:text-amber-700 transition"
+                            title="View"
                           >
                             <Eye className="w-4 h-4" />
                           </button>
-                          <button
-                            onClick={() => handleDelete(incident.id, incident.incident_number || 'this incident')}
-                            className="text-red-600 hover:text-red-700 transition"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          {canEditSafety && (
+                            <button
+                              onClick={() => openEditModal(incident)}
+                              className="text-gray-500 hover:text-amber-700 transition"
+                              title="Edit"
+                            >
+                              <Pencil className="w-4 h-4" />
+                            </button>
+                          )}
+                          {canEditSafety && (
+                            <button
+                              onClick={() => handleDelete(incident.id, incident.incident_number || 'this incident')}
+                              className="text-red-600 hover:text-red-700 transition"
+                              title="Delete"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
                         </td>
                       </tr>
                     ))}
@@ -416,7 +482,8 @@ export default function SafetyIncidents() {
                     </div>
                     <div className="flex items-center gap-0.5 flex-shrink-0">
                       <button onClick={() => { setSelectedIncident(incident); setShowViewModal(true); }} className="p-2 text-amber-600 hover:bg-amber-50 rounded"><Eye size={15} /></button>
-                      <button onClick={() => handleDelete(incident.id, incident.incident_number || 'this incident')} className="p-2 text-red-500 hover:bg-red-50 rounded"><Trash2 size={15} /></button>
+                      {canEditSafety && <button onClick={() => openEditModal(incident)} className="p-2 text-gray-500 hover:bg-amber-50 rounded"><Pencil size={15} /></button>}
+                      {canEditSafety && <button onClick={() => handleDelete(incident.id, incident.incident_number || 'this incident')} className="p-2 text-red-500 hover:bg-red-50 rounded"><Trash2 size={15} /></button>}
                     </div>
                   </div>
                 ))}
@@ -482,15 +549,19 @@ export default function SafetyIncidents() {
       {showAddModal && (
         <IncidentFormModal
           formData={formData}
+          isEdit={!!editingId}
           onChange={setFormData}
           onSave={handleSave}
-          onClose={() => setShowAddModal(false)}
+          onClose={() => { setShowAddModal(false); setEditingId(null); }}
         />
       )}
 
       {selectedIncident && showViewModal && (
         <IncidentViewModal
           incident={selectedIncident}
+          canEdit={canEditSafety}
+          onEdit={() => openEditModal(selectedIncident)}
+          onCloseIncident={() => handleCloseIncident(selectedIncident)}
           onClose={() => setShowViewModal(false)}
         />
       )}

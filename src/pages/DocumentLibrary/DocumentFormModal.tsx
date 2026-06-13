@@ -1,9 +1,10 @@
 import { useState, useRef } from 'react';
 import { Upload, Loader, FileText } from 'lucide-react';
 import { supabase, AppDocument, DocumentCategory } from '../../lib/supabase';
+import { useUser } from '../../lib/UserContext';
 import Modal from '../../components/Modal';
 
-const CATEGORIES: DocumentCategory[] = ['SOP', 'Policy', 'Risk Assessment', 'Licence & Permit', 'Template'];
+const BASE_CATEGORIES: DocumentCategory[] = ['SOP', 'Policy', 'Risk Assessment', 'Licence & Permit', 'Template'];
 
 const ACCEPT = '.pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.webp';
 
@@ -21,6 +22,9 @@ function formatBytes(bytes: number) {
 }
 
 export default function DocumentFormModal({ doc, defaultCategory, onClose, onSave }: Props) {
+  const { isAdmin } = useUser();
+  // 'Company' is an admin-only category (DB-enforced via RLS).
+  const CATEGORIES: DocumentCategory[] = isAdmin ? [...BASE_CATEGORIES, 'Company'] : BASE_CATEGORIES;
   const isEdit = !!doc;
   const [title, setTitle] = useState(doc?.title ?? '');
   const [category, setCategory] = useState<DocumentCategory>(doc?.category ?? defaultCategory ?? 'SOP');

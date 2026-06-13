@@ -269,6 +269,7 @@ export type SafetyCorrectiveAction = {
   action_number: string;
   source_type: string;
   source_reference: string;
+  source_incident_id: string | null;
   description: string;
   assigned_to: string;
   assigned_to_id: string | null;
@@ -567,7 +568,10 @@ export type MaintenanceHistory = {
 // Phase 1 types
 // ─────────────────────────────────────────────────────────────────────────────
 
-export type DocumentCategory = 'SOP' | 'Policy' | 'Risk Assessment' | 'Licence & Permit' | 'Template';
+export type DocumentCategory = 'SOP' | 'Policy' | 'Risk Assessment' | 'Licence & Permit' | 'Template' | 'Company';
+
+// Categories visible only to admins (DB-enforced via RLS in 20260613000003).
+export const ADMIN_ONLY_DOCUMENT_CATEGORIES: DocumentCategory[] = ['Company'];
 
 export type AppDocument = {
   id: string;
@@ -594,6 +598,25 @@ export type DocumentVersion = {
   file_size_bytes: number;
   replaced_by: string | null;
   replaced_at: string;
+};
+
+export type MedicalRecordType = 'Vaccination' | 'Medical Exam' | 'Fitness Certificate' | 'Other';
+
+export type EmployeeMedicalRecord = {
+  id: string;
+  employee_id: string;
+  record_type: MedicalRecordType;
+  name: string;
+  date_administered: string | null;
+  expiry_date: string | null;
+  provider: string;
+  notes: string;
+  file_path: string;
+  file_name: string;
+  file_size_bytes: number;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
 };
 
 export type LegalAppointmentType =

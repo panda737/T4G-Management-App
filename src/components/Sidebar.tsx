@@ -15,7 +15,7 @@ interface ModuleGroup {
   label: string;
   icon: LucideIcon;
   color: string;
-  items: { path: string; label: string; soon?: boolean }[];
+  items: { path: string; label: string; soon?: boolean; adminOnly?: boolean }[];
 }
 
 const moduleGroups: ModuleGroup[] = [
@@ -118,6 +118,8 @@ const moduleGroups: ModuleGroup[] = [
       { path: '/documents/risk-assessments',    label: 'Risk Assessments' },
       { path: '/documents/licences-permits',    label: 'Licences & Permits' },
       { path: '/documents/templates',           label: 'Templates' },
+      { path: '/documents/company',             label: 'Company & Compliance', adminOnly: true },
+      { path: '/documents/expiry-dashboard',    label: 'Expiry Dashboard', adminOnly: true },
       { path: '/documents/archived',            label: 'Archived Documents' },
     ],
   },
@@ -222,7 +224,7 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
   const roleLabel = role ? ROLE_LABELS[role] : 'Loading...';
   const roleColor = role ? ROLE_COLORS[role] : 'bg-gray-500/20 text-gray-400';
 
-  const visibleGroups: ModuleGroup[] = isOperator
+  const rawVisibleGroups: ModuleGroup[] = isOperator
     ? [
         {
           id: 'treatment',
@@ -247,6 +249,12 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
     : isStockController
       ? moduleGroups.filter(g => g.id === 'stock')
       : moduleGroups.filter(g => isAdmin || !['commercial', 'logistics'].includes(g.id));
+
+  // Hide admin-only items (e.g. Company docs, Expiry Dashboard) from non-admins.
+  const visibleGroups: ModuleGroup[] = rawVisibleGroups.map(g => ({
+    ...g,
+    items: g.items.filter(item => isAdmin || !item.adminOnly),
+  }));
 
   const navContent = (isMobileDrawer: boolean) => {
     const showLabels = isMobileDrawer || !collapsed;

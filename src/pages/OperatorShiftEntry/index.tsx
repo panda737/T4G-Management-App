@@ -41,17 +41,26 @@ const EMPTY_FORM: FormState = {
   team_names: [],
 };
 
+// Format a Date as YYYY-MM-DD using local calendar components (avoids UTC drift).
+function toLocalISO(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 function getShiftDate(shift: ShiftType): string {
   const now = new Date();
-  if (shift === 'Night') {
-    const h = now.getHours();
-    if (h >= 23 || h < 6) {
-      const prev = new Date(now);
-      prev.setDate(prev.getDate() - 1);
-      return prev.toISOString().split('T')[0];
-    }
+  // A Night shift runs ~23:00 → ~08:00 the next morning and is attributed to the
+  // day it STARTED. Reported in the morning/afternoon (before 18:00) it started
+  // yesterday; reported in the evening (>= 18:00, at/after the ~23:00 start) it
+  // started today.
+  if (shift === 'Night' && now.getHours() < 18) {
+    const prev = new Date(now);
+    prev.setDate(prev.getDate() - 1);
+    return toLocalISO(prev);
   }
-  return now.toISOString().split('T')[0];
+  return toLocalISO(now);
 }
 
 function formatDisplayDate(d: string) {
