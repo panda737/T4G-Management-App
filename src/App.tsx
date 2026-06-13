@@ -57,7 +57,6 @@ import EsgFactors from './pages/Commercial/EsgFactors';
 import EsgOperational from './pages/Commercial/EsgOperational';
 import EsgRecalculate from './pages/Commercial/EsgRecalculate';
 import EsgCreditEvidence from './pages/Commercial/EsgCreditEvidence';
-import CrmPreview from './pages/Commercial/CrmPreview';
 import GlobalSearch from './components/crm/GlobalSearch';
 import PortalShell from './pages/Portal/PortalShell';
 
@@ -132,7 +131,7 @@ const ROUTE_LABELS: Record<string, string> = {
   '/commercial/upload': 'Upload Received Waste',
   '/commercial/imports': 'Import History',
   '/commercial/import-errors': 'Import Errors',
-  '/commercial/clients': 'Client Management',
+  '/commercial/clients': 'Accounts',
   '/commercial/sites': 'Site Management',
   '/commercial/esg': 'ESG Setup',
   '/commercial/esg/factors': 'ESG Factors',
@@ -248,7 +247,6 @@ function StaffShell({ session }: { session: Session }) {
             <Route path="/commercial/esg/operational" element={<EsgOperational />} />
             <Route path="/commercial/esg/recalculate" element={<EsgRecalculate />} />
             <Route path="/commercial/esg/credits" element={<EsgCreditEvidence />} />
-            <Route path="/commercial/crm-preview" element={<CrmPreview />} />
 
             {/* Treatment Plant */}
             <Route path="/treatment" element={<TreatmentDashboard />} />
