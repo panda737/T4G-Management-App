@@ -46,6 +46,18 @@ import OperatorShiftEntry from './pages/OperatorShiftEntry';
 import StockOrders from './pages/StockOrders';
 import StockClients from './pages/StockClients';
 import StockDayEnd from './pages/StockDayEnd';
+import UploadReceivedWaste from './pages/Commercial/UploadReceivedWaste';
+import ImportHistory from './pages/Commercial/ImportHistory';
+import ImportErrorReview from './pages/Commercial/ImportErrorReview';
+import ClientManagement from './pages/Commercial/ClientManagement';
+import ClientView from './pages/Commercial/ClientView';
+import SiteManagement from './pages/Commercial/SiteManagement';
+import EsgSetup from './pages/Commercial/EsgSetup';
+import EsgFactors from './pages/Commercial/EsgFactors';
+import EsgOperational from './pages/Commercial/EsgOperational';
+import EsgRecalculate from './pages/Commercial/EsgRecalculate';
+import EsgCreditEvidence from './pages/Commercial/EsgCreditEvidence';
+import PortalShell from './pages/Portal/PortalShell';
 
 class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
   state = { error: null };
@@ -83,19 +95,23 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | 
 }
 
 function RootRedirect() {
-  const { isOperator, isStockController, loading } = useUser();
+  const { isOperator, isStockController, isCustomer, loading } = useUser();
   if (loading) return null;
+  if (isCustomer) return <Navigate to="/portal/dashboard" replace />;
   if (isOperator) return <Navigate to="/shift-report" replace />;
   if (isStockController) return <Navigate to="/stock/master-list" replace />;
   return <GlobalDashboard />;
 }
 
 function StockControllerGuard({ children }: { children: ReactNode }) {
-  const { isStockController, loading } = useUser();
+  const { isAdmin, isStockController, loading } = useUser();
   const location = useLocation();
   if (loading) return null;
   if (isStockController && !location.pathname.startsWith('/stock')) {
     return <Navigate to="/stock/master-list" replace />;
+  }
+  if (!isAdmin && location.pathname.startsWith('/commercial')) {
+    return <Navigate to="/" replace />;
   }
   return <>{children}</>;
 }
@@ -111,6 +127,16 @@ const ROUTE_LABELS: Record<string, string> = {
   '/stock/day-end': 'Day-End Report',
   '/stock/reports': 'Reports',
   '/stock/settings': 'Stock Categories',
+  '/commercial/upload': 'Upload Received Waste',
+  '/commercial/imports': 'Import History',
+  '/commercial/import-errors': 'Import Errors',
+  '/commercial/clients': 'Client Management',
+  '/commercial/sites': 'Site Management',
+  '/commercial/esg': 'ESG Setup',
+  '/commercial/esg/factors': 'ESG Factors',
+  '/commercial/esg/operational': 'ESG Operational Data',
+  '/commercial/esg/recalculate': 'ESG Recalculate',
+  '/commercial/esg/credits': 'Carbon Credit Evidence',
   '/treatment': 'Treatment Plant',
   '/treatment/daily-log': 'Daily Log',
   '/treatment/transfers': 'Transfers',
@@ -150,14 +176,12 @@ function usePageLabel(): string {
   return 'Tech4Green';
 }
 
-function AuthenticatedLayout({ session }: { session: Session }) {
+function StaffShell({ session }: { session: Session }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const pageLabel = usePageLabel();
 
   return (
-    <UserProvider session={session}>
-    <ToastProvider>
     <div className="min-h-screen bg-gray-50 flex">
       <div className="print:hidden">
         <Sidebar
@@ -207,6 +231,20 @@ function AuthenticatedLayout({ session }: { session: Session }) {
             <Route path="/stock/stock-take" element={<StockTake />} />
             <Route path="/stock/reports" element={<Reports />} />
             <Route path="/stock/settings" element={<Settings />} />
+
+            {/* Commercial — Received Waste */}
+            <Route path="/commercial" element={<Navigate to="/commercial/clients" replace />} />
+            <Route path="/commercial/upload" element={<UploadReceivedWaste />} />
+            <Route path="/commercial/imports" element={<ImportHistory />} />
+            <Route path="/commercial/import-errors" element={<ImportErrorReview />} />
+            <Route path="/commercial/clients" element={<ClientManagement />} />
+            <Route path="/commercial/clients/:clientId" element={<ClientView />} />
+            <Route path="/commercial/sites" element={<SiteManagement />} />
+            <Route path="/commercial/esg" element={<EsgSetup />} />
+            <Route path="/commercial/esg/factors" element={<EsgFactors />} />
+            <Route path="/commercial/esg/operational" element={<EsgOperational />} />
+            <Route path="/commercial/esg/recalculate" element={<EsgRecalculate />} />
+            <Route path="/commercial/esg/credits" element={<EsgCreditEvidence />} />
 
             {/* Treatment Plant */}
             <Route path="/treatment" element={<TreatmentDashboard />} />
@@ -264,7 +302,30 @@ function AuthenticatedLayout({ session }: { session: Session }) {
         </div>
       </main>
     </div>
-    </ToastProvider>
+  );
+}
+
+function RoleShell({ session }: { session: Session }) {
+  const { isCustomer, loading } = useUser();
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <svg className="animate-spin h-8 w-8 text-emerald-500" viewBox="0 0 24 24" fill="none">
+          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+        </svg>
+      </div>
+    );
+  }
+  return isCustomer ? <PortalShell session={session} /> : <StaffShell session={session} />;
+}
+
+function AuthenticatedLayout({ session }: { session: Session }) {
+  return (
+    <UserProvider session={session}>
+      <ToastProvider>
+        <RoleShell session={session} />
+      </ToastProvider>
     </UserProvider>
   );
 }

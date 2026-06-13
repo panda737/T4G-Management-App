@@ -464,7 +464,7 @@ export type ToolboxTalkTopic = {
   created_at: string;
 };
 
-export type AppRole = 'admin' | 'management' | 'stock_controller' | 'production' | 'operator' | 'viewer';
+export type AppRole = 'admin' | 'management' | 'stock_controller' | 'production' | 'operator' | 'viewer' | 'customer';
 
 export type ShiftType = 'Day' | 'Afternoon' | 'Night';
 
@@ -502,6 +502,7 @@ export type UserProfile = {
   role: AppRole;
   is_active: boolean;
   employee_id: string | null;
+  client_id: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -514,6 +515,7 @@ export const ROLE_LABELS: Record<AppRole, string> = {
   production: 'Production',
   operator: 'Operator',
   viewer: 'Viewer',
+  customer: 'Customer (Portal)',
 };
 
 export const ROLE_COLORS: Record<AppRole, string> = {
@@ -523,6 +525,7 @@ export const ROLE_COLORS: Record<AppRole, string> = {
   production: 'bg-cyan-500/20 text-cyan-300',
   operator: 'bg-indigo-500/20 text-indigo-300',
   viewer: 'bg-gray-500/20 text-gray-400',
+  customer: 'bg-blue-500/20 text-blue-300',
 };
 
 export type Equipment = {
@@ -677,6 +680,11 @@ export type Client = {
   postal_code: string;
   notes: string;
   active: boolean;
+  // CRM account fields (Phase 1)
+  account_owner: string | null;
+  industry: string;
+  account_status: 'prospect' | 'active' | 'inactive';
+  website: string;
   created_at: string;
   updated_at: string;
 };
@@ -760,3 +768,318 @@ export function getQuantityDelta(movementType: MovementType, quantity: number): 
       return quantity; // can be +/-
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Commercial — Received Waste (Phase 1)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type WasteCategory = {
+  id: string;
+  waste_category_name: string;
+  hcrw_super_category: string;
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ContainerType = {
+  id: string;
+  container_type_name: string;
+  reusable_boolean: boolean;
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ClientSite = {
+  id: string;
+  client_id: string;
+  generator_group: string;
+  generator_facility: string;
+  site_code: string;
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type DataImport = {
+  id: string;
+  file_name: string;
+  uploaded_by: string | null;
+  upload_date: string;
+  total_rows: number;
+  imported_rows: number;
+  skipped_rows: number;
+  error_rows: number;
+  import_status: 'pending' | 'completed' | 'failed';
+  notes: string;
+  created_at: string;
+};
+
+export type ImportErrorRow = {
+  id: string;
+  import_id: string;
+  source_row_number: number | null;
+  raw_data: Record<string, string> | null;
+  error_message: string;
+  created_at: string;
+};
+
+export type ReceivedDateSource = 'facility_receipt' | 'collection_fallback';
+
+// Full record (admin/staff view of the base table).
+export type ReceivedWasteRecord = {
+  id: string;
+  client_id: string;
+  site_id: string | null;
+  waste_manifest_tracking_number: string;
+  received_date: string | null;
+  collection_date: string | null;
+  facility_receipt_date: string | null;
+  received_date_source: ReceivedDateSource;
+  waste_category_id: string | null;
+  hcrw_super_category: string;
+  container_type_id: string | null;
+  containers_received: number;
+  nett_weight_kg: number;
+  reusable_boolean: boolean;
+  // admin-only
+  manifest_id: string;
+  waste_manifest_creation_date: string | null;
+  generator_acknowledgement_date: string | null;
+  treatment_confirmation_date: string | null;
+  transporter: string;
+  driver: string;
+  weight_collected_kg: number | null;
+  reusable_empty_weight_kg: number | null;
+  billed_to_client: string;
+  invoice_ref_number: string;
+  treatment_facility: string;
+  // provenance
+  source_upload_id: string | null;
+  source_row_number: number | null;
+  import_status: 'imported' | 'error';
+  import_error_message: string;
+  duplicate_key: string;
+  created_at: string;
+  updated_at: string;
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Commercial — ESG Engine (Phase 2)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type EsgFactorCategory =
+  | 'emission_factor'
+  | 'water_factor'
+  | 'treatment_factor'
+  | 'transport_assumption'
+  | 'container_capacity'
+  | 'plant_benchmark'
+  | 'baseline'
+  | 'carbon_credit'
+  | 'allocation';
+
+export type GhgScope = 'scope_1' | 'scope_2' | 'scope_3';
+
+export const ESG_FACTOR_CATEGORY_LABELS: Record<EsgFactorCategory, string> = {
+  emission_factor: 'Emission Factors',
+  water_factor: 'Water & Effluent Factors',
+  treatment_factor: 'Treatment-Method Factors',
+  transport_assumption: 'Transport Assumptions',
+  container_capacity: 'Container Capacities',
+  plant_benchmark: 'Plant Benchmarks',
+  baseline: 'Baselines',
+  carbon_credit: 'Carbon Credit',
+  allocation: 'Allocation',
+};
+
+export type EsgFactor = {
+  id: string;
+  factor_key: string;
+  factor_name: string;
+  category: EsgFactorCategory;
+  ghg_scope: GhgScope | null;
+  unit: string;
+  value: number;
+  text_value: string;
+  source: string;
+  effective_date: string;
+  version: number;
+  approved: boolean;
+  approved_by: string | null;
+  approved_at: string | null;
+  notes: string;
+  active: boolean;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type EsgMonthlyOperational = {
+  id: string;
+  period_month: string;
+  site_id: string | null;
+  electricity_kwh: number | null;
+  water_kl: number | null;
+  diesel_litres: number | null;
+  effluent_kl: number | null;
+  treatment_energy_kwh: number | null;
+  trips: number | null;
+  kilometres: number | null;
+  idling_hours: number | null;
+  data_source: 'actual' | 'estimated';
+  approved: boolean;
+  approved_by: string | null;
+  approved_at: string | null;
+  notes: string;
+  entered_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+// metric -> data-basis label (customer-safe)
+export type EsgDataBasis = 'actual' | 'admin_actual' | 'estimated' | 'benchmark' | 'awaiting';
+
+export const ESG_DATA_BASIS_LABELS: Record<EsgDataBasis, string> = {
+  actual: 'Actual',
+  admin_actual: 'Admin',
+  estimated: 'Estimated',
+  benchmark: 'Benchmark',
+  awaiting: 'Awaiting data',
+};
+
+export type EsgResult = {
+  id: string;
+  client_id: string;
+  period_month: string;
+  co2e_saved_kg: number | null;
+  residual_tco2e: number | null;
+  water_saved_kl: number | null;
+  electricity_saved_kwh: number | null;
+  diesel_saved_l: number | null;
+  km_avoided: number | null;
+  trips_avoided: number | null;
+  indicative_carbon_credits: number | null;
+  total_nett_kg: number;
+  treatment_emissions_by_method: Record<string, number>;
+  transport_comparison: Record<string, number>;
+  data_basis: Record<string, EsgDataBasis>;
+  audit: Record<string, unknown>;
+  approved: boolean;
+  approved_by: string | null;
+  approved_at: string | null;
+  computed_at: string;
+  computed_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+// Customer-safe row shape returned by public.v_esg_results (no `audit`).
+export type EsgResultCustomerRow = {
+  id: string;
+  client_id: string;
+  client_name: string;
+  period_month: string;
+  co2e_saved_kg: number | null;
+  residual_tco2e: number | null;
+  water_saved_kl: number | null;
+  electricity_saved_kwh: number | null;
+  diesel_saved_l: number | null;
+  km_avoided: number | null;
+  trips_avoided: number | null;
+  indicative_carbon_credits: number | null;
+  total_nett_kg: number;
+  treatment_emissions_by_method: Record<string, number>;
+  transport_comparison: Record<string, number>;
+  data_basis: Record<string, EsgDataBasis>;
+  credits_verified: boolean;
+};
+
+export type CarbonCreditEvidence = {
+  id: string;
+  client_id: string;
+  period_month: string | null;
+  registry_name: string;
+  serial_ref: string;
+  retirement_doc_path: string;
+  quantity_tco2e: number | null;
+  verified: boolean;
+  notes: string;
+  uploaded_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+// ── Commercial CRM (Phase 1) ────────────────────────────────────────────────
+
+export type CrmContact = {
+  id: string;
+  client_id: string;
+  first_name: string;
+  last_name: string;
+  job_title: string;
+  email: string;
+  phone: string;
+  mobile: string;
+  is_primary: boolean;
+  portal_user_id: string | null;
+  notes: string;
+  active: boolean;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type CrmActivityType = 'task' | 'call' | 'note' | 'email' | 'meeting';
+export type CrmActivityStatus = 'open' | 'completed';
+
+export type CrmActivity = {
+  id: string;
+  client_id: string;
+  contact_id: string | null;
+  type: CrmActivityType;
+  subject: string;
+  body: string;
+  status: CrmActivityStatus;
+  due_date: string | null;
+  completed_at: string | null;
+  owner_id: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type CrmSavedView = {
+  id: string;
+  owner_id: string;
+  object_key: string;
+  name: string;
+  config: Record<string, unknown>;
+  is_shared: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+// Customer-safe row shape returned by the public.v_received_waste view.
+export type ReceivedWasteCustomerRow = {
+  id: string;
+  client_id: string;
+  client_name: string;
+  site_id: string | null;
+  generator_group: string | null;
+  generator_facility: string | null;
+  waste_manifest_tracking_number: string;
+  received_date: string | null;
+  collection_date: string | null;
+  facility_receipt_date: string | null;
+  received_date_source: ReceivedDateSource;
+  waste_category_id: string | null;
+  waste_category_name: string | null;
+  hcrw_super_category: string;
+  container_type_id: string | null;
+  container_type_name: string | null;
+  containers_received: number;
+  nett_weight_kg: number;
+  reusable_boolean: boolean;
+};

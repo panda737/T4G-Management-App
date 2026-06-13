@@ -15,7 +15,7 @@ interface ModuleGroup {
   label: string;
   icon: LucideIcon;
   color: string;
-  items: { path: string; label: string; soon?: boolean; adminOnly?: boolean }[];
+  items: { path: string; label: string; soon?: boolean; adminOnly?: boolean; match?: string[] }[];
 }
 
 const moduleGroups: ModuleGroup[] = [
@@ -29,6 +29,19 @@ const moduleGroups: ModuleGroup[] = [
       { path: '/treatment/daily-log', label: 'Daily Log' },
       { path: '/treatment/transfers', label: 'Transfers' },
       { path: '/treatment/waste-on-floor', label: 'Waste on Floor' },
+    ],
+  },
+  {
+    id: 'commercial',
+    label: 'Commercial',
+    icon: TrendingUp,
+    color: 'text-indigo-400',
+    items: [
+      { path: '/commercial/clients', label: 'Clients & Sites', match: ['/commercial/clients', '/commercial/sites'] },
+      { path: '/commercial/upload', label: 'Received Waste', match: ['/commercial/upload', '/commercial/imports', '/commercial/import-errors'] },
+      { path: '/commercial/esg', label: 'ESG Engine', match: ['/commercial/esg'] },
+      { path: '/commercial/pipeline', label: 'Pipeline', soon: true },
+      { path: '/commercial/revenue', label: 'Revenue', soon: true },
     ],
   },
   {
@@ -98,16 +111,6 @@ const moduleGroups: ModuleGroup[] = [
     ],
   },
   {
-    id: 'employees',
-    label: 'Employee Register',
-    icon: Users,
-    color: 'text-rose-400',
-    items: [
-      { path: '/employees', label: 'Employee Register' },
-      { path: '/employees/appointments', label: 'Legal Appointments' },
-    ],
-  },
-  {
     id: 'documents',
     label: 'Documents',
     icon: FileText,
@@ -124,18 +127,6 @@ const moduleGroups: ModuleGroup[] = [
     ],
   },
   {
-    id: 'commercial',
-    label: 'Commercial',
-    icon: TrendingUp,
-    color: 'text-indigo-400',
-    items: [
-      { path: '/commercial', label: 'Dashboard', soon: true },
-      { path: '/commercial/accounts', label: 'Accounts', soon: true },
-      { path: '/commercial/pipeline', label: 'Pipeline', soon: true },
-      { path: '/commercial/revenue', label: 'Revenue', soon: true },
-    ],
-  },
-  {
     id: 'logistics',
     label: 'Logistics',
     icon: Truck,
@@ -143,6 +134,16 @@ const moduleGroups: ModuleGroup[] = [
     items: [
       { path: '/logistics/vehicles', label: 'Vehicle Register', soon: true },
       { path: '/logistics/drivers', label: 'Driver Compliance', soon: true },
+    ],
+  },
+  {
+    id: 'employees',
+    label: 'Employee Register',
+    icon: Users,
+    color: 'text-rose-400',
+    items: [
+      { path: '/employees', label: 'Employee Register' },
+      { path: '/employees/appointments', label: 'Legal Appointments' },
     ],
   },
 ];
@@ -200,16 +201,21 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
     return location.pathname === path;
   }
 
+  // An item is active for its own path, or any of its grouped `match` paths
+  // (covers in-page tabs whose URLs don't share the item's prefix).
+  function isItemActive(item: ModuleGroup['items'][number]) {
+    if (location.pathname === item.path) return true;
+    if (item.path === '/employees' && location.pathname.startsWith('/employees/')) return true;
+    if (item.match) return item.match.some(m => location.pathname === m || location.pathname.startsWith(m + '/'));
+    return false;
+  }
+
   function isGroupActive(group: ModuleGroup) {
-    return group.items.some(item => {
-      if (item.path === '/employees') {
-        return location.pathname === item.path || location.pathname.startsWith('/employees/');
-      }
-      return location.pathname === item.path || location.pathname.startsWith(item.path + '/');
-    });
+    return group.items.some(item => isItemActive(item) || location.pathname.startsWith(item.path + '/'));
   }
 
   const isAdmin = role === 'admin';
+  const isManagement = role === 'management';
   const isOperator = role === 'operator';
 
   useEffect(() => {
@@ -248,7 +254,11 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
       ]
     : isStockController
       ? moduleGroups.filter(g => g.id === 'stock')
-      : moduleGroups.filter(g => isAdmin || !['commercial', 'logistics'].includes(g.id));
+      : moduleGroups.filter(g => {
+          if (g.id === 'logistics') return isAdmin; // still coming soon
+          if (g.id === 'commercial') return isAdmin;
+          return true;
+        });
 
   // Hide admin-only items (e.g. Company docs, Expiry Dashboard) from non-admins.
   const visibleGroups: ModuleGroup[] = rawVisibleGroups.map(g => ({
@@ -352,24 +362,27 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
 
                 {showLabels && expanded && (
                   <div className="overflow-hidden">
-                    {group.items.map((item) => (
+                    {group.items.map((item) => {
+                      const itemActive = isItemActive(item);
+                      return (
                       <button
                         key={item.path}
                         onClick={() => handleNavigate(item.path)}
                         className={`w-full flex items-center gap-2 pl-11 pr-4 py-2 text-[13px] transition-all duration-150 relative ${
-                          isActive(item.path)
+                          itemActive
                             ? 'text-white bg-emerald-600/15'
                             : 'text-gray-400 hover:text-gray-200 hover:bg-gray-800/40'
                         }`}
                       >
-                        {isActive(item.path) && (
+                        {itemActive && (
                           <span className="absolute left-0 top-0 h-full w-[3px] bg-emerald-500 rounded-r" />
                         )}
-                        <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${isActive(item.path) ? 'bg-emerald-400' : 'bg-gray-600'}`} />
+                        <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${itemActive ? 'bg-emerald-400' : 'bg-gray-600'}`} />
                         <span className={item.soon ? 'text-gray-500' : ''}>{item.label}</span>
                         {item.soon && <span className="ml-auto text-[10px] font-medium text-gray-500 bg-gray-800 px-1.5 py-0.5 rounded">Soon</span>}
                       </button>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>

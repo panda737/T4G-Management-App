@@ -3,7 +3,7 @@ import { Loader } from 'lucide-react';
 import { supabase, UserProfile, AppRole, ROLE_LABELS } from '../../lib/supabase';
 import Modal from '../../components/Modal';
 
-const ROLES: AppRole[] = ['admin', 'management', 'stock_controller', 'production', 'operator', 'viewer'];
+const ROLES: AppRole[] = ['admin', 'management', 'stock_controller', 'production', 'operator', 'viewer', 'customer'];
 
 const ROLE_DESCRIPTIONS: Record<AppRole, string> = {
   admin: 'Full access to everything including user management',
@@ -12,6 +12,7 @@ const ROLE_DESCRIPTIONS: Record<AppRole, string> = {
   production: 'Write access to Treatment Plant only',
   operator: 'Treatment Plant shift entry only',
   viewer: 'Read-only access across all modules',
+  customer: 'Customer portal only — link to a client in Commercial → Client Management',
 };
 
 interface Employee { id: string; first_name: string; surname: string; }

@@ -14,7 +14,7 @@ import CreateUserModal from './CreateUserModal';
 import EditUserModal from './EditUserModal';
 import UserDetailModal from './UserDetailModal';
 
-const ROLES: AppRole[] = ['admin', 'management', 'stock_controller', 'production', 'operator', 'viewer'];
+const ROLES: AppRole[] = ['admin', 'management', 'stock_controller', 'production', 'operator', 'viewer', 'customer'];
 
 const ROLE_DESCRIPTIONS: Record<AppRole, string> = {
   admin: 'Full access to everything including user management',
@@ -23,6 +23,7 @@ const ROLE_DESCRIPTIONS: Record<AppRole, string> = {
   production: 'Write access to Treatment Plant only',
   operator: 'Treatment Plant shift entry only',
   viewer: 'Read-only access across all modules',
+  customer: 'Customer portal only — sees their own received-waste data',
 };
 
 const ROLE_BADGE: Record<AppRole, string> = {
@@ -32,6 +33,7 @@ const ROLE_BADGE: Record<AppRole, string> = {
   production: 'bg-cyan-600 text-white',
   operator: 'bg-indigo-600 text-white',
   viewer: 'bg-gray-500 text-white',
+  customer: 'bg-blue-600 text-white',
 };
 
 const ROLE_DOT: Record<AppRole, string> = {
@@ -41,6 +43,7 @@ const ROLE_DOT: Record<AppRole, string> = {
   production: 'bg-cyan-500',
   operator: 'bg-indigo-500',
   viewer: 'bg-gray-400',
+  customer: 'bg-blue-500',
 };
 
 const ROLE_AVATAR: Record<AppRole, string> = {
@@ -50,6 +53,7 @@ const ROLE_AVATAR: Record<AppRole, string> = {
   production: 'bg-cyan-100 text-cyan-700',
   operator: 'bg-indigo-100 text-indigo-700',
   viewer: 'bg-gray-100 text-gray-600',
+  customer: 'bg-blue-100 text-blue-700',
 };
 
 type SortKey = 'display_name' | 'role' | 'is_active' | 'created_at';
