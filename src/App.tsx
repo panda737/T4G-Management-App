@@ -57,6 +57,8 @@ import EsgFactors from './pages/Commercial/EsgFactors';
 import EsgOperational from './pages/Commercial/EsgOperational';
 import EsgRecalculate from './pages/Commercial/EsgRecalculate';
 import EsgCreditEvidence from './pages/Commercial/EsgCreditEvidence';
+import CrmPreview from './pages/Commercial/CrmPreview';
+import GlobalSearch from './components/crm/GlobalSearch';
 import PortalShell from './pages/Portal/PortalShell';
 
 class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
@@ -183,6 +185,7 @@ function StaffShell({ session }: { session: Session }) {
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
+      <GlobalSearch />
       <div className="print:hidden">
         <Sidebar
           collapsed={sidebarCollapsed}
@@ -245,6 +248,7 @@ function StaffShell({ session }: { session: Session }) {
             <Route path="/commercial/esg/operational" element={<EsgOperational />} />
             <Route path="/commercial/esg/recalculate" element={<EsgRecalculate />} />
             <Route path="/commercial/esg/credits" element={<EsgCreditEvidence />} />
+            <Route path="/commercial/crm-preview" element={<CrmPreview />} />
 
             {/* Treatment Plant */}
             <Route path="/treatment" element={<TreatmentDashboard />} />
