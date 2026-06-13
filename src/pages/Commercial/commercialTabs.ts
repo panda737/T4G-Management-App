@@ -4,7 +4,9 @@ import type { TabDef } from '../../components/SectionTabs';
 // while exposing sub-pages as in-page tabs.
 
 export const CLIENT_TABS: TabDef[] = [
-  { to: '/commercial/clients', label: 'Clients' },
+  { to: '/commercial/clients', label: 'Accounts' },
+  { to: '/commercial/contacts', label: 'Contacts' },
+  { to: '/commercial/activities', label: 'Activities' },
   { to: '/commercial/sites', label: 'Sites' },
 ];
 

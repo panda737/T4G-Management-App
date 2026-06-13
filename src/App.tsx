@@ -57,6 +57,9 @@ import EsgFactors from './pages/Commercial/EsgFactors';
 import EsgOperational from './pages/Commercial/EsgOperational';
 import EsgRecalculate from './pages/Commercial/EsgRecalculate';
 import EsgCreditEvidence from './pages/Commercial/EsgCreditEvidence';
+import ContactList from './pages/Commercial/ContactList';
+import ContactView from './pages/Commercial/ContactView';
+import ActivityList from './pages/Commercial/ActivityList';
 import GlobalSearch from './components/crm/GlobalSearch';
 import PortalShell from './pages/Portal/PortalShell';
 
@@ -132,6 +135,8 @@ const ROUTE_LABELS: Record<string, string> = {
   '/commercial/imports': 'Import History',
   '/commercial/import-errors': 'Import Errors',
   '/commercial/clients': 'Accounts',
+  '/commercial/contacts': 'Contacts',
+  '/commercial/activities': 'Activities',
   '/commercial/sites': 'Site Management',
   '/commercial/esg': 'ESG Setup',
   '/commercial/esg/factors': 'ESG Factors',
@@ -174,6 +179,8 @@ function usePageLabel(): string {
   if (pathname.startsWith('/documents/')) return 'Document Library';
   if (pathname.startsWith('/employees/')) return 'Employee Profile';
   if (pathname.startsWith('/training/modules/')) return 'Assessment';
+  if (pathname.startsWith('/commercial/clients/')) return 'Account';
+  if (pathname.startsWith('/commercial/contacts/')) return 'Contact';
   return 'Tech4Green';
 }
 
@@ -247,6 +254,9 @@ function StaffShell({ session }: { session: Session }) {
             <Route path="/commercial/esg/operational" element={<EsgOperational />} />
             <Route path="/commercial/esg/recalculate" element={<EsgRecalculate />} />
             <Route path="/commercial/esg/credits" element={<EsgCreditEvidence />} />
+            <Route path="/commercial/contacts" element={<ContactList />} />
+            <Route path="/commercial/contacts/:contactId" element={<ContactView />} />
+            <Route path="/commercial/activities" element={<ActivityList />} />
 
             {/* Treatment Plant */}
             <Route path="/treatment" element={<TreatmentDashboard />} />

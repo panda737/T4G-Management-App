@@ -37,7 +37,9 @@ const moduleGroups: ModuleGroup[] = [
     icon: TrendingUp,
     color: 'text-indigo-400',
     items: [
-      { path: '/commercial/clients', label: 'Clients & Sites', match: ['/commercial/clients', '/commercial/sites'] },
+      { path: '/commercial/clients', label: 'Accounts', match: ['/commercial/clients', '/commercial/sites'] },
+      { path: '/commercial/contacts', label: 'Contacts', match: ['/commercial/contacts'] },
+      { path: '/commercial/activities', label: 'Activities', match: ['/commercial/activities'] },
       { path: '/commercial/upload', label: 'Received Waste', match: ['/commercial/upload', '/commercial/imports', '/commercial/import-errors'] },
       { path: '/commercial/esg', label: 'ESG Engine', match: ['/commercial/esg'] },
       { path: '/commercial/pipeline', label: 'Pipeline', soon: true },

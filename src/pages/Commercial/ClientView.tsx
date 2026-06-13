@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Building2, MapPin, User, Scale, Boxes, CalendarDays, Pencil } from 'lucide-react';
+import { Building2, MapPin, User, Scale, Boxes, CalendarDays, Pencil, Plus } from 'lucide-react';
 import {
   supabase,
   type Client,
@@ -8,6 +8,7 @@ import {
   type ReceivedWasteRecord,
   type EsgResult,
   type CrmActivity,
+  type CrmContact,
 } from '../../lib/supabase';
 import { usePageTitle } from '../../lib/usePageTitle';
 import { useUser } from '../../lib/UserContext';
@@ -29,6 +30,7 @@ import {
   fmtDate,
 } from '../../components/crm';
 import AccountFormModal from './AccountFormModal';
+import ContactFormModal from './ContactFormModal';
 
 type EnrichedRecord = ReceivedWasteRecord & { category_name: string; site_name: string; container_name: string };
 
@@ -67,16 +69,18 @@ export default function ClientView() {
   const [records, setRecords] = useState<EnrichedRecord[]>([]);
   const [sites, setSites] = useState<ClientSite[]>([]);
   const [esgResults, setEsgResults] = useState<EsgResult[]>([]);
+  const [contacts, setContacts] = useState<CrmContact[]>([]);
   const [activities, setActivities] = useState<TimelineActivity[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<Tab>('overview');
   const [editOpen, setEditOpen] = useState(false);
+  const [newContact, setNewContact] = useState(false);
 
   useEffect(() => { if (clientId) load(); }, [clientId]);
 
   async function load() {
     setLoading(true);
-    const [cRes, rRes, sitesRes, catsRes, contsRes, esgRes, actRes] = await Promise.all([
+    const [cRes, rRes, sitesRes, catsRes, contsRes, esgRes, actRes, contactsRes] = await Promise.all([
       supabase.from('clients').select('*').eq('id', clientId!).maybeSingle(),
       supabase.from('received_waste_records').select('*').eq('client_id', clientId!).eq('import_status', 'imported').order('received_date', { ascending: false }),
       supabase.from('client_sites').select('*').eq('client_id', clientId!).order('generator_facility'),
@@ -84,6 +88,7 @@ export default function ClientView() {
       supabase.from('container_types').select('id, container_type_name'),
       supabase.from('esg_results').select('*').eq('client_id', clientId!).order('period_month', { ascending: false }),
       supabase.from('crm_activities').select('*').eq('client_id', clientId!).order('created_at', { ascending: false }),
+      supabase.from('crm_contacts').select('*').eq('client_id', clientId!).order('last_name').order('first_name'),
     ]);
 
     setClient(cRes.data as Client | null);
@@ -115,6 +120,8 @@ export default function ClientView() {
       created_at: a.created_at,
     } satisfies TimelineActivity)));
 
+    setContacts((contactsRes.data ?? []) as CrmContact[]);
+
     setLoading(false);
   }
 
@@ -129,12 +136,12 @@ export default function ClientView() {
   const TABS: RecordTab[] = useMemo(() => [
     { id: 'overview', label: 'Overview' },
     { id: 'details', label: 'Details' },
-    { id: 'contacts', label: 'Contacts' },
+    { id: 'contacts', label: 'Contacts', count: contacts.length },
     { id: 'sites', label: 'Sites', count: sites.length },
     { id: 'waste', label: 'Waste Records', count: records.length },
     { id: 'esg', label: 'ESG', count: esgResults.length },
     { id: 'activity', label: 'Activity', count: activities.length },
-  ], [sites.length, records.length, esgResults.length, activities.length]);
+  ], [contacts.length, sites.length, records.length, esgResults.length, activities.length]);
 
   if (loading) return <PageSpinner layout="h64" />;
   if (!client) return <div className="p-10 text-center text-sm text-gray-400">Account not found.</div>;
@@ -257,18 +264,78 @@ export default function ClientView() {
         />
       )}
 
-      {/* ── Contacts (Phase 4) ───────────────────────────────────────────── */}
+      {/* ── Contacts ─────────────────────────────────────────────────────── */}
       {tab === 'contacts' && (
         <RelatedList
           title="Contacts"
           icon={User}
-          count={0}
-          isEmpty
-          empty="Multiple contacts per account are managed in Phase 4. For now, see the Contact Person field in Details."
-          collapsible={false}
+          count={contacts.length}
+          isEmpty={contacts.length === 0}
+          empty="No contacts yet. Add the first contact for this account."
+          action={
+            canEdit ? (
+              <button
+                onClick={() => setNewContact(true)}
+                className="flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-800 border border-indigo-200 rounded-lg px-2 py-1 hover:bg-indigo-50"
+              >
+                <Plus size={12} /> New Contact
+              </button>
+            ) : undefined
+          }
         >
-          <div />
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-gray-50 text-[11px] uppercase tracking-wider text-gray-500">
+                  <th className="text-left px-4 py-2.5 font-medium">Name</th>
+                  <th className="text-left px-4 py-2.5 font-medium">Job Title</th>
+                  <th className="text-left px-4 py-2.5 font-medium">Email</th>
+                  <th className="text-left px-4 py-2.5 font-medium">Phone</th>
+                  <th className="text-left px-4 py-2.5 font-medium w-16" />
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {contacts.map(c => (
+                  <tr
+                    key={c.id}
+                    onClick={() => navigate(`/commercial/contacts/${c.id}`)}
+                    className="cursor-pointer hover:bg-indigo-50 transition-colors"
+                  >
+                    <td className="px-4 py-2.5">
+                      <div className="font-medium text-gray-900 flex items-center gap-1.5">
+                        {`${c.first_name} ${c.last_name}`.trim() || '(no name)'}
+                        {c.is_primary && (
+                          <span className="text-[10px] font-medium text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded-full">Primary</span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-4 py-2.5 text-gray-500">{c.job_title || '—'}</td>
+                    <td className="px-4 py-2.5">
+                      {c.email
+                        ? <a href={`mailto:${c.email}`} onClick={e => e.stopPropagation()} className="text-indigo-600 hover:underline">{c.email}</a>
+                        : '—'}
+                    </td>
+                    <td className="px-4 py-2.5 text-gray-500">{c.phone || c.mobile || '—'}</td>
+                    <td className="px-4 py-2.5 text-gray-300 text-right">›</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </RelatedList>
+      )}
+
+      {newContact && (
+        <ContactFormModal
+          contact={null}
+          lockedClientId={clientId!}
+          onClose={() => setNewContact(false)}
+          onSave={saved => {
+            setContacts(prev => [...prev, saved].sort((a, b) => `${a.last_name} ${a.first_name}`.localeCompare(`${b.last_name} ${b.first_name}`)));
+            setNewContact(false);
+            addToast('Contact created');
+          }}
+        />
       )}
 
       {/* ── Sites ────────────────────────────────────────────────────────── */}
