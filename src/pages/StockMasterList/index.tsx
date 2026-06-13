@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import { Plus, Search, Edit2, AlertCircle, ChevronDown, ChevronRight, ArrowDownCircle, ArrowUpCircle, Package } from 'lucide-react';
 import { supabase, StockItem, getStockStatus } from '../../lib/supabase';
 import { usePageTitle } from '../../lib/usePageTitle';
@@ -25,6 +25,7 @@ export default function StockMasterList() {
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
   const [existingCodes, setExistingCodes] = useState<string[]>([]);
   const [opError, setOpError] = useState('');
+  const collapseInit = useRef(false);
 
   useEffect(() => { load(); }, []);
 
@@ -33,6 +34,11 @@ export default function StockMasterList() {
     const { data } = await supabase.from('stock_items').select('*').eq('active', true).order('category').order('stock_item');
     setItems(data || []);
     setExistingCodes((data || []).map(i => i.stock_code).filter(Boolean));
+    // On first load, collapse every category — user must click a header to expand it.
+    if (!collapseInit.current) {
+      setCollapsedCategories(new Set((data || []).map(i => i.category).filter(Boolean)));
+      collapseInit.current = true;
+    }
     setLoading(false);
   }
 

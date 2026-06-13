@@ -1,48 +1,118 @@
-import { useState } from 'react';
-import { ChevronLeft, ChevronRight, Pencil, Trash2, Truck, X } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { ChevronLeft, ChevronRight, Pencil, Trash2, Truck } from 'lucide-react';
 import DonutChart from '../../components/DonutChart';
-import { fmtKgCompact as fmtKg, fmtMonth } from '../../lib/formatters';
-import { CATEGORY_COLORS, FACILITY_COLORS, type TransferWithDate } from './constants';
+import MonthlyTrendChart from './MonthlyTrendChart';
+import { fmtKgCompact as fmtKg } from '../../lib/formatters';
+import { CATEGORY_COLORS, FACILITY_COLORS, WASTE_CATEGORIES, TRANSFER_DESTINATIONS, type TransferWithDate } from './constants';
 
 const PAGE_SIZE = 10;
 
+const MONTHS = [
+  { value: '01', label: 'January' }, { value: '02', label: 'February' },
+  { value: '03', label: 'March' }, { value: '04', label: 'April' },
+  { value: '05', label: 'May' }, { value: '06', label: 'June' },
+  { value: '07', label: 'July' }, { value: '08', label: 'August' },
+  { value: '09', label: 'September' }, { value: '10', label: 'October' },
+  { value: '11', label: 'November' }, { value: '12', label: 'December' },
+];
+
 interface TransfersContentProps {
   transfers: TransferWithDate[];
-  byCategory: [string, number][];
-  byFacility: [string, number][];
-  totalKg: number;
-  monthFilter: string;
+  trendTransfers: TransferWithDate[];
+  periodLabel: string;
   isAdmin?: boolean;
   onEdit?: (t: TransferWithDate) => void;
   onDelete?: (t: TransferWithDate) => void;
 }
 
 export default function TransfersContent({
-  transfers, byCategory, byFacility, totalKg, monthFilter,
+  transfers, trendTransfers, periodLabel,
   isAdmin, onEdit, onDelete,
 }: TransfersContentProps) {
-  const [facilityFilter, setFacilityFilter] = useState<string | null>(null);
+  const [streamFilter, setStreamFilter] = useState('');
+  const [facilityFilter, setFacilityFilter] = useState('');
+  const [stackBy, setStackBy] = useState<'stream' | 'facility'>('stream');
+  const [trendYear, setTrendYear] = useState('');
+  const [trendMonth, setTrendMonth] = useState('');
   const [page, setPage] = useState(1);
 
-  const facilities = Array.from(new Set(transfers.map(t => t.destination).filter(Boolean))).sort();
+  const streamOptions = useMemo(() => {
+    const present = new Set(transfers.map(t => t.waste_category).filter(Boolean));
+    const ordered = WASTE_CATEGORIES.filter(c => present.has(c));
+    const extras = [...present].filter(c => !WASTE_CATEGORIES.includes(c)).sort();
+    return [...ordered, ...extras];
+  }, [transfers]);
+  const facilityOptions = useMemo(
+    () => Array.from(new Set(transfers.map(t => t.destination).filter(Boolean))).sort(),
+    [transfers],
+  );
 
-  const filtered = facilityFilter
-    ? transfers.filter(t => t.destination === facilityFilter)
-    : transfers;
+  const filtered = useMemo(
+    () => transfers.filter(t =>
+      (!streamFilter || t.waste_category === streamFilter) &&
+      (!facilityFilter || t.destination === facilityFilter),
+    ),
+    [transfers, streamFilter, facilityFilter],
+  );
+
+  const byCategory = useMemo(() => {
+    const map: Record<string, number> = {};
+    filtered.forEach(t => { map[t.waste_category] = (map[t.waste_category] || 0) + Number(t.quantity_kg); });
+    return Object.entries(map).sort((a, b) => b[1] - a[1]);
+  }, [filtered]);
+
+  const byFacility = useMemo(() => {
+    const map: Record<string, number> = {};
+    filtered.forEach(t => { map[t.destination] = (map[t.destination] || 0) + Number(t.quantity_kg); });
+    return Object.entries(map).sort((a, b) => b[1] - a[1]);
+  }, [filtered]);
+
+  const totalKg = useMemo(() => filtered.reduce((s, t) => s + Number(t.quantity_kg), 0), [filtered]);
+
+  const trendYears = useMemo(
+    () => Array.from(new Set(trendTransfers.map(t => t.log_date?.substring(0, 4)).filter(Boolean) as string[])).sort().reverse(),
+    [trendTransfers],
+  );
+
+  const trend = useMemo(() => {
+    const key = stackBy === 'stream' ? 'waste_category' : 'destination';
+    const filt = trendTransfers.filter(t => {
+      if (!t.log_date) return false;
+      if (streamFilter && t.waste_category !== streamFilter) return false;
+      if (facilityFilter && t.destination !== facilityFilter) return false;
+      if (trendYear && t.log_date.substring(0, 4) !== trendYear) return false;
+      if (trendMonth && t.log_date.substring(5, 7) !== trendMonth) return false;
+      return true;
+    });
+    const byMonth: Record<string, Record<string, number>> = {};
+    const keysPresent = new Set<string>();
+    filt.forEach(t => {
+      if (!t.log_date) return;
+      const m = t.log_date.substring(0, 7);
+      const k = t[key] as string;
+      (byMonth[m] ||= {});
+      byMonth[m][k] = (byMonth[m][k] || 0) + Number(t.quantity_kg);
+      keysPresent.add(k);
+    });
+    const data = Object.keys(byMonth).sort().map(m => {
+      const segments = byMonth[m];
+      return { month: m, segments, total: Object.values(segments).reduce((s, v) => s + v, 0) };
+    });
+    const orderRef = stackBy === 'stream' ? WASTE_CATEGORIES : TRANSFER_DESTINATIONS;
+    const stackKeys = [
+      ...orderRef.filter(k => keysPresent.has(k)),
+      ...[...keysPresent].filter(k => !orderRef.includes(k)).sort(),
+    ];
+    return { data, stackKeys };
+  }, [trendTransfers, streamFilter, facilityFilter, stackBy, trendYear, trendMonth]);
+
+  const trendColors = stackBy === 'stream' ? CATEGORY_COLORS : FACILITY_COLORS;
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
   const paged = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
-  function selectFacility(fac: string) {
-    setFacilityFilter(prev => prev === fac ? null : fac);
-    setPage(1);
-  }
-
-  function clearFacility() {
-    setFacilityFilter(null);
-    setPage(1);
-  }
+  const selectCls = 'appearance-none bg-white border border-gray-200 rounded-lg pl-3 pr-7 py-1.5 text-xs font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer';
 
   return (
     <>
@@ -50,16 +120,26 @@ export default function TransfersContent({
         <div className="flex items-center gap-2 mb-2 opacity-80">
           <Truck size={14} />
           <span className="text-xs font-medium uppercase tracking-wider">
-            {monthFilter ? fmtMonth(monthFilter) : 'All Time'} — Untreated Waste Transferred Out
+            {periodLabel} — Untreated Waste Transferred Out
           </span>
         </div>
         <p className="text-3xl font-bold">{fmtKg(totalKg)} kg</p>
-        <p className="text-xs opacity-70 mt-1">{transfers.length} transfer{transfers.length !== 1 ? 's' : ''} recorded</p>
+        <p className="text-xs opacity-70 mt-1">{filtered.length} transfer{filtered.length !== 1 ? 's' : ''} recorded</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-          <h2 className="text-sm font-semibold text-gray-900 mb-4">By Waste Stream</h2>
+          <div className="flex items-center justify-between gap-3 mb-4">
+            <h2 className="text-sm font-semibold text-gray-900">By Waste Stream</h2>
+            <select
+              value={streamFilter}
+              onChange={e => { setStreamFilter(e.target.value); setPage(1); }}
+              className={selectCls}
+            >
+              <option value="">All Streams</option>
+              {streamOptions.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+          </div>
           {byCategory.length === 0 ? (
             <p className="text-sm text-gray-400 text-center py-8">No transfers recorded</p>
           ) : (
@@ -84,7 +164,17 @@ export default function TransfersContent({
         </div>
 
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-          <h2 className="text-sm font-semibold text-gray-900 mb-4">By Facility</h2>
+          <div className="flex items-center justify-between gap-3 mb-4">
+            <h2 className="text-sm font-semibold text-gray-900">By Facility</h2>
+            <select
+              value={facilityFilter}
+              onChange={e => { setFacilityFilter(e.target.value); setPage(1); }}
+              className={selectCls}
+            >
+              <option value="">All Facilities</option>
+              {facilityOptions.map(f => <option key={f} value={f}>{f}</option>)}
+            </select>
+          </div>
           {byFacility.length === 0 ? (
             <p className="text-sm text-gray-400 text-center py-8">No transfers recorded</p>
           ) : (
@@ -109,39 +199,60 @@ export default function TransfersContent({
         </div>
       </div>
 
-      {/* Facility filter pills */}
-      {facilities.length > 0 && (
+      {trend.data.length > 0 && (
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+          <div className="flex items-center justify-between gap-3 mb-4">
+            <div>
+              <h2 className="text-sm font-semibold text-gray-900">Monthly Trend</h2>
+              <p className="text-xs text-gray-500 mt-0.5">
+                kg transferred per month{trend.data.length > 1 ? ' — compare month to month' : ''}
+              </p>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap justify-end">
+              <select value={trendYear} onChange={e => setTrendYear(e.target.value)} className={selectCls}>
+                <option value="">All Years</option>
+                {trendYears.map(y => <option key={y} value={y}>{y}</option>)}
+              </select>
+              <select value={trendMonth} onChange={e => setTrendMonth(e.target.value)} className={selectCls}>
+                <option value="">All Months</option>
+                {MONTHS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+              </select>
+              <div className="inline-flex rounded-lg border border-gray-200 overflow-hidden text-xs flex-shrink-0">
+                {([['stream', 'By Stream'], ['facility', 'By Facility']] as const).map(([opt, label]) => (
+                  <button
+                    key={opt}
+                    onClick={() => setStackBy(opt)}
+                    className={`px-3 py-1.5 font-medium transition-colors ${
+                      stackBy === opt ? 'bg-emerald-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+          <MonthlyTrendChart data={trend.data} stackKeys={trend.stackKeys} colors={trendColors} />
+        </div>
+      )}
+
+      {(streamFilter || facilityFilter) && (
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs font-medium text-gray-500 uppercase tracking-wider mr-1">Filter by facility:</span>
-          {facilities.map(fac => {
-            const active = facilityFilter === fac;
-            const color = FACILITY_COLORS[fac] || '#6b7280';
-            return (
-              <button
-                key={fac}
-                onClick={() => selectFacility(fac)}
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
-                  active
-                    ? 'text-white shadow-sm border-transparent'
-                    : 'bg-white text-gray-700 border-gray-200 hover:border-gray-400 hover:shadow-sm'
-                }`}
-                style={active ? { backgroundColor: color, borderColor: color } : {}}
-              >
-                <span
-                  className="w-2 h-2 rounded-full flex-shrink-0"
-                  style={{ backgroundColor: active ? 'rgba(255,255,255,0.7)' : color }}
-                />
-                {fac}
-                {active && <X size={11} className="ml-0.5 opacity-80" />}
-              </button>
-            );
-          })}
+          <span className="text-xs font-medium text-gray-500">Active filters:</span>
+          {streamFilter && (
+            <button
+              onClick={() => { setStreamFilter(''); setPage(1); }}
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition-colors"
+            >
+              Stream: {streamFilter} ✕
+            </button>
+          )}
           {facilityFilter && (
             <button
-              onClick={clearFacility}
-              className="text-xs text-gray-400 hover:text-gray-700 underline ml-1 transition-colors"
+              onClick={() => { setFacilityFilter(''); setPage(1); }}
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition-colors"
             >
-              Clear
+              Facility: {facilityFilter} ✕
             </button>
           )}
         </div>
@@ -152,9 +263,7 @@ export default function TransfersContent({
           <div>
             <h2 className="text-sm font-semibold text-gray-900">Transfer Records</h2>
             <p className="text-xs text-gray-500 mt-0.5">
-              {facilityFilter
-                ? `Showing transfers to ${facilityFilter}`
-                : 'Untreated medical waste collected and sent to external treatment facilities'}
+              Untreated medical waste collected and sent to external treatment facilities
             </p>
           </div>
           {filtered.length > 0 && (
@@ -269,7 +378,6 @@ export default function TransfersContent({
               ))}
             </div>
 
-            {/* Pagination */}
             {totalPages > 1 && (
               <div className="flex items-center justify-between px-5 py-3 border-t border-gray-100 bg-gray-50/50">
                 <p className="text-xs text-gray-500">

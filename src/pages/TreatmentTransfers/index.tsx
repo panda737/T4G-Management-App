@@ -2,7 +2,6 @@ import { useEffect, useState, useMemo } from 'react';
 import { Plus, ChevronDown } from 'lucide-react';
 import { supabase, TreatmentWasteTransfer, TreatmentMonthlySummary } from '../../lib/supabase';
 import { usePageTitle } from '../../lib/usePageTitle';
-import { fmtMonth } from '../../lib/formatters';
 import { PageSpinner } from '../../components/Spinner';
 import { type ActiveTab, type TransferWithDate, type DailyLogRef } from './constants';
 import TransfersContent from './TransfersContent';
@@ -13,6 +12,15 @@ import DeleteConfirmModal from '../../components/DeleteConfirmModal';
 import { useUser } from '../../lib/UserContext';
 import { useToast } from '../../lib/toast';
 
+const MONTHS = [
+  { value: '01', label: 'January' }, { value: '02', label: 'February' },
+  { value: '03', label: 'March' }, { value: '04', label: 'April' },
+  { value: '05', label: 'May' }, { value: '06', label: 'June' },
+  { value: '07', label: 'July' }, { value: '08', label: 'August' },
+  { value: '09', label: 'September' }, { value: '10', label: 'October' },
+  { value: '11', label: 'November' }, { value: '12', label: 'December' },
+];
+
 export default function TreatmentTransfers() {
   usePageTitle('Treatment — Transfers');
   const { isAdmin } = useUser();
@@ -22,6 +30,7 @@ export default function TreatmentTransfers() {
   const [landfillRecords, setLandfillRecords] = useState<TreatmentMonthlySummary[]>([]);
   const [dailyLogs, setDailyLogs] = useState<DailyLogRef[]>([]);
   const [loading, setLoading] = useState(true);
+  const [yearFilter, setYearFilter] = useState('');
   const [monthFilter, setMonthFilter] = useState('');
   const [showTransferForm, setShowTransferForm] = useState(false);
   const [editTransfer, setEditTransfer] = useState<TransferWithDate | null>(null);
@@ -59,46 +68,47 @@ export default function TreatmentTransfers() {
     loadData();
   }
 
-  const availableTransferMonths = useMemo(() => {
+  const availableTransferYears = useMemo(() => {
     const set = new Set<string>();
-    transfers.forEach(t => { if (t.log_date) set.add(t.log_date.substring(0, 7)); });
+    transfers.forEach(t => { if (t.log_date) set.add(t.log_date.substring(0, 4)); });
     return Array.from(set).sort().reverse();
   }, [transfers]);
 
-  const availableLandfillMonths = useMemo(() => {
-    return landfillRecords.map(r => r.month.substring(0, 7));
+  const availableLandfillYears = useMemo(() => {
+    const set = new Set<string>();
+    landfillRecords.forEach(r => { if (r.month) set.add(r.month.substring(0, 4)); });
+    return Array.from(set).sort().reverse();
   }, [landfillRecords]);
 
   const filteredTransfers = useMemo(() => {
-    if (!monthFilter) return transfers;
-    return transfers.filter(t => t.log_date && t.log_date.startsWith(monthFilter));
-  }, [transfers, monthFilter]);
+    return transfers.filter(t => {
+      if (!t.log_date) return !yearFilter && !monthFilter;
+      if (yearFilter && t.log_date.substring(0, 4) !== yearFilter) return false;
+      if (monthFilter && t.log_date.substring(5, 7) !== monthFilter) return false;
+      return true;
+    });
+  }, [transfers, yearFilter, monthFilter]);
 
   const filteredLandfill = useMemo(() => {
-    if (!monthFilter) return landfillRecords;
-    return landfillRecords.filter(r => r.month.startsWith(monthFilter));
-  }, [landfillRecords, monthFilter]);
-
-  const byCategory = useMemo(() => {
-    const map: Record<string, number> = {};
-    filteredTransfers.forEach(t => {
-      map[t.waste_category] = (map[t.waste_category] || 0) + Number(t.quantity_kg);
+    return landfillRecords.filter(r => {
+      if (!r.month) return !yearFilter && !monthFilter;
+      if (yearFilter && r.month.substring(0, 4) !== yearFilter) return false;
+      if (monthFilter && r.month.substring(5, 7) !== monthFilter) return false;
+      return true;
     });
-    return Object.entries(map).sort((a, b) => b[1] - a[1]);
-  }, [filteredTransfers]);
+  }, [landfillRecords, yearFilter, monthFilter]);
 
-  const byFacility = useMemo(() => {
-    const map: Record<string, number> = {};
-    filteredTransfers.forEach(t => {
-      map[t.destination] = (map[t.destination] || 0) + Number(t.quantity_kg);
-    });
-    return Object.entries(map).sort((a, b) => b[1] - a[1]);
-  }, [filteredTransfers]);
-
-  const totalTransferKg = useMemo(() => filteredTransfers.reduce((s, t) => s + Number(t.quantity_kg), 0), [filteredTransfers]);
   const totalLandfillTons = useMemo(() => filteredLandfill.reduce((s, r) => s + Number(r.total_sent_for_landfill_kg) / 1000, 0), [filteredLandfill]);
 
-  const availableMonths = activeTab === 'Transfers' ? availableTransferMonths : availableLandfillMonths;
+  const availableYears = activeTab === 'Transfers' ? availableTransferYears : availableLandfillYears;
+
+  const periodLabel = useMemo(() => {
+    const mName = MONTHS.find(m => m.value === monthFilter)?.label;
+    if (yearFilter && monthFilter) return `${mName} ${yearFilter}`;
+    if (yearFilter) return yearFilter;
+    if (monthFilter) return `${mName} (all years)`;
+    return 'All Time';
+  }, [yearFilter, monthFilter]);
 
   if (loading) {
     return (
@@ -137,7 +147,7 @@ export default function TreatmentTransfers() {
           {(['Transfers', 'Landfill'] as ActiveTab[]).map(tab => (
             <button
               key={tab}
-              onClick={() => { setActiveTab(tab); setMonthFilter(''); }}
+              onClick={() => { setActiveTab(tab); setYearFilter(''); setMonthFilter(''); }}
               className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                 activeTab === tab
                   ? tab === 'Transfers'
@@ -155,28 +165,41 @@ export default function TreatmentTransfers() {
             </button>
           ))}
         </div>
-        <div className="relative">
-          <select
-            value={monthFilter}
-            onChange={e => setMonthFilter(e.target.value)}
-            className="appearance-none bg-white border border-gray-200 rounded-lg px-4 py-2 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-          >
-            <option value="">All Time</option>
-            {availableMonths.map(m => (
-              <option key={m} value={m}>{fmtMonth(m)}</option>
-            ))}
-          </select>
-          <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+        <div className="flex items-center gap-2">
+          <div className="relative">
+            <select
+              value={yearFilter}
+              onChange={e => setYearFilter(e.target.value)}
+              className="appearance-none bg-white border border-gray-200 rounded-lg px-4 py-2 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            >
+              <option value="">All Years</option>
+              {availableYears.map(y => (
+                <option key={y} value={y}>{y}</option>
+              ))}
+            </select>
+            <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+          </div>
+          <div className="relative">
+            <select
+              value={monthFilter}
+              onChange={e => setMonthFilter(e.target.value)}
+              className="appearance-none bg-white border border-gray-200 rounded-lg px-4 py-2 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            >
+              <option value="">All Months</option>
+              {MONTHS.map(m => (
+                <option key={m.value} value={m.value}>{m.label}</option>
+              ))}
+            </select>
+            <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+          </div>
         </div>
       </div>
 
       {activeTab === 'Transfers' ? (
         <TransfersContent
           transfers={filteredTransfers}
-          byCategory={byCategory}
-          byFacility={byFacility}
-          totalKg={totalTransferKg}
-          monthFilter={monthFilter}
+          trendTransfers={transfers}
+          periodLabel={periodLabel}
           isAdmin={isAdmin}
           onEdit={t => { setEditTransfer(t); setShowTransferForm(true); }}
           onDelete={t => setDeletingTransfer(t)}
@@ -185,7 +208,7 @@ export default function TreatmentTransfers() {
         <LandfillContent
           records={filteredLandfill}
           totalTons={totalLandfillTons}
-          monthFilter={monthFilter}
+          periodLabel={periodLabel}
           onEdit={r => { setEditLandfill(r); setShowLandfillForm(true); }}
         />
       )}

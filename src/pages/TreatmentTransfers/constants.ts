@@ -1,7 +1,7 @@
 import type { TreatmentWasteTransfer } from '../../lib/supabase';
 
 export const WASTE_CATEGORIES = ['Infectious', 'Sharps', 'Anatomical', 'Pharmaceutical', 'Cytotoxic', 'Clinical Glass', 'PVC', 'Other'];
-export const TRANSFER_DESTINATIONS = ['A-Thermal', 'Averda', 'Biomed', 'ClinX', 'Holfontein'];
+export const TRANSFER_DESTINATIONS = ['A-Thermal', 'Averda City Deep', 'Averda Klerksdorp', 'Biomed', 'ClinX', 'Holfontein'];
 
 export const CATEGORY_COLORS: Record<string, string> = {
   Infectious: '#10b981',
@@ -16,7 +16,8 @@ export const CATEGORY_COLORS: Record<string, string> = {
 
 export const FACILITY_COLORS: Record<string, string> = {
   'A-Thermal': '#10b981',
-  'Averda': '#059669',
+  'Averda City Deep': '#059669',
+  'Averda Klerksdorp': '#14b8a6',
   'Biomed': '#047857',
   'ClinX': '#065f46',
   'Holfontein': '#064e3b',

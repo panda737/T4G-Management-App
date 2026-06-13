@@ -4,17 +4,17 @@ import { fmtMonth } from '../../lib/formatters';
 interface LandfillContentProps {
   records: TreatmentMonthlySummary[];
   totalTons: number;
-  monthFilter: string;
+  periodLabel: string;
   onEdit: (r: TreatmentMonthlySummary) => void;
 }
 
-export default function LandfillContent({ records, totalTons, monthFilter, onEdit }: LandfillContentProps) {
+export default function LandfillContent({ records, totalTons, periodLabel, onEdit }: LandfillContentProps) {
   return (
     <>
       <div className="bg-gradient-to-r from-slate-600 to-slate-700 rounded-xl p-5 text-white shadow-lg">
         <div className="flex items-center gap-2 mb-2 opacity-80">
           <span className="text-xs font-medium uppercase tracking-wider">
-            {monthFilter ? fmtMonth(monthFilter) : 'All Time'} — Treated Waste Dispatched to Landfill
+            {periodLabel} — Treated Waste Dispatched to Landfill
           </span>
         </div>
         <p className="text-3xl font-bold">{totalTons.toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} tons</p>

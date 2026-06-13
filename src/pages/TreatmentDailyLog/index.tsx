@@ -1,9 +1,15 @@
-import { useEffect, useState, useMemo } from 'react';
-import { Plus, Search, ChevronDown, AlertTriangle } from 'lucide-react';
+import { useEffect, useRef, useState, useMemo } from 'react';
+import { Plus, Search, ChevronDown, ChevronRight, AlertTriangle } from 'lucide-react';
 import { supabase, TreatmentDailyLog as TDL, Employee } from '../../lib/supabase';
 import { useToast } from '../../lib/toast';
 import { usePageTitle } from '../../lib/usePageTitle';
 import DailyLogFormModal from './DailyLogFormModal';
+
+const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+function monthLabel(m: string) {
+  const [y, mo] = m.split('-').map(Number);
+  return `${MONTH_NAMES[mo - 1]} ${y}`;
+}
 
 export default function TreatmentDailyLog() {
   usePageTitle('Treatment — Daily Log');
@@ -15,6 +21,8 @@ export default function TreatmentDailyLog() {
   const [monthFilter, setMonthFilter] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editLog, setEditLog] = useState<TDL | null>(null);
+  const [collapsedMonths, setCollapsedMonths] = useState<Set<string>>(new Set());
+  const collapseInit = useRef(false);
 
   useEffect(() => { loadLogs(); loadEmployees(); }, []);
 
@@ -61,6 +69,34 @@ export default function TreatmentDailyLog() {
     });
   }, [logs, monthFilter, search]);
 
+  const groupedByMonth = useMemo(() => {
+    const map: Record<string, TDL[]> = {};
+    filtered.forEach(l => { const m = l.date.substring(0, 7); (map[m] ||= []).push(l); });
+    return map;
+  }, [filtered]);
+
+  const sortedMonths = useMemo(() => Object.keys(groupedByMonth).sort().reverse(), [groupedByMonth]);
+
+  // On first load, collapse all months except the current one (or the most recent if no current-month logs).
+  useEffect(() => {
+    if (collapseInit.current || logs.length === 0) return;
+    const all = Array.from(new Set(logs.map(l => l.date.substring(0, 7))));
+    const current = new Date().toISOString().substring(0, 7);
+    const keepOpen = all.includes(current) ? current : all.sort().reverse()[0];
+    setCollapsedMonths(new Set(all.filter(m => m !== keepOpen)));
+    collapseInit.current = true;
+  }, [logs]);
+
+  function toggleMonth(m: string) {
+    setCollapsedMonths(prev => {
+      const next = new Set(prev);
+      if (next.has(m)) next.delete(m); else next.add(m);
+      return next;
+    });
+  }
+
+  const isFiltering = search.trim() !== '' || monthFilter !== '';
+
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between flex-wrap gap-3">
@@ -105,131 +141,154 @@ export default function TreatmentDailyLog() {
         </div>
       </div>
 
-      {/* Table and Card View */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-        {loading ? (
-          <div className="flex justify-center py-12">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-cyan-600" />
-          </div>
-        ) : filtered.length === 0 ? (
-          <div className="text-center py-12 text-sm text-gray-400">No records found</div>
-        ) : (
-          <>
-            {/* Desktop Table View */}
-            <div className="hidden md:block overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="bg-gray-800 text-white">
-                    <th className="text-left px-4 py-2.5 text-xs font-medium uppercase tracking-wider">Date</th>
-                    <th className="text-center px-3 py-2.5 text-xs font-medium uppercase tracking-wider">Day</th>
-                    <th className="text-center px-3 py-2.5 text-xs font-medium uppercase tracking-wider">Afternoon</th>
-                    <th className="text-center px-3 py-2.5 text-xs font-medium uppercase tracking-wider">Night</th>
-                    <th className="text-center px-3 py-2.5 text-xs font-medium uppercase tracking-wider bg-gray-700">Cycles</th>
-                    <th className="text-center px-3 py-2.5 text-xs font-medium uppercase tracking-wider bg-gray-700">Total Kg</th>
-                    <th className="text-center px-3 py-2.5 text-xs font-medium uppercase tracking-wider">Chemical</th>
-                    <th className="text-left px-3 py-2.5 text-xs font-medium uppercase tracking-wider">Downtime</th>
-                    <th className="text-center px-3 py-2.5 text-xs font-medium uppercase tracking-wider w-16"></th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {filtered.map((l, idx) => {
-                    const isZero = Number(l.total_cycles) === 0;
-                    const hasDowntime = l.downtime_reason && l.downtime_reason.trim() !== '';
-                    return (
-                      <tr
-                        key={l.id}
-                        className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'} ${isZero ? 'opacity-50' : ''} hover:bg-cyan-50/30 transition-colors cursor-pointer`}
-                        onClick={() => { setEditLog(l); setShowForm(true); }}
-                      >
-                        <td className="px-4 py-2.5 whitespace-nowrap font-medium text-gray-800">
-                          {new Date(l.date).toLocaleDateString('en-ZA', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
-                        </td>
-                        <td className="px-3 py-2.5 text-center">
-                          <CycleKg cycles={l.day_shift_cycles} kg={l.day_shift_treated_kg} supervisorName={empName(l.day_shift_supervisor_id)} />
-                        </td>
-                        <td className="px-3 py-2.5 text-center">
-                          <CycleKg cycles={l.afternoon_shift_cycles} kg={l.afternoon_shift_treated_kg} supervisorName={empName(l.afternoon_shift_supervisor_id)} />
-                        </td>
-                        <td className="px-3 py-2.5 text-center">
-                          <CycleKg cycles={l.night_shift_cycles} kg={l.night_shift_treated_kg} supervisorName={empName(l.night_shift_supervisor_id)} />
-                        </td>
-                        <td className="px-3 py-2.5 text-center font-bold text-gray-900 bg-gray-50/60">{l.total_cycles}</td>
-                        <td className="px-3 py-2.5 text-center font-bold text-gray-900 bg-gray-50/60">
-                          {Number(l.total_treated_kg).toLocaleString('en-ZA', { maximumFractionDigits: 0 })}
-                        </td>
-                        <td className="px-3 py-2.5 text-center text-gray-600">
-                          {Number(l.chemical_litres) > 0 ? `${Number(l.chemical_litres).toLocaleString()} L` : '--'}
-                        </td>
-                        <td className="px-3 py-2.5 max-w-[180px]">
-                          {hasDowntime ? (
-                            <span className="flex items-center gap-1 text-xs text-amber-700">
-                              <AlertTriangle size={12} className="flex-shrink-0" />
-                              <span className="truncate">{l.downtime_reason}</span>
-                            </span>
-                          ) : (
-                            <span className="text-gray-300">--</span>
-                          )}
-                        </td>
-                        <td className="px-3 py-2.5 text-center">
-                          <button
-                            onClick={e => { e.stopPropagation(); setEditLog(l); setShowForm(true); }}
-                            className="text-xs text-gray-400 hover:text-cyan-600 font-medium"
-                          >
-                            Edit
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Mobile Card View */}
-            <div className="md:hidden divide-y divide-gray-100">
-              {filtered.map((l) => {
-                const isZero = Number(l.total_cycles) === 0;
-                const hasDowntime = l.downtime_reason && l.downtime_reason.trim() !== '';
-                return (
-                  <div
-                    key={l.id}
-                    className={`px-3 py-2 cursor-pointer transition-colors ${isZero ? 'opacity-50' : 'hover:bg-cyan-50/30'}`}
-                    onClick={() => { setEditLog(l); setShowForm(true); }}
-                  >
-                    {/* Date + totals + edit */}
-                    <div className="flex items-center gap-1.5 mb-1.5">
-                      <span className="text-sm font-bold text-gray-800 flex-1 min-w-0 truncate">
-                        {new Date(l.date).toLocaleDateString('en-ZA', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
-                      </span>
-                      <span className="text-[10px] text-gray-500 flex-shrink-0">
-                        {l.total_cycles} cyc · {Number(l.total_treated_kg).toLocaleString('en-ZA', { maximumFractionDigits: 0 })} kg
-                      </span>
-                      <button
-                        onClick={e => { e.stopPropagation(); setEditLog(l); setShowForm(true); }}
-                        className="text-xs text-cyan-600 hover:text-cyan-700 font-medium flex-shrink-0 pl-1.5"
-                      >
-                        Edit
-                      </button>
-                    </div>
-                    {/* 3 shifts side by side */}
-                    <div className="grid grid-cols-3 gap-1">
-                      <ShiftMini label="Day" cycles={l.day_shift_cycles} kg={l.day_shift_treated_kg} supervisorName={empName(l.day_shift_supervisor_id)} />
-                      <ShiftMini label="Aft" cycles={l.afternoon_shift_cycles} kg={l.afternoon_shift_treated_kg} supervisorName={empName(l.afternoon_shift_supervisor_id)} />
-                      <ShiftMini label="Night" cycles={l.night_shift_cycles} kg={l.night_shift_treated_kg} supervisorName={empName(l.night_shift_supervisor_id)} />
-                    </div>
-                    {hasDowntime && (
-                      <div className="flex items-center gap-1 text-[10px] text-amber-700 mt-1.5">
-                        <AlertTriangle size={10} className="flex-shrink-0" />
-                        <span className="truncate">{l.downtime_reason}</span>
-                      </div>
-                    )}
+      {/* Monthly groups */}
+      {loading ? (
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm flex justify-center py-12">
+          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-cyan-600" />
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm text-center py-12 text-sm text-gray-400">No records found</div>
+      ) : (
+        <div className="space-y-3">
+          {sortedMonths.map(month => {
+            const monthLogs = groupedByMonth[month];
+            const collapsed = isFiltering ? false : collapsedMonths.has(month);
+            const monthKg = monthLogs.reduce((s, l) => s + Number(l.total_treated_kg), 0);
+            return (
+              <div key={month} className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                <div
+                  className="flex items-center justify-between px-4 py-2.5 bg-gradient-to-r from-gray-800 to-gray-700 cursor-pointer hover:from-gray-700 hover:to-gray-600 transition-colors select-none"
+                  onClick={() => toggleMonth(month)}
+                >
+                  <div className="flex items-center gap-2.5">
+                    {collapsed
+                      ? <ChevronRight size={14} className="text-gray-300" />
+                      : <ChevronDown size={14} className="text-gray-300" />}
+                    <span className="text-xs font-bold text-white uppercase tracking-wider">{monthLabel(month)}</span>
+                    <span className="text-[10px] text-gray-300 bg-white/10 border border-white/20 px-1.5 py-0.5 rounded-full font-medium">{monthLogs.length} day{monthLogs.length !== 1 ? 's' : ''}</span>
                   </div>
-                );
-              })}
-            </div>
-          </>
-        )}
-      </div>
+                  <span className="text-xs text-gray-300">Treated: <strong className="text-white">{monthKg.toLocaleString('en-ZA', { maximumFractionDigits: 0 })} kg</strong></span>
+                </div>
+
+                {!collapsed && (
+                  <>
+                    {/* Desktop Table View */}
+                    <div className="hidden md:block overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="bg-gray-100 border-b border-gray-200 text-gray-600">
+                            <th className="text-left px-4 py-2 text-[11px] font-semibold uppercase tracking-wider">Date</th>
+                            <th className="text-center px-3 py-2 text-[11px] font-semibold uppercase tracking-wider">Day</th>
+                            <th className="text-center px-3 py-2 text-[11px] font-semibold uppercase tracking-wider">Afternoon</th>
+                            <th className="text-center px-3 py-2 text-[11px] font-semibold uppercase tracking-wider">Night</th>
+                            <th className="text-center px-3 py-2 text-[11px] font-semibold uppercase tracking-wider bg-gray-200/60">Cycles</th>
+                            <th className="text-center px-3 py-2 text-[11px] font-semibold uppercase tracking-wider bg-gray-200/60">Total Kg</th>
+                            <th className="text-center px-3 py-2 text-[11px] font-semibold uppercase tracking-wider">Chemical</th>
+                            <th className="text-left px-3 py-2 text-[11px] font-semibold uppercase tracking-wider">Downtime</th>
+                            <th className="text-center px-3 py-2 text-[11px] font-semibold uppercase tracking-wider w-16"></th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                          {monthLogs.map((l, idx) => {
+                            const isZero = Number(l.total_cycles) === 0;
+                            const hasDowntime = l.downtime_reason && l.downtime_reason.trim() !== '';
+                            return (
+                              <tr
+                                key={l.id}
+                                className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'} ${isZero ? 'opacity-50' : ''} hover:bg-cyan-50/30 transition-colors cursor-pointer`}
+                                onClick={() => { setEditLog(l); setShowForm(true); }}
+                              >
+                                <td className="px-4 py-2.5 whitespace-nowrap font-medium text-gray-800">
+                                  {new Date(l.date).toLocaleDateString('en-ZA', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
+                                </td>
+                                <td className="px-3 py-2.5 text-center">
+                                  <CycleKg cycles={l.day_shift_cycles} kg={l.day_shift_treated_kg} supervisorName={empName(l.day_shift_supervisor_id)} />
+                                </td>
+                                <td className="px-3 py-2.5 text-center">
+                                  <CycleKg cycles={l.afternoon_shift_cycles} kg={l.afternoon_shift_treated_kg} supervisorName={empName(l.afternoon_shift_supervisor_id)} />
+                                </td>
+                                <td className="px-3 py-2.5 text-center">
+                                  <CycleKg cycles={l.night_shift_cycles} kg={l.night_shift_treated_kg} supervisorName={empName(l.night_shift_supervisor_id)} />
+                                </td>
+                                <td className="px-3 py-2.5 text-center font-bold text-gray-900 bg-gray-50/60">{l.total_cycles}</td>
+                                <td className="px-3 py-2.5 text-center font-bold text-gray-900 bg-gray-50/60">
+                                  {Number(l.total_treated_kg).toLocaleString('en-ZA', { maximumFractionDigits: 0 })}
+                                </td>
+                                <td className="px-3 py-2.5 text-center text-gray-600">
+                                  {Number(l.chemical_litres) > 0 ? `${Number(l.chemical_litres).toLocaleString()} L` : '--'}
+                                </td>
+                                <td className="px-3 py-2.5 max-w-[180px]">
+                                  {hasDowntime ? (
+                                    <span className="flex items-center gap-1 text-xs text-amber-700">
+                                      <AlertTriangle size={12} className="flex-shrink-0" />
+                                      <span className="truncate">{l.downtime_reason}</span>
+                                    </span>
+                                  ) : (
+                                    <span className="text-gray-300">--</span>
+                                  )}
+                                </td>
+                                <td className="px-3 py-2.5 text-center">
+                                  <button
+                                    onClick={e => { e.stopPropagation(); setEditLog(l); setShowForm(true); }}
+                                    className="text-xs text-gray-400 hover:text-cyan-600 font-medium"
+                                  >
+                                    Edit
+                                  </button>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* Mobile Card View */}
+                    <div className="md:hidden divide-y divide-gray-100">
+                      {monthLogs.map((l) => {
+                        const isZero = Number(l.total_cycles) === 0;
+                        const hasDowntime = l.downtime_reason && l.downtime_reason.trim() !== '';
+                        return (
+                          <div
+                            key={l.id}
+                            className={`px-3 py-2 cursor-pointer transition-colors ${isZero ? 'opacity-50' : 'hover:bg-cyan-50/30'}`}
+                            onClick={() => { setEditLog(l); setShowForm(true); }}
+                          >
+                            <div className="flex items-center gap-1.5 mb-1.5">
+                              <span className="text-sm font-bold text-gray-800 flex-1 min-w-0 truncate">
+                                {new Date(l.date).toLocaleDateString('en-ZA', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
+                              </span>
+                              <span className="text-[10px] text-gray-500 flex-shrink-0">
+                                {l.total_cycles} cyc · {Number(l.total_treated_kg).toLocaleString('en-ZA', { maximumFractionDigits: 0 })} kg
+                              </span>
+                              <button
+                                onClick={e => { e.stopPropagation(); setEditLog(l); setShowForm(true); }}
+                                className="text-xs text-cyan-600 hover:text-cyan-700 font-medium flex-shrink-0 pl-1.5"
+                              >
+                                Edit
+                              </button>
+                            </div>
+                            <div className="grid grid-cols-3 gap-1">
+                              <ShiftMini label="Day" cycles={l.day_shift_cycles} kg={l.day_shift_treated_kg} supervisorName={empName(l.day_shift_supervisor_id)} />
+                              <ShiftMini label="Aft" cycles={l.afternoon_shift_cycles} kg={l.afternoon_shift_treated_kg} supervisorName={empName(l.afternoon_shift_supervisor_id)} />
+                              <ShiftMini label="Night" cycles={l.night_shift_cycles} kg={l.night_shift_treated_kg} supervisorName={empName(l.night_shift_supervisor_id)} />
+                            </div>
+                            {hasDowntime && (
+                              <div className="flex items-center gap-1 text-[10px] text-amber-700 mt-1.5">
+                                <AlertTriangle size={10} className="flex-shrink-0" />
+                                <span className="truncate">{l.downtime_reason}</span>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {showForm && (
         <DailyLogFormModal
