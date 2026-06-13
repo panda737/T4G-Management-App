@@ -1,9 +1,10 @@
 import { useEffect, useState, useMemo } from 'react';
-import { Plus, Search, Building2, Pencil } from 'lucide-react';
+import { Plus, Building2, Pencil } from 'lucide-react';
 import { supabase, Client } from '../../lib/supabase';
 import { usePageTitle } from '../../lib/usePageTitle';
 import { useToast } from '../../lib/toast';
 import { PageSpinner } from '../../components/Spinner';
+import { PageHeader, Button, Toolbar, SearchInput } from '../../components/ui';
 import ClientFormModal from './ClientFormModal';
 
 export default function StockClients() {
@@ -46,35 +47,23 @@ export default function StockClients() {
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Clients</h1>
-          <p className="text-sm text-gray-500 mt-1">{filtered.length} client{filtered.length !== 1 ? 's' : ''} — customer database for orders &amp; deliveries</p>
-        </div>
-        <button
-          onClick={openAdd}
-          className="flex items-center justify-center sm:justify-start gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm"
-        >
-          <Plus size={16} /> Add Client
-        </button>
-      </div>
+      <PageHeader
+        title="Clients"
+        subtitle={`${filtered.length} client${filtered.length !== 1 ? 's' : ''} — customer database for orders & deliveries`}
+        accent="emerald"
+        actions={<Button variant="primary" accent="emerald" icon={Plus} onClick={openAdd}>Add Client</Button>}
+      />
 
-      <div className="bg-white rounded-xl border border-gray-200 p-3.5 shadow-sm flex flex-col sm:flex-row gap-3 sm:items-center">
-        <div className="relative flex-1">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Search client name, code, contact..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm w-full focus:outline-none focus:ring-2 focus:ring-emerald-500"
-          />
-        </div>
-        <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer flex-shrink-0">
-          <input type="checkbox" checked={showInactive} onChange={e => setShowInactive(e.target.checked)} className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500" />
-          Show inactive
-        </label>
-      </div>
+      <Toolbar
+        actions={
+          <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
+            <input type="checkbox" checked={showInactive} onChange={e => setShowInactive(e.target.checked)} className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500" />
+            Show inactive
+          </label>
+        }
+      >
+        <SearchInput value={search} onChange={setSearch} placeholder="Search client name, code, contact…" />
+      </Toolbar>
 
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
         {loading ? (

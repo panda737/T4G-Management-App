@@ -11,4 +11,7 @@ export type { DetailField } from './DetailFields';
 export { default as ActivityTimeline } from './ActivityTimeline';
 export type { TimelineActivity, LogPayload } from './ActivityTimeline';
 export { default as GlobalSearch } from './GlobalSearch';
+export { default as BarChart } from './BarChart';
+export type { Bar } from './BarChart';
 export * from './crmUtils';
+export * from './reportEngine';

@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Siren, Plus, Search, Flame, Droplets, Heart, Lock, AlertCircle, Eye, Edit2, Trash2, CheckCircle, XCircle } from 'lucide-react';
+import { Siren, Plus, Flame, Droplets, Heart, Lock, AlertCircle, Eye, Edit2, Trash2, CheckCircle, XCircle } from 'lucide-react';
 import { supabase, SafetyEmergencyDrill } from '../../lib/supabase';
 import { usePageTitle } from '../../lib/usePageTitle';
 import { useToast } from '../../lib/toast';
+import { PageHeader, Button, Toolbar, SearchInput, FilterSelect, FilterTabs, StatStrip } from '../../components/ui';
 import DeleteConfirmModal from '../../components/DeleteConfirmModal';
 import { drillStatusColors, badgeColor } from '../../lib/badgeColors';
 import { generateSequentialNumber } from '../../lib/numberGenerator';
@@ -162,100 +163,59 @@ export default function SafetyEmergencyDrills() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="space-y-4">
       {loadError && (
-        <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3 mx-4 mt-4 flex items-center justify-between">
+        <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3 flex items-center justify-between">
           <span className="flex items-center gap-2"><AlertCircle size={15} />{loadError}</span>
           <button onClick={load} className="text-red-600 hover:text-red-800 font-medium text-xs underline">Retry</button>
         </div>
       )}
       {opError && (
-        <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-2.5 mx-4 mt-4 rounded-lg">
-          {opError}
-        </div>
+        <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-2.5 rounded-lg">{opError}</div>
       )}
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-4 sm:px-8 py-4 sm:py-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-0">
-          <div className="flex items-center gap-3">
-            <Siren className="w-8 h-8 text-gray-700 flex-shrink-0" />
-            <h1 className="text-3xl font-bold text-gray-900">Emergency Drills</h1>
-          </div>
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition w-full sm:w-auto"
-          >
-            <Plus className="w-5 h-5" />
-            <span className="hidden sm:inline">Schedule Drill</span>
-            <span className="sm:hidden">Schedule</span>
-          </button>
-        </div>
-      </div>
 
-      <div className="p-4 sm:p-8">
-        {/* Status Tabs */}
-        <div className="flex items-center gap-1.5 flex-wrap mb-4">
-          {(['All', 'Scheduled', 'Completed', 'Cancelled'] as const).map(tab => {
-            const count = tab === 'All' ? drills.length : drills.filter(d => d.status === tab).length;
-            return (
-              <button
-                key={tab}
-                onClick={() => setStatusTab(tab)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                  statusTab === tab
-                    ? 'bg-blue-600 text-white shadow-sm'
-                    : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
-                }`}
-              >
-                {tab}
-                <span className={`text-xs px-1.5 py-0.5 rounded-full font-semibold ${
-                  statusTab === tab ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-500'
-                }`}>{count}</span>
-              </button>
-            );
-          })}
-        </div>
+      <PageHeader
+        title="Emergency Drills"
+        subtitle={`${drills.length} drill${drills.length !== 1 ? 's' : ''}`}
+        icon={Siren}
+        accent="amber"
+        actions={
+          <Button variant="primary" accent="amber" icon={Plus} onClick={() => setShowAddModal(true)}>Schedule Drill</Button>
+        }
+      />
 
-        {/* Filters */}
-        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mb-4 sm:mb-6">
-          <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-            <input
-              type="text"
-              placeholder="Search by drill #, location, or coordinator..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-          <select
-            value={typeFilter}
-            onChange={e => setTypeFilter(e.target.value)}
-            className="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 w-full sm:w-auto"
-          >
-            <option value="">All Types</option>
-            <option value="Fire Evacuation">Fire Evacuation</option>
-            <option value="Chemical Spill">Chemical Spill</option>
-            <option value="Medical Emergency">Medical Emergency</option>
-            <option value="Lockdown">Lockdown</option>
-            <option value="Other">Other</option>
-          </select>
-        </div>
+      <FilterTabs
+        accent="amber"
+        value={statusTab}
+        onChange={setStatusTab}
+        tabs={['All', 'Scheduled', 'Completed', 'Cancelled'].map(tab => ({
+          value: tab,
+          label: tab,
+          count: tab === 'All' ? drills.length : drills.filter(d => d.status === tab).length,
+        }))}
+      />
 
-        {/* Stats */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4 mb-6 sm:mb-8">
-          {[
-            { label: 'Total Drills', value: stats.total },
-            { label: 'Completed', value: stats.completed },
-            { label: 'Pass Rate', value: `${stats.passRate}%` },
-            { label: 'Upcoming', value: stats.upcoming },
-          ].map((stat, i) => (
-            <div key={i} className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-              <p className="text-gray-600 text-sm font-medium">{stat.label}</p>
-              <p className="text-2xl font-bold text-gray-900 mt-2">{stat.value}</p>
-            </div>
-          ))}
-        </div>
+      <Toolbar>
+        <SearchInput value={search} onChange={setSearch} placeholder="Search by drill #, location, coordinator…" />
+        <FilterSelect value={typeFilter} onChange={setTypeFilter} allValue="" accent="amber">
+          <option value="">All Types</option>
+          <option value="Fire Evacuation">Fire Evacuation</option>
+          <option value="Chemical Spill">Chemical Spill</option>
+          <option value="Medical Emergency">Medical Emergency</option>
+          <option value="Lockdown">Lockdown</option>
+          <option value="Other">Other</option>
+        </FilterSelect>
+      </Toolbar>
+
+      <StatStrip
+        accent="amber"
+        stats={[
+          { label: 'Total Drills', value: stats.total },
+          { label: 'Completed', value: stats.completed },
+          { label: 'Pass Rate', value: `${stats.passRate}%`, valueClass: 'text-emerald-600' },
+          { label: 'Upcoming', value: stats.upcoming },
+        ]}
+      />
 
         {loading && (
           <div className="flex justify-center py-12">
@@ -360,7 +320,6 @@ export default function SafetyEmergencyDrills() {
             </div>
           </div>
         )}
-      </div>
 
       {showAddModal && (
         <DrillFormModal

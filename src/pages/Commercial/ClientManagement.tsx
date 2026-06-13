@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Trash2, Link2, Users } from 'lucide-react';
+import { Trash2 } from 'lucide-react';
 import { supabase, type Client } from '../../lib/supabase';
 import { usePageTitle } from '../../lib/usePageTitle';
 import { useUser } from '../../lib/UserContext';
@@ -10,8 +10,6 @@ import { CLIENT_TABS } from './commercialTabs';
 import { ListView, type Column, type FilterDef } from '../../components/crm';
 import { fmtNum } from '../../components/crm/crmUtils';
 import AccountFormModal from './AccountFormModal';
-
-interface PortalUser { id: string; display_name: string; client_id: string | null }
 
 const STATUS_OPTIONS = [
   { value: 'active', label: 'Active' },
@@ -42,10 +40,9 @@ export default function ClientManagement() {
   const [clients, setClients] = useState<Client[]>([]);
   const [siteCounts, setSiteCounts] = useState<Record<string, number>>({});
   const [recCounts, setRecCounts] = useState<Record<string, { n: number; kg: number }>>({});
-  const [portalUsers, setPortalUsers] = useState<PortalUser[]>([]);
+  const [portalLinked, setPortalLinked] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState<'new' | Client | null>(null);
-  const [savingUser, setSavingUser] = useState<string | null>(null);
 
   useEffect(() => { load(); }, []);
 
@@ -55,7 +52,7 @@ export default function ClientManagement() {
       supabase.from('clients').select('*').order('client_name'),
       supabase.from('client_sites').select('client_id'),
       supabase.from('received_waste_records').select('client_id, nett_weight_kg'),
-      supabase.from('user_profiles').select('id, display_name, client_id').eq('role', 'customer'),
+      supabase.from('user_profiles').select('client_id').eq('role', 'customer').not('client_id', 'is', null),
     ]);
     setClients((cRes.data ?? []) as Client[]);
 
@@ -71,7 +68,9 @@ export default function ClientManagement() {
     });
     setRecCounts(rc);
 
-    setPortalUsers((uRes.data ?? []) as PortalUser[]);
+    setPortalLinked(new Set(
+      ((uRes.data ?? []) as { client_id: string }[]).map(u => u.client_id),
+    ));
     setLoading(false);
   }
 
@@ -145,13 +144,13 @@ export default function ClientManagement() {
     {
       key: 'portal',
       header: 'Portal',
-      cell: c => portalUsers.some(u => u.client_id === c.id)
+      cell: c => portalLinked.has(c.id)
         ? <span className="text-xs text-emerald-600 font-medium">Linked</span>
         : <span className="text-xs text-gray-300">—</span>,
-      sortValue: c => portalUsers.some(u => u.client_id === c.id) ? 'a' : 'z',
+      sortValue: c => (portalLinked.has(c.id) ? 'a' : 'z'),
       defaultHidden: true,
     },
-  ], [siteCounts, recCounts, portalUsers]);
+  ], [siteCounts, recCounts, portalLinked]);
 
   // ── filters ───────────────────────────────────────────────────────────────
   const industryOptions = useMemo(
@@ -168,7 +167,9 @@ export default function ClientManagement() {
   function handleSaved(saved: Client) {
     setClients(prev => {
       const idx = prev.findIndex(c => c.id === saved.id);
-      return idx >= 0 ? prev.map((c, i) => i === idx ? saved : c) : [saved, ...prev].sort((a, b) => a.client_name.localeCompare(b.client_name));
+      return idx >= 0
+        ? prev.map((c, i) => i === idx ? saved : c)
+        : [saved, ...prev].sort((a, b) => a.client_name.localeCompare(b.client_name));
     });
     setModal(null);
     addToast(modal === 'new' ? 'Account created' : 'Account updated');
@@ -181,15 +182,6 @@ export default function ClientManagement() {
     if (error) { addToast('Delete failed: ' + error.message, 'error'); return; }
     setClients(prev => prev.filter(c => !ids.includes(c.id)));
     addToast(`Deleted ${rows.length} account${rows.length > 1 ? 's' : ''}`);
-  }
-
-  async function linkUser(userId: string, clientId: string) {
-    setSavingUser(userId);
-    const { error } = await supabase.from('user_profiles').update({ client_id: clientId || null }).eq('id', userId);
-    setSavingUser(null);
-    if (error) { addToast('Could not update: ' + error.message, 'error'); return; }
-    setPortalUsers(prev => prev.map(u => u.id === userId ? { ...u, client_id: clientId || null } : u));
-    addToast('Portal access updated');
   }
 
   return (
@@ -217,38 +209,6 @@ export default function ClientManagement() {
         ] : []}
         emptyMessage="No accounts found."
       />
-
-      {/* Portal user linking — Phase 5 will promote this to a first-class tab */}
-      {isAdmin && (
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-          <div className="flex items-center gap-2 mb-3">
-            <Users size={16} className="text-indigo-500" />
-            <h2 className="text-sm font-semibold text-gray-900">Portal Users</h2>
-            <span className="text-xs text-gray-400 ml-1">· link a login account to a client</span>
-          </div>
-          {portalUsers.length === 0 ? (
-            <p className="text-sm text-gray-400">No customer users yet. Create one in <span className="font-medium">Admin → Users</span> with role "Customer", then link them here.</p>
-          ) : (
-            <div className="space-y-2">
-              {portalUsers.map(u => (
-                <div key={u.id} className="flex items-center gap-3 py-1.5 border-b border-gray-50 last:border-0">
-                  <Link2 size={14} className="text-gray-400 flex-shrink-0" />
-                  <span className="text-sm text-gray-700 flex-1 min-w-0 truncate">{u.display_name}</span>
-                  <select
-                    value={u.client_id ?? ''}
-                    disabled={savingUser === u.id}
-                    onChange={e => linkUser(u.id, e.target.value)}
-                    className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 max-w-[260px]"
-                  >
-                    <option value="">— No client (no access) —</option>
-                    {clients.map(c => <option key={c.id} value={c.id}>{c.client_name}</option>)}
-                  </select>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
 
       {modal !== null && (
         <AccountFormModal

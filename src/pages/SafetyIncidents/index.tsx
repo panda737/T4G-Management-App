@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
-import { AlertTriangle, Plus, Eye, Trash2, Search, Calendar, AlertCircle, Download, Pencil } from 'lucide-react';
+import { AlertTriangle, Plus, Eye, Trash2, Calendar, AlertCircle, Download, Pencil } from 'lucide-react';
 import { supabase, SafetyIncident } from '../../lib/supabase';
 import { usePageTitle } from '../../lib/usePageTitle';
 import { useToast } from '../../lib/toast';
 import { useUser } from '../../lib/UserContext';
 import { downloadCSV } from '../../lib/csvExport';
+import { PageHeader, Button, Toolbar, SearchInput, FilterSelect, FilterTabs } from '../../components/ui';
 import DeleteConfirmModal from '../../components/DeleteConfirmModal';
 import { severityColors, incidentStatusColors, badgeColor } from '../../lib/badgeColors';
 import { generateSequentialNumber } from '../../lib/numberGenerator';
@@ -240,40 +241,28 @@ export default function SafetyIncidents() {
     }
   };
 
-  const stats = [
-    { label: 'Total', count: filteredIncidents.length },
-    { label: 'Open', count: filteredIncidents.filter(i => i.status === 'Open').length },
-    { label: 'Under Investigation', count: filteredIncidents.filter(i => i.status === 'Under Investigation').length },
-    { label: 'Closed', count: filteredIncidents.filter(i => i.status === 'Closed').length },
-  ];
-
   return (
-    <div className="min-h-screen bg-gray-50 p-4 sm:p-8">
-      <div className="max-w-7xl mx-auto">
-        {loadError && (
-          <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3 mb-6 flex items-center justify-between">
-            <span className="flex items-center gap-2"><AlertCircle size={15} />{loadError}</span>
-            <button onClick={loadIncidents} className="text-red-600 hover:text-red-800 font-medium text-xs underline">Retry</button>
-          </div>
-        )}
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 sm:gap-0 mb-6 sm:mb-8">
-          <div className="flex items-center gap-3">
-            <AlertTriangle className="w-8 h-8 text-amber-600 flex-shrink-0" />
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">Incident Register</h1>
-              <p className="text-gray-600 mt-1">Log and manage workplace safety incidents</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 w-full sm:w-auto">
-            <button
-              onClick={() => setShowQuickModal(true)}
-              className="sm:hidden flex items-center gap-1.5 text-sm border border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100 px-3 py-2 rounded-lg font-medium transition-colors"
-              title="Quick incident report"
-            >
-              <Plus className="w-4 h-4" /> Quick
-            </button>
-            <button
+    <div className="space-y-4">
+      {loadError && (
+        <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3 flex items-center justify-between">
+          <span className="flex items-center gap-2"><AlertCircle size={15} />{loadError}</span>
+          <button onClick={loadIncidents} className="text-red-600 hover:text-red-800 font-medium text-xs underline">Retry</button>
+        </div>
+      )}
+
+      <PageHeader
+        title="Incident Register"
+        subtitle="Log and manage workplace safety incidents"
+        icon={AlertTriangle}
+        accent="amber"
+        actions={
+          <>
+            <Button variant="secondary" accent="amber" icon={Plus} onClick={() => setShowQuickModal(true)} className="sm:hidden">Quick</Button>
+            <Button
+              variant="secondary"
+              accent="amber"
+              icon={Download}
+              hideLabelOnMobile
               onClick={() => downloadCSV(filteredIncidents.map(i => ({
                 'Incident No': i.incident_number || '',
                 Type: i.incident_type,
@@ -285,98 +274,46 @@ export default function SafetyIncidents() {
                 'Reported By': i.reported_by || '',
                 Description: i.description || '',
               })), 'safety-incidents')}
-              className="flex items-center gap-1.5 text-sm border border-amber-200 bg-white text-amber-700 hover:bg-amber-50 px-3 py-2 rounded-lg font-medium transition-colors shadow-sm"
-              title="Export to CSV"
-            >
-              <Download size={14} /> <span className="hidden sm:inline">Export</span>
-            </button>
-            <button
-              onClick={openAddModal}
-              className="flex items-center gap-2 px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition flex-1 sm:flex-none justify-center sm:justify-start"
-            >
-              <Plus className="w-5 h-5" />
-              <span className="hidden sm:inline">Report Incident</span>
-              <span className="sm:hidden">Report</span>
-            </button>
-          </div>
-        </div>
+            >Export</Button>
+            <Button variant="primary" accent="amber" icon={Plus} onClick={openAddModal}>Report Incident</Button>
+          </>
+        }
+      />
 
-        {/* Status Tabs */}
-        <div className="flex items-center gap-1.5 flex-wrap mb-4">
-          {(['All', ...STATUSES] as const).map(tab => {
-            const count = tab === 'All' ? incidents.length : incidents.filter(i => i.status === tab).length;
-            return (
-              <button
-                key={tab}
-                onClick={() => setStatusTab(tab)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                  statusTab === tab
-                    ? 'bg-amber-600 text-white shadow-sm'
-                    : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
-                }`}
-              >
-                {tab}
-                <span className={`text-xs px-1.5 py-0.5 rounded-full font-semibold ${
-                  statusTab === tab ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-500'
-                }`}>{count}</span>
-              </button>
-            );
-          })}
-        </div>
+      <FilterTabs
+        accent="amber"
+        value={statusTab}
+        onChange={setStatusTab}
+        tabs={['All', ...STATUSES].map(tab => ({
+          value: tab,
+          label: tab,
+          count: tab === 'All' ? incidents.length : incidents.filter(i => i.status === tab).length,
+        }))}
+      />
 
-        {/* Filter Bar */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-4 mb-4 sm:mb-6">
-          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search..."
-                value={searchTerm}
-                onChange={e => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
-              />
-            </div>
-            <select
-              value={typeFilter}
-              onChange={e => setTypeFilter(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 w-full sm:w-auto"
-            >
-              <option>All Types</option>
-              {INCIDENT_TYPES.map(type => <option key={type} value={type}>{type}</option>)}
-            </select>
-            <select
-              value={severityFilter}
-              onChange={e => setSeverityFilter(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 w-full sm:w-auto"
-            >
-              <option value="All">All Severities</option>
-              {SEVERITIES.map(sev => <option key={sev} value={sev}>{sev}</option>)}
-            </select>
-            <div className="relative flex-1 sm:flex-none">
-              <Calendar className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
-              <input
-                type="month"
-                value={monthFilter}
-                onChange={e => setMonthFilter(e.target.value)}
-                className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
-              />
-            </div>
-          </div>
+      <Toolbar>
+        <SearchInput value={searchTerm} onChange={setSearchTerm} placeholder="Search incidents…" />
+        <FilterSelect value={typeFilter} onChange={setTypeFilter} accent="amber">
+          <option value="All">All Types</option>
+          {INCIDENT_TYPES.map(type => <option key={type} value={type}>{type}</option>)}
+        </FilterSelect>
+        <FilterSelect value={severityFilter} onChange={setSeverityFilter} accent="amber">
+          <option value="All">All Severities</option>
+          {SEVERITIES.map(sev => <option key={sev} value={sev}>{sev}</option>)}
+        </FilterSelect>
+        <div className="relative">
+          <Calendar size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input
+            type="month"
+            value={monthFilter}
+            onChange={e => setMonthFilter(e.target.value)}
+            className={`pl-10 pr-3 py-2 text-sm border rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 ${monthFilter ? 'border-amber-300 text-amber-700' : 'border-gray-200 text-gray-600'}`}
+          />
         </div>
+      </Toolbar>
 
-        {/* Stats */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4 mb-4 sm:mb-6">
-          {stats.map(stat => (
-            <div key={stat.label} className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-              <p className="text-gray-600 text-sm">{stat.label}</p>
-              <p className="text-3xl font-bold text-gray-900 mt-2">{stat.count}</p>
-            </div>
-          ))}
-        </div>
-
-        {/* Table & Mobile Cards */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+      {/* Table & Mobile Cards */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
           {loading ? (
             <div className="p-8 text-center text-gray-500">Loading...</div>
           ) : filteredIncidents.length === 0 ? (
@@ -491,7 +428,6 @@ export default function SafetyIncidents() {
             </>
           )}
         </div>
-      </div>
 
       {showQuickModal && (
         <div className="fixed inset-0 z-50 flex items-end justify-center">

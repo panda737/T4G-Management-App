@@ -1,10 +1,11 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
-import { Plus, Search, ClipboardList, ChevronRight } from 'lucide-react';
+import { Plus, ClipboardList, ChevronRight } from 'lucide-react';
 import { supabase, StockOrder, StockOrderItem, StockItem, Client, StockOrderStatus, ORDER_STATUS_COLORS } from '../../lib/supabase';
 import { usePageTitle } from '../../lib/usePageTitle';
 import { useToast } from '../../lib/toast';
 import { useUser } from '../../lib/UserContext';
 import { PageSpinner } from '../../components/Spinner';
+import { PageHeader, Button, Toolbar, SearchInput, FilterTabs } from '../../components/ui';
 import { ORDER_STATUSES } from './constants';
 import OrderFormModal from './OrderFormModal';
 import OrderDetailView from './OrderDetailView';
@@ -100,46 +101,23 @@ export default function StockOrders() {
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Orders &amp; Deliveries</h1>
-          <p className="text-sm text-gray-500 mt-1">Customer orders, delivery notes and proof-of-delivery confirmation</p>
-        </div>
-        {canWriteStock && (
-          <button
-            onClick={() => setShowForm(true)}
-            className="flex items-center justify-center sm:justify-start gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm"
-          >
-            <Plus size={16} /> Load Order
-          </button>
-        )}
-      </div>
+      <PageHeader
+        title="Orders & Deliveries"
+        subtitle="Customer orders, delivery notes and proof-of-delivery confirmation"
+        accent="emerald"
+        actions={canWriteStock ? <Button variant="primary" accent="emerald" icon={Plus} onClick={() => setShowForm(true)}>Load Order</Button> : undefined}
+      />
 
-      {/* Status tabs */}
-      <div className="flex gap-1.5 flex-wrap">
-        {TABS.map(t => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors border ${tab === t ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`}
-          >
-            {t} <span className={tab === t ? 'text-gray-300' : 'text-gray-400'}>({counts[t] ?? 0})</span>
-          </button>
-        ))}
-      </div>
+      <FilterTabs
+        accent="emerald"
+        value={tab}
+        onChange={v => setTab(v as Tab)}
+        tabs={TABS.map(t => ({ value: t, label: t, count: counts[t] ?? 0 }))}
+      />
 
-      <div className="bg-white rounded-xl border border-gray-200 p-3.5 shadow-sm">
-        <div className="relative">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Search delivery note no, client, customer ref..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm w-full focus:outline-none focus:ring-2 focus:ring-emerald-500"
-          />
-        </div>
-      </div>
+      <Toolbar>
+        <SearchInput value={search} onChange={setSearch} placeholder="Search delivery note no, client, customer ref…" />
+      </Toolbar>
 
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
         {loading ? (

@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Shield, Plus, Search, Eye, Edit2, Trash2 } from 'lucide-react';
+import { Shield, Plus, Eye, Edit2, Trash2 } from 'lucide-react';
 import { supabase, SafetyRiskAssessment } from '../../lib/supabase';
 import { usePageTitle } from '../../lib/usePageTitle';
 import { useToast } from '../../lib/toast';
+import { PageHeader, Button, Toolbar, SearchInput, FilterSelect, FilterTabs, StatStrip } from '../../components/ui';
 import DeleteConfirmModal from '../../components/DeleteConfirmModal';
 import { getRiskRatingColor, riskLevelColors, riskAssessmentStatusColors } from '../../lib/badgeColors';
 import { generateSequentialNumber } from '../../lib/numberGenerator';
@@ -129,95 +130,57 @@ export default function SafetyRiskAssessments() {
   const getStatusColor = (status: string) => riskAssessmentStatusColors[status] || 'bg-gray-100 text-gray-700';
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 sm:p-8">
-      <div className="max-w-7xl mx-auto">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-0 mb-6 sm:mb-8">
-          <div className="flex items-center gap-3">
-            <Shield className="w-8 h-8 text-gray-900 flex-shrink-0" />
-            <h1 className="text-3xl font-bold text-gray-900">Risk Assessments</h1>
-          </div>
-          <button
-            onClick={openAddModal}
-            className="flex items-center gap-2 bg-gray-900 text-white px-4 py-2 rounded-lg hover:bg-gray-800 transition w-full sm:w-auto justify-center sm:justify-start"
-          >
-            <Plus className="w-5 h-5" />
-            <span className="hidden sm:inline">New Assessment</span>
-            <span className="sm:hidden">New</span>
-          </button>
-        </div>
+    <div className="space-y-4">
+      <PageHeader
+        title="Risk Assessments"
+        subtitle={`${assessments.length} assessment${assessments.length !== 1 ? 's' : ''}`}
+        icon={Shield}
+        accent="amber"
+        actions={
+          <Button variant="primary" accent="amber" icon={Plus} onClick={openAddModal}>New Assessment</Button>
+        }
+      />
 
-        <div className="flex items-center gap-1.5 flex-wrap mb-4">
-          {STATUS_TABS.map(tab => {
-            const count = tab === 'All' ? assessments.length : assessments.filter(a => a.status === tab).length;
-            return (
-              <button
-                key={tab}
-                onClick={() => setStatusTab(tab)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                  statusTab === tab
-                    ? 'bg-gray-900 text-white shadow-sm'
-                    : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
-                }`}
-              >
-                {tab}
-                <span className={`text-xs px-1.5 py-0.5 rounded-full font-semibold ${
-                  statusTab === tab ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-500'
-                }`}>{count}</span>
-              </button>
-            );
-          })}
-        </div>
+      <FilterTabs
+        accent="amber"
+        value={statusTab}
+        onChange={setStatusTab}
+        tabs={STATUS_TABS.map(tab => ({
+          value: tab,
+          label: tab,
+          count: tab === 'All' ? assessments.length : assessments.filter(a => a.status === tab).length,
+        }))}
+      />
 
-        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mb-4 sm:mb-6">
-          <div className="flex-1 relative">
-            <Search className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search assessments..."
-              value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg bg-white"
-            />
-          </div>
-          <select
-            value={riskFilter}
-            onChange={e => setRiskFilter(e.target.value)}
-            className="px-4 py-2 border border-gray-200 rounded-lg bg-white w-full sm:w-auto"
-          >
-            <option>All</option>
-            <option>Low</option>
-            <option>Medium</option>
-            <option>High</option>
-            <option>Extreme</option>
-          </select>
-          <select
-            value={statusFilter}
-            onChange={e => setStatusFilter(e.target.value)}
-            className="px-4 py-2 border border-gray-200 rounded-lg bg-white w-full sm:w-auto"
-          >
-            <option>All</option>
-            <option>Draft</option>
-            <option>Active</option>
-            <option>Under Review</option>
-            <option>Archived</option>
-          </select>
-        </div>
+      <Toolbar>
+        <SearchInput value={searchTerm} onChange={setSearchTerm} placeholder="Search assessments…" />
+        <FilterSelect value={riskFilter} onChange={setRiskFilter} accent="amber">
+          <option value="All">All Risk Levels</option>
+          <option value="Low">Low</option>
+          <option value="Medium">Medium</option>
+          <option value="High">High</option>
+          <option value="Extreme">Extreme</option>
+        </FilterSelect>
+        <FilterSelect value={statusFilter} onChange={setStatusFilter} accent="amber">
+          <option value="All">All Statuses</option>
+          <option value="Draft">Draft</option>
+          <option value="Active">Active</option>
+          <option value="Under Review">Under Review</option>
+          <option value="Archived">Archived</option>
+        </FilterSelect>
+      </Toolbar>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4 mb-6 sm:mb-8">
-          {[
-            { label: 'Total Active', value: stats.total },
-            { label: 'High/Extreme Risks', value: stats.highExtremeRisks },
-            { label: 'Due for Review', value: stats.dueForReview },
-            { label: 'Archived', value: stats.archived },
-          ].map(stat => (
-            <div key={stat.label} className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
-              <p className="text-gray-600 text-sm">{stat.label}</p>
-              <p className="text-3xl font-bold text-gray-900">{stat.value}</p>
-            </div>
-          ))}
-        </div>
+      <StatStrip
+        accent="amber"
+        stats={[
+          { label: 'Total Active', value: stats.total },
+          { label: 'High/Extreme', value: stats.highExtremeRisks, valueClass: 'text-red-600' },
+          { label: 'Due for Review', value: stats.dueForReview, valueClass: 'text-amber-600' },
+          { label: 'Archived', value: stats.archived },
+        ]}
+      />
 
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
           <div className="hidden md:block overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gray-50 border-b border-gray-200">
@@ -331,7 +294,6 @@ export default function SafetyRiskAssessments() {
             )}
           </div>
         </div>
-      </div>
 
       {showModal && (
         <RiskAssessmentFormModal

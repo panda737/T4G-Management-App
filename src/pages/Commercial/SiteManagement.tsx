@@ -1,29 +1,35 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Search, Merge, Loader2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Merge, Trash2 } from 'lucide-react';
 import { supabase, type ClientSite } from '../../lib/supabase';
 import { usePageTitle } from '../../lib/usePageTitle';
 import { useUser } from '../../lib/UserContext';
 import { useToast } from '../../lib/toast';
-import { PageSpinner } from '../../components/Spinner';
 import SectionTabs from '../../components/SectionTabs';
 import { CLIENT_TABS } from './commercialTabs';
+import { ListView, type Column, type FilterDef } from '../../components/crm';
+import { fmtNum } from '../../components/crm/crmUtils';
+import SiteFormModal from './SiteFormModal';
+import SiteMergeModal from './SiteMergeModal';
 
-function kg(n: number) { return n.toLocaleString('en-ZA', { maximumFractionDigits: 0 }); }
+type SiteRow = ClientSite & { client_name: string; records: number; kg: number };
+
+const ACTIVE_OPTIONS = [
+  { value: 'true', label: 'Active' },
+  { value: 'false', label: 'Inactive' },
+];
 
 export default function SiteManagement() {
-  usePageTitle('Commercial — Site Management');
-  const { canWrite } = useUser();
+  usePageTitle('Commercial — Sites');
+  const navigate = useNavigate();
+  const { isAdmin, canWrite } = useUser();
   const { addToast } = useToast();
   const canEdit = canWrite('commercial');
 
-  const [sites, setSites] = useState<ClientSite[]>([]);
-  const [clientName, setClientName] = useState<Record<string, string>>({});
-  const [stats, setStats] = useState<Record<string, { n: number; kg: number }>>({});
+  const [sites, setSites] = useState<SiteRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
-  const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [target, setTarget] = useState('');
-  const [merging, setMerging] = useState(false);
+  const [modal, setModal] = useState<'new' | ClientSite | null>(null);
+  const [mergeRows, setMergeRows] = useState<ClientSite[] | null>(null);
 
   useEffect(() => { load(); }, []);
 
@@ -34,116 +40,192 @@ export default function SiteManagement() {
       supabase.from('clients').select('id, client_name'),
       supabase.from('received_waste_records').select('site_id, nett_weight_kg'),
     ]);
-    setSites((sRes.data ?? []) as ClientSite[]);
-    const cn: Record<string, string> = {};
-    (cRes.data ?? []).forEach((c: { id: string; client_name: string }) => { cn[c.id] = c.client_name; });
-    setClientName(cn);
-    const st: Record<string, { n: number; kg: number }> = {};
+
+    const clientMap = new Map<string, string>();
+    (cRes.data ?? []).forEach((c: { id: string; client_name: string }) => clientMap.set(c.id, c.client_name));
+
+    const stats: Record<string, { n: number; kg: number }> = {};
     (rRes.data ?? []).forEach((r: { site_id: string | null; nett_weight_kg: number }) => {
       if (!r.site_id) return;
-      const e = st[r.site_id] || { n: 0, kg: 0 }; e.n++; e.kg += Number(r.nett_weight_kg); st[r.site_id] = e;
+      const e = stats[r.site_id] || { n: 0, kg: 0 };
+      e.n++; e.kg += Number(r.nett_weight_kg);
+      stats[r.site_id] = e;
     });
-    setStats(st);
-    setSelected(new Set()); setTarget('');
+
+    setSites(((sRes.data ?? []) as ClientSite[]).map(s => ({
+      ...s,
+      client_name: clientMap.get(s.client_id) ?? '—',
+      records: stats[s.id]?.n ?? 0,
+      kg: stats[s.id]?.kg ?? 0,
+    })));
     setLoading(false);
   }
 
-  const filtered = useMemo(() => {
-    const q = search.toLowerCase();
-    return sites.filter(s => !q || s.generator_facility.toLowerCase().includes(q) || (clientName[s.client_id] || '').toLowerCase().includes(q) || (s.generator_group || '').toLowerCase().includes(q));
-  }, [sites, search, clientName]);
+  // ── stats lookup for the merge modal ────────────────────────────────────────
+  const statsById = useMemo(() => {
+    const m: Record<string, { n: number; kg: number }> = {};
+    sites.forEach(s => { m[s.id] = { n: s.records, kg: s.kg }; });
+    return m;
+  }, [sites]);
 
-  const selectedSites = sites.filter(s => selected.has(s.id));
-  const sameClient = selectedSites.length >= 2 && selectedSites.every(s => s.client_id === selectedSites[0].client_id);
+  const clientNameById = useMemo(() => {
+    const m: Record<string, string> = {};
+    sites.forEach(s => { m[s.client_id] = s.client_name; });
+    return m;
+  }, [sites]);
 
-  function toggle(id: string) {
-    setSelected(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
-    setTarget('');
-  }
+  // ── columns ─────────────────────────────────────────────────────────────────
+  const columns: Column<SiteRow>[] = useMemo(() => [
+    {
+      key: 'facility',
+      header: 'Generator Facility',
+      cell: s => (
+        <div>
+          <div className="font-medium text-gray-900">{s.generator_facility}</div>
+          {s.generator_group && <div className="text-xs text-gray-400 mt-0.5">{s.generator_group}</div>}
+        </div>
+      ),
+      sortValue: s => s.generator_facility,
+      exportValue: s => s.generator_facility,
+    },
+    {
+      key: 'group',
+      header: 'Group',
+      cell: s => s.generator_group || '—',
+      sortValue: s => s.generator_group,
+      exportValue: s => s.generator_group,
+      defaultHidden: true,
+    },
+    {
+      key: 'client',
+      header: 'Account',
+      cell: s => <span className="text-indigo-600 font-medium">{s.client_name}</span>,
+      sortValue: s => s.client_name,
+      exportValue: s => s.client_name,
+    },
+    {
+      key: 'code',
+      header: 'Site Code',
+      cell: s => s.site_code ? <span className="font-mono text-xs text-gray-500">{s.site_code}</span> : '—',
+      sortValue: s => s.site_code,
+      exportValue: s => s.site_code,
+    },
+    {
+      key: 'records',
+      header: 'Records',
+      cell: s => fmtNum(s.records),
+      sortValue: s => s.records,
+      exportValue: s => s.records,
+      align: 'right',
+    },
+    {
+      key: 'kg',
+      header: 'Nett kg',
+      cell: s => fmtNum(s.kg),
+      sortValue: s => s.kg,
+      exportValue: s => s.kg,
+      align: 'right',
+    },
+    {
+      key: 'active',
+      header: 'Status',
+      cell: s => s.active
+        ? <span className="text-xs font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">Active</span>
+        : <span className="text-xs font-medium text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">Inactive</span>,
+      sortValue: s => (s.active ? 'a' : 'z'),
+      exportValue: s => (s.active ? 'Active' : 'Inactive'),
+      defaultHidden: true,
+    },
+  ], []);
 
-  async function doMerge() {
-    if (!sameClient || !target) return;
-    const sources = [...selected].filter(id => id !== target);
-    if (sources.length === 0) return;
-    setMerging(true);
-    const { error: upErr } = await supabase.from('received_waste_records').update({ site_id: target }).in('site_id', sources);
-    if (upErr) { setMerging(false); addToast('Merge failed: ' + upErr.message, 'error'); return; }
-    const { error: delErr } = await supabase.from('client_sites').delete().in('id', sources);
-    setMerging(false);
-    if (delErr) { addToast('Records moved but could not delete old sites: ' + delErr.message, 'error'); }
-    else addToast(`Merged ${sources.length} site(s)`);
+  // ── filters ───────────────────────────────────────────────────────────────
+  const accountOptions = useMemo(
+    () => [...new Map(sites.map(s => [s.client_id, s.client_name])).entries()]
+      .sort((a, b) => a[1].localeCompare(b[1]))
+      .map(([value, label]) => ({ value, label })),
+    [sites],
+  );
+  const groupOptions = useMemo(
+    () => [...new Set(sites.map(s => s.generator_group).filter(Boolean))].sort().map(v => ({ value: v, label: v })),
+    [sites],
+  );
+
+  const filters: FilterDef<SiteRow>[] = useMemo(() => [
+    { key: 'account', label: 'Account', options: accountOptions, predicate: (s, v) => s.client_id === v },
+    { key: 'group', label: 'Group', options: groupOptions, predicate: (s, v) => s.generator_group === v },
+    { key: 'active', label: 'Status', options: ACTIVE_OPTIONS, predicate: (s, v) => String(s.active) === v },
+  ], [accountOptions, groupOptions]);
+
+  // ── handlers ──────────────────────────────────────────────────────────────
+  function handleSaved(_saved: ClientSite) {
+    setModal(null);
+    addToast(modal === 'new' ? 'Site created' : 'Site updated');
     load();
   }
 
-  if (loading) return <PageSpinner layout="h64" />;
+  async function deleteSites(rows: SiteRow[]) {
+    const withRecords = rows.filter(r => r.records > 0);
+    if (withRecords.length > 0) {
+      addToast(`${withRecords.length} site(s) still have waste records — merge them instead of deleting.`, 'error');
+      return;
+    }
+    if (!window.confirm(`Delete ${rows.length} site${rows.length > 1 ? 's' : ''}? This cannot be undone.`)) return;
+    const ids = rows.map(r => r.id);
+    const { error } = await supabase.from('client_sites').delete().in('id', ids);
+    if (error) { addToast('Delete failed: ' + error.message, 'error'); return; }
+    setSites(prev => prev.filter(s => !ids.includes(s.id)));
+    addToast(`Deleted ${rows.length} site${rows.length > 1 ? 's' : ''}`);
+  }
+
+  function startMerge(rows: SiteRow[]) {
+    if (rows.length < 2) { addToast('Select at least two sites to merge.', 'error'); return; }
+    setMergeRows(rows);
+  }
 
   return (
     <div className="space-y-5">
       <SectionTabs tabs={CLIENT_TABS} />
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Site Management</h1>
-        <p className="text-sm text-gray-500 mt-1">Generator facilities. Select duplicate facilities of the same client to merge them.</p>
-      </div>
 
-      <div className="relative max-w-sm">
-        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search facility, group or client…"
-          className="w-full pl-10 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" />
-      </div>
+      <ListView<SiteRow>
+        objectKey="sites"
+        title="Sites"
+        subtitle={`${fmtNum(sites.length)} generator facilit${sites.length !== 1 ? 'ies' : 'y'}`}
+        rows={sites}
+        loading={loading}
+        columns={columns}
+        filters={filters}
+        rowId={s => s.id}
+        search={s => `${s.generator_facility} ${s.generator_group} ${s.client_name} ${s.site_code}`}
+        searchPlaceholder="Search facility, group or account…"
+        onRowClick={s => navigate(`/commercial/sites/${s.id}`)}
+        onNew={canEdit ? () => setModal('new') : undefined}
+        newLabel="New Site"
+        exportName="sites"
+        savedViews
+        bulkActions={canEdit ? [
+          { label: 'Merge', icon: Merge, onClick: startMerge },
+          ...(isAdmin ? [{ label: 'Delete', icon: Trash2, danger: true, onClick: deleteSites }] : []),
+        ] : []}
+        emptyMessage="No sites found."
+      />
 
-      {canEdit && selected.size >= 2 && (
-        <div className={`rounded-xl border p-3 flex flex-wrap items-center gap-3 ${sameClient ? 'bg-blue-50 border-blue-200' : 'bg-amber-50 border-amber-200'}`}>
-          {!sameClient ? (
-            <span className="text-sm text-amber-800">Selected facilities must all belong to the same client to merge.</span>
-          ) : (
-            <>
-              <Merge size={16} className="text-blue-600" />
-              <span className="text-sm text-blue-900">Merge {selected.size} facilities of <strong>{clientName[selectedSites[0].client_id]}</strong> into:</span>
-              <select value={target} onChange={e => setTarget(e.target.value)} className="text-sm border border-blue-200 rounded-lg px-3 py-1.5 bg-white">
-                <option value="">— choose surviving facility —</option>
-                {selectedSites.map(s => <option key={s.id} value={s.id}>{s.generator_facility} ({stats[s.id]?.n || 0} recs)</option>)}
-              </select>
-              <button onClick={doMerge} disabled={!target || merging}
-                className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm px-4 py-1.5 rounded-lg font-medium disabled:opacity-50">
-                {merging ? <Loader2 size={14} className="animate-spin" /> : <Merge size={14} />} Merge
-              </button>
-            </>
-          )}
-        </div>
+      {modal !== null && (
+        <SiteFormModal
+          site={modal === 'new' ? null : modal}
+          onClose={() => setModal(null)}
+          onSave={handleSaved}
+        />
       )}
 
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-gray-800 text-white">
-                {canEdit && <th className="px-3 py-2.5 w-8"></th>}
-                <th className="text-left px-4 py-2.5 text-xs font-medium uppercase tracking-wider">Generator Facility</th>
-                <th className="text-left px-4 py-2.5 text-xs font-medium uppercase tracking-wider">Group</th>
-                <th className="text-left px-4 py-2.5 text-xs font-medium uppercase tracking-wider">Client</th>
-                <th className="text-right px-4 py-2.5 text-xs font-medium uppercase tracking-wider">Records</th>
-                <th className="text-right px-4 py-2.5 text-xs font-medium uppercase tracking-wider">Nett kg</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {filtered.map((s, i) => (
-                <tr key={s.id} className={`${i % 2 ? 'bg-gray-50/40' : 'bg-white'} ${selected.has(s.id) ? 'bg-blue-50/60' : ''}`}>
-                  {canEdit && (
-                    <td className="px-3 py-2.5 text-center">
-                      <input type="checkbox" checked={selected.has(s.id)} onChange={() => toggle(s.id)} className="rounded border-gray-300" />
-                    </td>
-                  )}
-                  <td className="px-4 py-2.5 font-medium text-gray-800">{s.generator_facility}</td>
-                  <td className="px-4 py-2.5 text-gray-500">{s.generator_group || '—'}</td>
-                  <td className="px-4 py-2.5 text-gray-700">{clientName[s.client_id] || '—'}</td>
-                  <td className="px-4 py-2.5 text-right text-gray-700">{stats[s.id]?.n || 0}</td>
-                  <td className="px-4 py-2.5 text-right font-semibold text-gray-900">{kg(stats[s.id]?.kg || 0)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      {mergeRows && (
+        <SiteMergeModal
+          sites={mergeRows}
+          clientName={clientNameById}
+          stats={statsById}
+          onClose={() => setMergeRows(null)}
+          onMerged={() => { setMergeRows(null); load(); }}
+        />
+      )}
     </div>
   );
 }

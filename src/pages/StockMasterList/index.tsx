@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState, useMemo } from 'react';
-import { Plus, Search, Edit2, AlertCircle, ChevronDown, ChevronRight, ArrowDownCircle, ArrowUpCircle, Package } from 'lucide-react';
+import { Plus, Edit2, AlertCircle, ChevronDown, ChevronRight, ArrowDownCircle, ArrowUpCircle, Package } from 'lucide-react';
 import { supabase, StockItem, getStockStatus } from '../../lib/supabase';
 import { usePageTitle } from '../../lib/usePageTitle';
 import { useToast } from '../../lib/toast';
 import StatusBadge from '../../components/StatusBadge';
+import { PageHeader, Button, Toolbar, SearchInput, FilterSelect, StatStrip } from '../../components/ui';
 import QuickMovementModal from './QuickMovementModal';
 import ItemFormModal from './ItemFormModal';
 
@@ -82,69 +83,38 @@ export default function StockMasterList() {
   return (
     <div className="space-y-4">
       {opError && <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-2.5">{opError}</div>}
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Stock Master List</h1>
-          <p className="text-xs text-gray-500 mt-0.5">{filtered.length} of {items.length} items &bull; {totalQty.toLocaleString()} total units on hand</p>
-        </div>
-        <div className="flex flex-col sm:flex-row gap-2">
-          <button
-            onClick={() => setGlobalMovement('in')}
-            className="group flex items-center justify-center sm:justify-start gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all shadow-sm hover:shadow-md"
-          >
-            <ArrowDownCircle size={15} className="group-hover:scale-110 transition-transform" /> <span className="hidden sm:inline">Stock In</span>
-          </button>
-          <button
-            onClick={() => setGlobalMovement('out')}
-            className="group flex items-center justify-center sm:justify-start gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all shadow-sm hover:shadow-md"
-          >
-            <ArrowUpCircle size={15} className="group-hover:scale-110 transition-transform" /> <span className="hidden sm:inline">Stock Out</span>
-          </button>
-          <button
-            onClick={() => setShowAdd(true)}
-            className="flex items-center justify-center sm:justify-start gap-2 bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm"
-          >
-            <Plus size={15} /> <span className="hidden sm:inline">Add Item</span>
-          </button>
-        </div>
-      </div>
+      <PageHeader
+        title="Stock Master List"
+        subtitle={`${filtered.length} of ${items.length} items • ${totalQty.toLocaleString()} total units on hand`}
+        accent="emerald"
+        actions={
+          <>
+            <Button variant="primary" accent="emerald" icon={ArrowDownCircle} hideLabelOnMobile onClick={() => setGlobalMovement('in')}>Stock In</Button>
+            <Button variant="danger" icon={ArrowUpCircle} hideLabelOnMobile onClick={() => setGlobalMovement('out')}>Stock Out</Button>
+            <Button variant="secondary" icon={Plus} hideLabelOnMobile onClick={() => setShowAdd(true)}>Add Item</Button>
+          </>
+        }
+      />
 
-      {/* Mini stat strip */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-        <div className="bg-white rounded-lg border border-gray-200 px-3 py-2 flex items-center justify-between shadow-sm">
-          <div className="flex items-center gap-2"><Package size={14} className="text-blue-500" /><span className="text-xs text-gray-500">Items</span></div>
-          <span className="text-sm font-bold text-gray-900">{items.length}</span>
-        </div>
-        <div className="bg-white rounded-lg border border-gray-200 px-3 py-2 flex items-center justify-between shadow-sm">
-          <span className="text-xs text-gray-500">On hand</span>
-          <span className="text-sm font-bold text-emerald-600">{totalQty.toLocaleString()}</span>
-        </div>
-        <div className="bg-white rounded-lg border border-gray-200 px-3 py-2 flex items-center justify-between shadow-sm">
-          <span className="text-xs text-gray-500">Low</span>
-          <span className="text-sm font-bold text-amber-600">{lowCount}</span>
-        </div>
-        <div className="bg-white rounded-lg border border-gray-200 px-3 py-2 flex items-center justify-between shadow-sm">
-          <span className="text-xs text-gray-500">Out</span>
-          <span className="text-sm font-bold text-red-600">{outCount}</span>
-        </div>
-      </div>
+      <StatStrip
+        accent="emerald"
+        stats={[
+          { label: 'Items', value: items.length, icon: Package },
+          { label: 'On hand', value: totalQty.toLocaleString(), valueClass: 'text-emerald-600' },
+          { label: 'Low', value: lowCount, valueClass: 'text-amber-600' },
+          { label: 'Out', value: outCount, valueClass: 'text-red-600' },
+        ]}
+      />
 
-      {/* Filters */}
-      <div className="bg-white rounded-xl border border-gray-200 p-3 shadow-sm">
-        <div className="flex flex-col sm:flex-row gap-2">
-          <div className="relative flex-1">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-            <input type="text" placeholder="Search code, item, description..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9 pr-3 py-1.5 border border-gray-200 rounded-lg text-sm w-full focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent" />
-          </div>
-          <select value={filterCategory} onChange={e => setFilterCategory(e.target.value)} className="border border-gray-200 rounded-lg text-sm px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white w-full sm:w-auto">
-            {CATEGORIES.map(c => <option key={c}>{c}</option>)}
-          </select>
-          <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="border border-gray-200 rounded-lg text-sm px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white w-full sm:w-auto">
-            {STATUSES.map(s => <option key={s}>{s}</option>)}
-          </select>
-        </div>
-      </div>
+      <Toolbar>
+        <SearchInput value={search} onChange={setSearch} placeholder="Search code, item, description…" />
+        <FilterSelect value={filterCategory} onChange={setFilterCategory} accent="emerald">
+          {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+        </FilterSelect>
+        <FilterSelect value={filterStatus} onChange={setFilterStatus} accent="emerald">
+          {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+        </FilterSelect>
+      </Toolbar>
 
       {/* Category sections */}
       {loading ? (

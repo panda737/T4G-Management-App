@@ -8,12 +8,18 @@ export const CLIENT_TABS: TabDef[] = [
   { to: '/commercial/contacts', label: 'Contacts' },
   { to: '/commercial/activities', label: 'Activities' },
   { to: '/commercial/sites', label: 'Sites' },
+  { to: '/commercial/users', label: 'Users & Access' },
 ];
 
 export const RECEIVED_TABS: TabDef[] = [
   { to: '/commercial/upload', label: 'Upload' },
   { to: '/commercial/imports', label: 'Import History' },
   { to: '/commercial/import-errors', label: 'Import Errors' },
+];
+
+export const ANALYTICS_TABS: TabDef[] = [
+  { to: '/commercial/dashboard', label: 'Dashboard' },
+  { to: '/commercial/reports', label: 'Reports' },
 ];
 
 export const ESG_TABS: TabDef[] = [

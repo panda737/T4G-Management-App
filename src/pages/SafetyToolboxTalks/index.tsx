@@ -1,11 +1,12 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
-  Users, Plus, Eye, Trash2, Search, Calendar, AlertCircle,
+  Users, Plus, Eye, Trash2, Calendar, AlertCircle,
   ClipboardList, Library, Paperclip, X as XIcon,
 } from 'lucide-react';
 import { useToast } from '../../lib/toast';
 import { usePageTitle } from '../../lib/usePageTitle';
 import { useUser } from '../../lib/UserContext';
+import { PageHeader, Button, Toolbar, SearchInput, StatStrip } from '../../components/ui';
 import DeleteConfirmModal from '../../components/DeleteConfirmModal';
 import { Spinner } from '../../components/Spinner';
 import { supabase, SafetyToolboxTalk, ToolboxTalkTopic } from '../../lib/supabase';
@@ -253,31 +254,23 @@ export default function SafetyToolboxTalks() {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 sm:p-8">
-      {opError && <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-2.5 mb-4">{opError}</div>}
-      <div className="max-w-7xl mx-auto">
-        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 sm:gap-0 mb-6 sm:mb-8">
-          <div className="flex items-center gap-3">
-            <Users className="w-8 h-8 text-gray-700 flex-shrink-0" />
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">Toolbox Talks</h1>
-              <p className="text-gray-600 mt-1">Manage safety toolbox talks with attendance register and topic library</p>
-            </div>
-          </div>
-          <div className="flex gap-2 w-full sm:w-auto flex-col sm:flex-row">
-            <button
-              onClick={() => { setSelectedCategory(''); setSelectedSubcategory(''); setLibrarySearch(''); setShowLibraryModal(true); }}
-              className="flex items-center justify-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition"
-            >
-              <Library className="w-4 h-4" /> <span className="hidden sm:inline">Topic Library</span>
-            </button>
-            <button onClick={openAddModal} className="flex items-center justify-center gap-2 px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-900 transition">
-              <Plus className="w-5 h-5" /> <span className="hidden sm:inline">Record Talk</span><span className="sm:hidden">Add</span>
-            </button>
-          </div>
-        </div>
+    <div className="space-y-4">
+      {opError && <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-2.5">{opError}</div>}
 
-        <div className="flex gap-1 bg-gray-100 rounded-lg p-0.5 mb-6 w-fit">
+      <PageHeader
+        title="Toolbox Talks"
+        subtitle="Safety toolbox talks with attendance register and topic library"
+        icon={Users}
+        accent="amber"
+        actions={
+          <>
+            <Button variant="secondary" accent="amber" icon={Library} onClick={() => { setSelectedCategory(''); setSelectedSubcategory(''); setLibrarySearch(''); setShowLibraryModal(true); }}>Topic Library</Button>
+            <Button variant="primary" accent="amber" icon={Plus} onClick={openAddModal}>Record Talk</Button>
+          </>
+        }
+      />
+
+      <div className="flex gap-1 bg-gray-100 rounded-lg p-0.5 w-fit">
           <button onClick={() => setActiveTab('register')} className={`px-4 py-2 text-sm font-medium rounded-md transition ${activeTab === 'register' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
             <ClipboardList size={14} className="inline mr-1.5" /> Talk Register
           </button>
@@ -288,27 +281,15 @@ export default function SafetyToolboxTalks() {
 
         {activeTab === 'register' && (
           <>
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-4 mb-4 sm:mb-6">
-              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
-                  <input type="text" placeholder="Search by topic, presenter..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500" />
-                </div>
-                <div className="relative flex-1 sm:flex-none">
-                  <Calendar className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
-                  <input type="month" value={monthFilter} onChange={e => setMonthFilter(e.target.value)} className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500" />
-                </div>
+            <Toolbar>
+              <SearchInput value={searchTerm} onChange={setSearchTerm} placeholder="Search by topic, presenter…" />
+              <div className="relative">
+                <Calendar size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input type="month" value={monthFilter} onChange={e => setMonthFilter(e.target.value)} className={`pl-10 pr-3 py-2 text-sm border rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 ${monthFilter ? 'border-amber-300 text-amber-700' : 'border-gray-200 text-gray-600'}`} />
               </div>
-            </div>
+            </Toolbar>
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4 mb-4 sm:mb-6">
-              {statCards.map(stat => (
-                <div key={stat.label} className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-                  <p className="text-gray-600 text-sm">{stat.label}</p>
-                  <p className="text-3xl font-bold text-gray-900 mt-2">{stat.count}</p>
-                </div>
-              ))}
-            </div>
+            <StatStrip accent="amber" stats={statCards.map(s => ({ label: s.label, value: s.count }))} />
 
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
               {loading ? (
@@ -406,7 +387,6 @@ export default function SafetyToolboxTalks() {
         {activeTab === 'library' && (
           <TopicLibraryView topics={topics} categories={categories} lastUsedByTopic={lastUsedByTopic} onSelect={selectTopicFromLibrary} />
         )}
-      </div>
 
       {showAddModal && (
         <Modal title="Record Toolbox Talk" onClose={() => setShowAddModal(false)} size="lg" accent="green" footer={

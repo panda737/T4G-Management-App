@@ -71,7 +71,7 @@ export default function GlobalSearch() {
       (con.data ?? []).forEach((c: { id: string; client_id: string; first_name: string; last_name: string; email: string }) =>
         out.push({ kind: 'contact', id: c.id, title: `${c.first_name} ${c.last_name}`.trim() || c.email, subtitle: c.email || 'Contact', to: `/commercial/clients/${c.client_id}` }));
       (sit.data ?? []).forEach((s: { id: string; client_id: string; generator_facility: string }) =>
-        out.push({ kind: 'site', id: s.id, title: s.generator_facility, subtitle: 'Site', to: `/commercial/clients/${s.client_id}` }));
+        out.push({ kind: 'site', id: s.id, title: s.generator_facility, subtitle: 'Site', to: `/commercial/sites/${s.id}` }));
       setResults(out);
       setActive(0);
       setLoading(false);

@@ -52,6 +52,7 @@ import ImportErrorReview from './pages/Commercial/ImportErrorReview';
 import ClientManagement from './pages/Commercial/ClientManagement';
 import ClientView from './pages/Commercial/ClientView';
 import SiteManagement from './pages/Commercial/SiteManagement';
+import SiteView from './pages/Commercial/SiteView';
 import EsgSetup from './pages/Commercial/EsgSetup';
 import EsgFactors from './pages/Commercial/EsgFactors';
 import EsgOperational from './pages/Commercial/EsgOperational';
@@ -60,6 +61,9 @@ import EsgCreditEvidence from './pages/Commercial/EsgCreditEvidence';
 import ContactList from './pages/Commercial/ContactList';
 import ContactView from './pages/Commercial/ContactView';
 import ActivityList from './pages/Commercial/ActivityList';
+import UserAccessList from './pages/Commercial/UserAccessList';
+import CommercialDashboard from './pages/Commercial/CommercialDashboard';
+import CommercialReports from './pages/Commercial/CommercialReports';
 import GlobalSearch from './components/crm/GlobalSearch';
 import PortalShell from './pages/Portal/PortalShell';
 
@@ -131,13 +135,16 @@ const ROUTE_LABELS: Record<string, string> = {
   '/stock/day-end': 'Day-End Report',
   '/stock/reports': 'Reports',
   '/stock/settings': 'Stock Categories',
+  '/commercial/dashboard': 'Commercial Dashboard',
+  '/commercial/reports': 'Reports',
   '/commercial/upload': 'Upload Received Waste',
   '/commercial/imports': 'Import History',
   '/commercial/import-errors': 'Import Errors',
   '/commercial/clients': 'Accounts',
   '/commercial/contacts': 'Contacts',
   '/commercial/activities': 'Activities',
-  '/commercial/sites': 'Site Management',
+  '/commercial/users': 'Users & Access',
+  '/commercial/sites': 'Sites',
   '/commercial/esg': 'ESG Setup',
   '/commercial/esg/factors': 'ESG Factors',
   '/commercial/esg/operational': 'ESG Operational Data',
@@ -181,6 +188,7 @@ function usePageLabel(): string {
   if (pathname.startsWith('/training/modules/')) return 'Assessment';
   if (pathname.startsWith('/commercial/clients/')) return 'Account';
   if (pathname.startsWith('/commercial/contacts/')) return 'Contact';
+  if (pathname.startsWith('/commercial/sites/')) return 'Site';
   return 'Tech4Green';
 }
 
@@ -242,13 +250,16 @@ function StaffShell({ session }: { session: Session }) {
             <Route path="/stock/settings" element={<Settings />} />
 
             {/* Commercial — Received Waste */}
-            <Route path="/commercial" element={<Navigate to="/commercial/clients" replace />} />
+            <Route path="/commercial" element={<Navigate to="/commercial/dashboard" replace />} />
+            <Route path="/commercial/dashboard" element={<CommercialDashboard />} />
+            <Route path="/commercial/reports" element={<CommercialReports />} />
             <Route path="/commercial/upload" element={<UploadReceivedWaste />} />
             <Route path="/commercial/imports" element={<ImportHistory />} />
             <Route path="/commercial/import-errors" element={<ImportErrorReview />} />
             <Route path="/commercial/clients" element={<ClientManagement />} />
             <Route path="/commercial/clients/:clientId" element={<ClientView />} />
             <Route path="/commercial/sites" element={<SiteManagement />} />
+            <Route path="/commercial/sites/:siteId" element={<SiteView />} />
             <Route path="/commercial/esg" element={<EsgSetup />} />
             <Route path="/commercial/esg/factors" element={<EsgFactors />} />
             <Route path="/commercial/esg/operational" element={<EsgOperational />} />
@@ -257,6 +268,7 @@ function StaffShell({ session }: { session: Session }) {
             <Route path="/commercial/contacts" element={<ContactList />} />
             <Route path="/commercial/contacts/:contactId" element={<ContactView />} />
             <Route path="/commercial/activities" element={<ActivityList />} />
+            <Route path="/commercial/users" element={<UserAccessList />} />
 
             {/* Treatment Plant */}
             <Route path="/treatment" element={<TreatmentDashboard />} />

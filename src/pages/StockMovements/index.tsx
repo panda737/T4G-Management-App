@@ -1,9 +1,10 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
-import { Plus, Search, ChevronRight, Package, ArrowLeftRight, ClipboardCheck, Download } from 'lucide-react';
+import { Plus, ChevronRight, Package, ArrowLeftRight, ClipboardCheck, Download } from 'lucide-react';
 import { supabase, StockItem } from '../../lib/supabase';
 import { usePageTitle } from '../../lib/usePageTitle';
 import { useToast } from '../../lib/toast';
 import { downloadCSV } from '../../lib/csvExport';
+import { PageHeader, Button, Toolbar, SearchInput, FilterSelect, FilterTabs } from '../../components/ui';
 import { MOVEMENT_TYPES, INCREASE_TYPES, DECREASE_TYPES, EITHER_TYPES, MovementWithItem, OrderGroup, buildGroups, directionColor } from './constants';
 import { MovementIcon } from './MovementIcon';
 import OrderDetail from './OrderDetail';
@@ -89,89 +90,60 @@ export default function StockMovements() {
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Stock Movements</h1>
-          <p className="text-sm text-gray-500 mt-1">{filtered.length} order{filtered.length !== 1 ? 's' : ''}</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => downloadCSV(
-              filtered.flatMap(g => g.lines.map(l => ({
-                Date: l.movement_date,
-                'Stock Item': l.stock_items?.stock_item || '',
-                'Stock Code': l.stock_code || '',
-                Type: l.movement_type,
-                Quantity: l.quantity,
-                Reference: l.reference_number || '',
-                'Supplier/Client': l.supplier_client_department || '',
-                'Captured By': l.captured_by || '',
-                Notes: l.notes || '',
-              }))),
-              'stock-movements'
-            )}
-            className="flex items-center gap-1.5 text-sm border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 px-3 py-2 rounded-lg font-medium transition-colors shadow-sm"
-            title="Export to CSV"
-          >
-            <Download size={14} /> <span className="hidden sm:inline">Export</span>
-          </button>
-          <button
-            onClick={() => setShowAdd(true)}
-            className="flex items-center justify-center sm:justify-start gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm"
-          >
-            <Plus size={16} /> <span className="hidden sm:inline">Record Movement</span>
-          </button>
-        </div>
-      </div>
+      <PageHeader
+        title="Stock Movements"
+        subtitle={`${filtered.length} order${filtered.length !== 1 ? 's' : ''}`}
+        accent="emerald"
+        actions={
+          <>
+            <Button
+              variant="secondary"
+              icon={Download}
+              hideLabelOnMobile
+              onClick={() => downloadCSV(
+                filtered.flatMap(g => g.lines.map(l => ({
+                  Date: l.movement_date,
+                  'Stock Item': l.stock_items?.stock_item || '',
+                  'Stock Code': l.stock_code || '',
+                  Type: l.movement_type,
+                  Quantity: l.quantity,
+                  Reference: l.reference_number || '',
+                  'Supplier/Client': l.supplier_client_department || '',
+                  'Captured By': l.captured_by || '',
+                  Notes: l.notes || '',
+                }))),
+                'stock-movements'
+              )}
+            >Export</Button>
+            <Button variant="primary" accent="emerald" icon={Plus} hideLabelOnMobile onClick={() => setShowAdd(true)}>Record Movement</Button>
+          </>
+        }
+      />
 
-      <div className="flex items-center gap-1.5 flex-wrap">
-        {([
-          { key: 'All', label: 'All' },
-          { key: 'In', label: 'Stock In' },
-          { key: 'Out', label: 'Stock Out' },
-          { key: 'Adjustment', label: 'Adjustments' },
-        ] as const).map(({ key, label }) => (
-          <button
-            key={key}
-            onClick={() => setDirectionTab(key)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-              directionTab === key
-                ? key === 'In' ? 'bg-emerald-600 text-white shadow-sm'
-                  : key === 'Out' ? 'bg-red-600 text-white shadow-sm'
-                  : key === 'Adjustment' ? 'bg-amber-600 text-white shadow-sm'
-                  : 'bg-gray-800 text-white shadow-sm'
-                : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
-            }`}
-          >
-            {label}
-            <span className={`text-xs px-1.5 py-0.5 rounded-full font-semibold ${
-              directionTab === key ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-500'
-            }`}>{directionCounts[key]}</span>
-          </button>
-        ))}
-      </div>
+      <FilterTabs
+        accent="emerald"
+        value={directionTab}
+        onChange={v => setDirectionTab(v as 'All' | 'In' | 'Out' | 'Adjustment')}
+        tabs={[
+          { value: 'All', label: 'All', count: directionCounts.All },
+          { value: 'In', label: 'Stock In', count: directionCounts.In },
+          { value: 'Out', label: 'Stock Out', count: directionCounts.Out },
+          { value: 'Adjustment', label: 'Adjustments', count: directionCounts.Adjustment },
+        ]}
+      />
 
-      <div className="bg-white rounded-xl border border-gray-200 p-3.5 shadow-sm flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Search reference, supplier, item..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm w-full focus:outline-none focus:ring-2 focus:ring-emerald-500"
-          />
-        </div>
-        <select value={filterType} onChange={e => setFilterType(e.target.value)} className="border border-gray-200 rounded-lg text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white w-full sm:w-auto">
+      <Toolbar>
+        <SearchInput value={search} onChange={setSearch} placeholder="Search reference, supplier, item…" />
+        <FilterSelect value={filterType} onChange={setFilterType} accent="emerald">
           <option value="All">All Movement Types</option>
           {[...MOVEMENT_TYPES, 'Customer Delivery'].map(t => <option key={t}>{t}</option>)}
-        </select>
+        </FilterSelect>
         <div className="flex items-center gap-2">
-          <input type="date" value={fromDate} onChange={e => setFromDate(e.target.value)} className="border border-gray-200 rounded-lg text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white" title="From date" />
+          <input type="date" value={fromDate} onChange={e => setFromDate(e.target.value)} className="border border-gray-200 rounded-lg text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white" title="From date" />
           <span className="text-xs text-gray-400">to</span>
-          <input type="date" value={toDate} onChange={e => setToDate(e.target.value)} className="border border-gray-200 rounded-lg text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white" title="To date" />
+          <input type="date" value={toDate} onChange={e => setToDate(e.target.value)} className="border border-gray-200 rounded-lg text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white" title="To date" />
         </div>
-      </div>
+      </Toolbar>
 
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
         {loading ? (

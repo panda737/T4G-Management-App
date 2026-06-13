@@ -9,6 +9,7 @@ import {
   type EsgResult,
   type CrmActivity,
   type CrmContact,
+  type UserProfile,
 } from '../../lib/supabase';
 import { usePageTitle } from '../../lib/usePageTitle';
 import { useUser } from '../../lib/UserContext';
@@ -31,10 +32,12 @@ import {
 } from '../../components/crm';
 import AccountFormModal from './AccountFormModal';
 import ContactFormModal from './ContactFormModal';
+import UserAccessModal from './UserAccessModal';
+import SiteFormModal from './SiteFormModal';
 
 type EnrichedRecord = ReceivedWasteRecord & { category_name: string; site_name: string; container_name: string };
 
-type Tab = 'overview' | 'details' | 'contacts' | 'sites' | 'waste' | 'esg' | 'activity';
+type Tab = 'overview' | 'details' | 'contacts' | 'sites' | 'waste' | 'esg' | 'activity' | 'portal';
 
 const PALETTE = ['#10b981','#f59e0b','#ef4444','#0ea5e9','#a855f7','#ec4899','#f97316','#14b8a6','#6366f1','#84cc16','#6b7280'];
 
@@ -71,16 +74,20 @@ export default function ClientView() {
   const [esgResults, setEsgResults] = useState<EsgResult[]>([]);
   const [contacts, setContacts] = useState<CrmContact[]>([]);
   const [activities, setActivities] = useState<TimelineActivity[]>([]);
+  const [portalUsers, setPortalUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<Tab>('overview');
   const [editOpen, setEditOpen] = useState(false);
   const [newContact, setNewContact] = useState(false);
+  const [newSite, setNewSite] = useState(false);
+  const [editingPortalUser, setEditingPortalUser] = useState<UserProfile | null>(null);
+  const [allClients, setAllClients] = useState<Client[]>([]);
 
   useEffect(() => { if (clientId) load(); }, [clientId]);
 
   async function load() {
     setLoading(true);
-    const [cRes, rRes, sitesRes, catsRes, contsRes, esgRes, actRes, contactsRes] = await Promise.all([
+    const [cRes, rRes, sitesRes, catsRes, contsRes, esgRes, actRes, contactsRes, portalRes, clientsRes] = await Promise.all([
       supabase.from('clients').select('*').eq('id', clientId!).maybeSingle(),
       supabase.from('received_waste_records').select('*').eq('client_id', clientId!).eq('import_status', 'imported').order('received_date', { ascending: false }),
       supabase.from('client_sites').select('*').eq('client_id', clientId!).order('generator_facility'),
@@ -89,6 +96,8 @@ export default function ClientView() {
       supabase.from('esg_results').select('*').eq('client_id', clientId!).order('period_month', { ascending: false }),
       supabase.from('crm_activities').select('*').eq('client_id', clientId!).order('created_at', { ascending: false }),
       supabase.from('crm_contacts').select('*').eq('client_id', clientId!).order('last_name').order('first_name'),
+      supabase.from('user_profiles').select('*').eq('client_id', clientId!).eq('role', 'customer').order('display_name'),
+      supabase.from('clients').select('*').order('client_name'),
     ]);
 
     setClient(cRes.data as Client | null);
@@ -121,6 +130,8 @@ export default function ClientView() {
     } satisfies TimelineActivity)));
 
     setContacts((contactsRes.data ?? []) as CrmContact[]);
+    setPortalUsers((portalRes.data ?? []) as UserProfile[]);
+    setAllClients((clientsRes.data ?? []) as Client[]);
 
     setLoading(false);
   }
@@ -141,7 +152,8 @@ export default function ClientView() {
     { id: 'waste', label: 'Waste Records', count: records.length },
     { id: 'esg', label: 'ESG', count: esgResults.length },
     { id: 'activity', label: 'Activity', count: activities.length },
-  ], [contacts.length, sites.length, records.length, esgResults.length, activities.length]);
+    { id: 'portal', label: 'Portal Access', count: portalUsers.length },
+  ], [contacts.length, sites.length, records.length, esgResults.length, activities.length, portalUsers.length]);
 
   if (loading) return <PageSpinner layout="h64" />;
   if (!client) return <div className="p-10 text-center text-sm text-gray-400">Account not found.</div>;
@@ -340,7 +352,23 @@ export default function ClientView() {
 
       {/* ── Sites ────────────────────────────────────────────────────────── */}
       {tab === 'sites' && (
-        <RelatedList title="Sites" icon={MapPin} count={sites.length} isEmpty={sites.length === 0} empty="No sites linked to this account yet.">
+        <RelatedList
+          title="Sites"
+          icon={MapPin}
+          count={sites.length}
+          isEmpty={sites.length === 0}
+          empty="No sites linked to this account yet."
+          action={
+            canEdit ? (
+              <button
+                onClick={() => setNewSite(true)}
+                className="flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-800 border border-indigo-200 rounded-lg px-2 py-1 hover:bg-indigo-50"
+              >
+                <Plus size={12} /> New Site
+              </button>
+            ) : undefined
+          }
+        >
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -348,20 +376,39 @@ export default function ClientView() {
                   <th className="text-left px-4 py-2.5 font-medium">Facility</th>
                   <th className="text-left px-4 py-2.5 font-medium">Group</th>
                   <th className="text-left px-4 py-2.5 font-medium">Site Code</th>
+                  <th className="text-left px-4 py-2.5 font-medium w-16" />
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {sites.map(s => (
-                  <tr key={s.id} className="hover:bg-gray-50">
+                  <tr
+                    key={s.id}
+                    onClick={() => navigate(`/commercial/sites/${s.id}`)}
+                    className="cursor-pointer hover:bg-indigo-50 transition-colors"
+                  >
                     <td className="px-4 py-2.5 font-medium text-gray-800">{s.generator_facility}</td>
                     <td className="px-4 py-2.5 text-gray-500">{s.generator_group || '—'}</td>
                     <td className="px-4 py-2.5 text-gray-500 font-mono text-xs">{s.site_code || '—'}</td>
+                    <td className="px-4 py-2.5 text-gray-300 text-right">›</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
         </RelatedList>
+      )}
+
+      {newSite && (
+        <SiteFormModal
+          site={null}
+          lockedClientId={clientId!}
+          onClose={() => setNewSite(false)}
+          onSave={saved => {
+            setSites(prev => [...prev, saved].sort((a, b) => a.generator_facility.localeCompare(b.generator_facility)));
+            setNewSite(false);
+            addToast('Site created');
+          }}
+        />
       )}
 
       {/* ── Waste Records ────────────────────────────────────────────────── */}
@@ -437,11 +484,67 @@ export default function ClientView() {
         />
       )}
 
+      {/* ── Portal Access ─────────────────────────────────────────────── */}
+      {tab === 'portal' && (
+        <RelatedList
+          title="Portal Access"
+          icon={User}
+          count={portalUsers.length}
+          isEmpty={portalUsers.length === 0}
+          empty="No portal users linked to this account. Go to Users & Access to link a portal login."
+        >
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-gray-50 text-[11px] uppercase tracking-wider text-gray-500">
+                  <th className="text-left px-4 py-2.5 font-medium">User</th>
+                  <th className="text-left px-4 py-2.5 font-medium">Status</th>
+                  <th className="text-left px-4 py-2.5 font-medium w-16" />
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {portalUsers.map(u => (
+                  <tr
+                    key={u.id}
+                    onClick={canEdit ? () => setEditingPortalUser(u) : undefined}
+                    className={canEdit ? 'cursor-pointer hover:bg-indigo-50 transition-colors' : ''}
+                  >
+                    <td className="px-4 py-2.5 font-medium text-gray-900">{u.display_name}</td>
+                    <td className="px-4 py-2.5">
+                      {u.is_active
+                        ? <span className="text-xs font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">Active</span>
+                        : <span className="text-xs font-medium text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">Inactive</span>}
+                    </td>
+                    <td className="px-4 py-2.5 text-gray-300 text-right">{canEdit ? '›' : ''}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </RelatedList>
+      )}
+
       {editOpen && (
         <AccountFormModal
           client={client}
           onClose={() => setEditOpen(false)}
           onSave={saved => { setClient(saved); setEditOpen(false); addToast('Account updated'); }}
+        />
+      )}
+
+      {editingPortalUser && (
+        <UserAccessModal
+          user={editingPortalUser}
+          clients={allClients}
+          onClose={() => setEditingPortalUser(null)}
+          onSave={updated => {
+            setPortalUsers(prev => {
+              const next = prev.map(u => u.id === updated.id ? updated : u).filter(u => u.client_id === clientId);
+              return next;
+            });
+            setEditingPortalUser(null);
+            addToast('Portal access updated');
+          }}
         />
       )}
     </div>
