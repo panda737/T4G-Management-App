@@ -3,31 +3,30 @@ import { Database, CheckCircle2, AlertTriangle, MapPin, RefreshCw } from 'lucide
 import { supabase } from '../../lib/supabase';
 import { usePageTitle } from '../../lib/usePageTitle';
 import { Spinner } from '../../components/Spinner';
-import { fetchAll } from '../../components/crm/reportEngine';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Portal Data Audit (admin, read-only) — Phase 0.
 //
 // Answers "do we have all the client data?" at a glance: per client, how many
 // sites (and how many have a province), how many received-waste rows + their
-// month range, and whether ESG has been computed AND approved (the portal ESG
-// tiles stay blank until results are approved). Pure SELECTs — no writes.
+// month range, and whether ESG has been computed AND approved. Reads the
+// pre-aggregated v_commercial_client_data_audit view (no full-table paging).
 // ─────────────────────────────────────────────────────────────────────────────
 
 interface Row {
-  clientId: string;
-  clientName: string;
+  client_id: string;
+  client_name: string;
   sites: number;
-  sitesWithProvince: number;
-  wasteRows: number;
-  monthMin: string;
-  monthMax: string;
-  esgTotal: number;
-  esgApproved: number;
-  latestApproved: string;
+  sites_with_province: number;
+  waste_rows: number;
+  month_min: string | null;
+  month_max: string | null;
+  esg_total: number;
+  esg_approved: number;
+  latest_approved: string | null;
 }
 
-const monthLabel = (ym: string) => {
+const monthLabel = (ym: string | null) => {
   if (!ym) return '—';
   const [y, m] = ym.split('-').map(Number);
   return new Date(y, m - 1).toLocaleDateString('en-ZA', { month: 'short', year: 'numeric' });
@@ -44,48 +43,15 @@ export default function PortalDataAudit() {
     setLoading(true);
     setError('');
     try {
-      const [clientsRes, sites, waste, esg, opRes] = await Promise.all([
-        supabase.from('clients').select('id, client_name').order('client_name'),
-        fetchAll<{ client_id: string; province: string | null }>((from, to) =>
-          supabase.from('client_sites').select('client_id, province').range(from, to)),
-        fetchAll<{ client_id: string; received_date: string | null }>((from, to) =>
-          supabase.from('received_waste_records').select('client_id, received_date').eq('import_status', 'imported').range(from, to)),
-        fetchAll<{ client_id: string; period_month: string; approved: boolean }>((from, to) =>
-          supabase.from('esg_results').select('client_id, period_month, approved').range(from, to)),
+      const [auditRes, opRes] = await Promise.all([
+        supabase.from('v_commercial_client_data_audit').select('*').order('client_name'),
         supabase.from('esg_monthly_operational').select('period_month'),
       ]);
+      if (auditRes.error) throw new Error(auditRes.error.message);
 
-      const clients = (clientsRes.data ?? []) as { id: string; client_name: string }[];
-      const map = new Map<string, Row>();
-      clients.forEach(c => map.set(c.id, {
-        clientId: c.id, clientName: c.client_name, sites: 0, sitesWithProvince: 0,
-        wasteRows: 0, monthMin: '', monthMax: '', esgTotal: 0, esgApproved: 0, latestApproved: '',
-      }));
-
-      sites.forEach(s => {
-        const r = map.get(s.client_id); if (!r) return;
-        r.sites++; if ((s.province ?? '').trim()) r.sitesWithProvince++;
-      });
-      waste.forEach(w => {
-        const r = map.get(w.client_id); if (!r) return;
-        r.wasteRows++;
-        const ym = w.received_date ? w.received_date.substring(0, 7) : '';
-        if (ym) {
-          if (!r.monthMin || ym < r.monthMin) r.monthMin = ym;
-          if (!r.monthMax || ym > r.monthMax) r.monthMax = ym;
-        }
-      });
-      esg.forEach(e => {
-        const r = map.get(e.client_id); if (!r) return;
-        r.esgTotal++;
-        if (e.approved) {
-          r.esgApproved++;
-          const ym = (e.period_month ?? '').substring(0, 7);
-          if (ym && ym > r.latestApproved) r.latestApproved = ym;
-        }
-      });
-
-      setRows([...map.values()].sort((a, b) => b.wasteRows - a.wasteRows || a.clientName.localeCompare(b.clientName)));
+      const data = (auditRes.data ?? []) as Row[];
+      data.sort((a, b) => b.waste_rows - a.waste_rows || a.client_name.localeCompare(b.client_name));
+      setRows(data);
       setOpMonths([...new Set(((opRes.data ?? []) as { period_month: string }[]).map(o => o.period_month.substring(0, 7)))].sort());
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load audit');
@@ -100,10 +66,9 @@ export default function PortalDataAudit() {
 
   const totals = rows.reduce((a, r) => ({
     sites: a.sites + r.sites,
-    waste: a.waste + r.wasteRows,
-    withWaste: a.withWaste + (r.wasteRows > 0 ? 1 : 0),
-    withApproved: a.withApproved + (r.esgApproved > 0 ? 1 : 0),
-  }), { sites: 0, waste: 0, withWaste: 0, withApproved: 0 });
+    waste: a.waste + r.waste_rows,
+    withApproved: a.withApproved + (r.esg_approved > 0 ? 1 : 0),
+  }), { sites: 0, waste: 0, withApproved: 0 });
 
   return (
     <div className="space-y-5">
@@ -149,25 +114,25 @@ export default function PortalDataAudit() {
           </thead>
           <tbody>
             {rows.map(r => {
-              const noWaste = r.wasteRows === 0;
+              const noWaste = r.waste_rows === 0;
               return (
-                <tr key={r.clientId} className="border-b border-gray-50 last:border-0 hover:bg-gray-50/60">
-                  <td className="px-4 py-2.5 font-medium text-gray-800">{r.clientName}</td>
+                <tr key={r.client_id} className="border-b border-gray-50 last:border-0 hover:bg-gray-50/60">
+                  <td className="px-4 py-2.5 font-medium text-gray-800">{r.client_name}</td>
                   <td className="px-4 py-2.5 text-gray-600">{r.sites}</td>
                   <td className="px-4 py-2.5">
-                    <span className={`inline-flex items-center gap-1 ${r.sites && r.sitesWithProvince === r.sites ? 'text-emerald-600' : 'text-gray-400'}`}>
-                      <MapPin size={12} /> {r.sitesWithProvince}/{r.sites}
+                    <span className={`inline-flex items-center gap-1 ${r.sites && r.sites_with_province === r.sites ? 'text-emerald-600' : 'text-gray-400'}`}>
+                      <MapPin size={12} /> {r.sites_with_province}/{r.sites}
                     </span>
                   </td>
-                  <td className="px-4 py-2.5 text-right tabular-nums text-gray-700">{r.wasteRows.toLocaleString('en-ZA')}</td>
-                  <td className="px-4 py-2.5 text-gray-600">{r.monthMin ? `${monthLabel(r.monthMin)} – ${monthLabel(r.monthMax)}` : '—'}</td>
+                  <td className="px-4 py-2.5 text-right tabular-nums text-gray-700">{r.waste_rows.toLocaleString('en-ZA')}</td>
+                  <td className="px-4 py-2.5 text-gray-600">{r.month_min ? `${monthLabel(r.month_min)} – ${monthLabel(r.month_max)}` : '—'}</td>
                   <td className="px-4 py-2.5 text-gray-600">
-                    {r.esgTotal === 0 ? '—' : `${r.esgApproved}/${r.esgTotal}${r.latestApproved ? ` · ${monthLabel(r.latestApproved)}` : ''}`}
+                    {r.esg_total === 0 ? '—' : `${r.esg_approved}/${r.esg_total}${r.latest_approved ? ` · ${monthLabel(r.latest_approved)}` : ''}`}
                   </td>
                   <td className="px-4 py-2.5">
                     {noWaste ? (
                       <Badge tone="gray" icon={AlertTriangle}>No waste data</Badge>
-                    ) : r.esgApproved > 0 ? (
+                    ) : r.esg_approved > 0 ? (
                       <Badge tone="emerald" icon={CheckCircle2}>ESG live</Badge>
                     ) : (
                       <Badge tone="amber" icon={AlertTriangle}>Waste only — ESG pending</Badge>
