@@ -11,11 +11,11 @@ import { ESG_TABS } from './commercialTabs';
 
 const inp = 'w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent';
 
+// Effluent is intentionally excluded — Not Applicable to Tech4Green (no effluent stream).
 const FIELDS: { key: keyof EsgMonthlyOperational; label: string; unit: string }[] = [
   { key: 'electricity_kwh', label: 'Electricity', unit: 'kWh' },
   { key: 'water_kl', label: 'Water', unit: 'kL' },
   { key: 'diesel_litres', label: 'Diesel', unit: 'L' },
-  { key: 'effluent_kl', label: 'Effluent', unit: 'kL' },
   { key: 'treatment_energy_kwh', label: 'Treatment energy', unit: 'kWh' },
   { key: 'trips', label: 'Trips', unit: '' },
   { key: 'kilometres', label: 'Kilometres', unit: 'km' },
@@ -72,7 +72,7 @@ export default function EsgOperational() {
 
       <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-2.5 flex items-start gap-2 text-sm text-blue-800">
         <Info size={15} className="mt-0.5 flex-shrink-0" />
-        These plant-wide totals are allocated to each client by their share of nett-kg treated that month. Mark each month as <b>Actual</b> (meter readings) or <b>Estimated</b>.
+        These plant-wide totals are allocated to each client by their share of nett-kg treated that month. Mark each month as <b>Actual</b> (meter readings) or <b>Estimated</b>. <b>Effluent is Not Applicable</b> — the Tech4Green process generates no effluent stream.
       </div>
 
       {rows.length === 0 ? (

@@ -9,9 +9,11 @@ import SectionTabs from '../../components/SectionTabs';
 import { ESG_TABS } from './commercialTabs';
 
 // Factor keys the engine needs for the core (carbon + transport) metrics.
+// Baseline comparator = autoclave (Tech4Green's normal comparison). Tech4Green's
+// own direct treatment factor is 0.000 within the direct treatment-process boundary.
 const ESSENTIAL_FACTORS = [
   'emission_factor:diesel', 'emission_factor:electricity',
-  'treatment_factor:t4g_plant', 'treatment_factor:incineration',
+  'treatment_factor:t4g_plant', 'treatment_factor:autoclave',
   'transport_assumption:boxbody_payload_kg', 'transport_assumption:avg_trip_km',
   'transport_assumption:diesel_l_per_km_t4g', 'transport_assumption:diesel_l_per_km_baseline',
   'carbon_credit:tco2e_per_credit',
@@ -87,7 +89,7 @@ export default function EsgSetup() {
   const cards: { id: string; n: number; title: string; desc: string; icon: LucideIcon; to: string; cta: string }[] = [
     { id: 'factors', n: 1, title: 'Review & approve factors', desc: 'The library is pre-loaded as drafts. Check each value & source, then approve. Nothing reaches customers until approved.', icon: Sliders, to: '/commercial/esg/factors', cta: 'Open factors' },
     { id: 'methodology', n: 2, title: 'Confirm methodology', desc: 'Allocation = share of nett kg · 1 credit = 1 tCO₂e · admin approves. Confirm or edit these defaults (in the factor list under Baselines / Allocation / Carbon Credit).', icon: Gauge, to: '/commercial/esg/factors', cta: 'Confirm defaults' },
-    { id: 'operational', n: 3, title: 'Enter monthly plant data', desc: 'Electricity, water, diesel, effluent, trips, km, idling. Blank fields are estimated automatically.', icon: Database, to: '/commercial/esg/operational', cta: 'Enter data' },
+    { id: 'operational', n: 3, title: 'Enter monthly plant data', desc: 'Electricity, water, diesel, trips, km, idling. Blank fields are estimated automatically. Effluent is Not Applicable for Tech4Green (no effluent stream).', icon: Database, to: '/commercial/esg/operational', cta: 'Enter data' },
     { id: 'recalc', n: 4, title: 'Recalculate & review', desc: 'Run the engine for a month. Every number shows its inputs, factor version and data basis. Missing factor → "awaiting data", never a guess.', icon: RefreshCw, to: '/commercial/esg/recalculate', cta: 'Recalculate' },
     { id: 'approve', n: 5, title: 'Approve for customers', desc: 'Approve reviewed results to make them visible in the customer ESG dashboard.', icon: ShieldCheck, to: '/commercial/esg/recalculate', cta: 'Approve results' },
   ];

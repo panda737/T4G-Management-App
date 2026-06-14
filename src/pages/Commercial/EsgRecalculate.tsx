@@ -12,7 +12,7 @@ import { runEsgRecalc, listPeriodsWithData } from './esgEngine';
 const num = (n: number | null) => n == null ? '—' : Number(n).toLocaleString('en-ZA', { maximumFractionDigits: 2 });
 
 const METRICS: { key: keyof EsgResult; basisKey: string; label: string; unit: string }[] = [
-  { key: 'co2e_saved_kg', basisKey: 'co2e_saved_kg', label: 'CO₂e saved', unit: 'kg' },
+  { key: 'co2e_saved_kg', basisKey: 'co2e_saved_kg', label: 'Est. CO₂e avoided (vs autoclave)', unit: 'kg' },
   { key: 'residual_tco2e', basisKey: 'residual_tco2e', label: 'Residual', unit: 'tCO₂e' },
   { key: 'electricity_saved_kwh', basisKey: 'electricity_saved_kwh', label: 'Electricity saved', unit: 'kWh' },
   { key: 'water_saved_kl', basisKey: 'water_saved_kl', label: 'Water saved', unit: 'kL' },
@@ -105,7 +105,7 @@ export default function EsgRecalculate() {
       <SectionTabs tabs={ESG_TABS} />
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Recalculate &amp; Review</h1>
-        <p className="text-sm text-gray-500 mt-1">Run the engine for a month, review each client's numbers and their provenance, then approve for customer visibility.</p>
+        <p className="text-sm text-gray-500 mt-1">Run the engine for a month, review each client's numbers and their provenance, then approve for customer visibility. Baseline = <b>autoclave</b>; Tech4Green direct treatment = 0.000 kg CO₂e/kg (direct treatment-process boundary only — excludes operational emissions); operational emissions only from verified data; effluent is Not Applicable.</p>
       </div>
 
       {periods.length === 0 ? (

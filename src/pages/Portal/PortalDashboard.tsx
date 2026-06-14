@@ -94,16 +94,16 @@ export default function PortalDashboard() {
 
       {/* Environmental impact tiles (ESG) */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <EsgKpi icon={Leaf} tone="emerald" label="Carbon saved" value={d.esg?.co2e_saved_kg} unit="kg CO₂e" has={hasEsg} />
+        <EsgKpi icon={Leaf} tone="emerald" label="CO₂e avoided" value={d.esg?.co2e_saved_kg} unit="kg CO₂e" has={hasEsg} note="vs autoclave" />
         <EsgKpi icon={Droplets} tone="sky" label="Water saved" value={d.esg?.water_saved_kl} unit="kL" has={hasEsg} />
         <EsgKpi icon={Fuel} tone="orange" label="Diesel saved" value={d.esg?.diesel_saved_l} unit="L" has={hasEsg} />
         <EsgKpi icon={TreePine} tone="green" label="Trees equivalent" value={d.esg?.trees_equivalent} unit="trees" has={hasEsg} note="illustrative" />
       </div>
 
-      {/* Tech4Green vs Conventional */}
-      <Card title="Tech4Green vs Conventional Treatment" icon={TrendingUp}
+      {/* Tech4Green vs Autoclave */}
+      <Card title="Tech4Green vs Autoclave — treatment-only comparison" icon={TrendingUp}
         right={allocated ? <Tag>Allocated estimate (site share)</Tag> : undefined}>
-        {hasEsg ? <Comparison esg={d.esg!} /> : <Awaiting>Carbon, water, diesel &amp; treatment comparisons appear once Tech4Green has computed and approved ESG results for this account.</Awaiting>}
+        {hasEsg ? <Comparison esg={d.esg!} /> : <Awaiting>Estimated avoided CO₂e vs an autoclave baseline appears once Tech4Green has computed and approved ESG results for this account. Water, electricity &amp; diesel comparisons follow once verified operational data is loaded.</Awaiting>}
       </Card>
 
       {/* Monthly trend */}
@@ -200,19 +200,19 @@ export default function PortalDashboard() {
         {hasEsg ? (
           <p className="text-sm text-gray-600 leading-relaxed">
             Over {label.toLowerCase()}, Tech4Green treated <b>{kg(d.esg!.total_nett_kg ?? 0)} kg</b> of waste{allocated ? ' (allocated to your visible sites)' : ''},
-            saving an estimated <b>{kg(d.esg!.co2e_saved_kg ?? 0)} kg CO₂e</b>
-            {d.esg!.water_saved_kl != null && <> and <b>{num(d.esg!.water_saved_kl)} kL of water</b></>}
+            an estimated <b>{kg(d.esg!.co2e_saved_kg ?? 0)} kg CO₂e avoided</b> versus an autoclave baseline (treatment-only comparison)
+            {d.esg!.water_saved_kl != null && <>, plus <b>{num(d.esg!.water_saved_kl)} kL of water</b></>}
             {d.esg!.trees_equivalent != null && <> — roughly equivalent to <b>{num(d.esg!.trees_equivalent)} trees</b> (illustrative only, not verified offsetting)</>}.
-            Thank you for choosing sustainable healthcare waste treatment.
+            Operational emissions (electricity, water, diesel, transport) are included only once verified operational data is loaded. Thank you for choosing sustainable healthcare waste treatment.
           </p>
         ) : (
-          <Awaiting>Your ESG performance summary appears here once Tech4Green has verified the emission factors and monthly operational data for your account — no estimates are shown until then.</Awaiting>
+          <Awaiting>Your ESG performance summary appears here once Tech4Green has verified the autoclave baseline factor and computed results for your account — no estimates are shown until then.</Awaiting>
         )}
       </Card>
 
       <div className="bg-gray-50 border border-gray-200 rounded-lg px-4 py-2.5 flex items-start gap-2 text-xs text-gray-500">
         <Info size={14} className="flex-shrink-0 mt-0.5" />
-        Waste figures are from manifests Tech4Green received. Environmental figures are reviewed and approved before they appear, and "trees equivalent" is an illustrative comparison only — not verified carbon offsetting or actual trees planted.
+        Waste figures are from manifests Tech4Green received. Carbon is an <b>estimated avoided CO₂e vs an autoclave baseline (treatment-only comparison)</b>; operational emissions (electricity, water, diesel, transport) are included only once verified operational data is loaded. Effluent is <b>Not Applicable</b> — no effluent stream is generated. All environmental figures are reviewed and approved before they appear, and "trees equivalent" is an illustrative comparison only — not verified carbon offsetting or actual trees planted.
       </div>
     </div>
   );

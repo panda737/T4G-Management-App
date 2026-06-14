@@ -921,6 +921,7 @@ export type EsgFactor = {
   text_value: string;
   source: string;
   effective_date: string;
+  calculation_boundary: string | null;
   version: number;
   approved: boolean;
   approved_by: string | null;
@@ -987,7 +988,7 @@ export type EsgResult = {
   transport_comparison: Record<string, number>;
   data_basis: Record<string, EsgDataBasis>;
   audit: Record<string, unknown>;
-  factor_snapshot: Array<{ key: string; value: number; unit: string; source: string; version: number; approved: boolean }>;
+  factor_snapshot: Array<{ key: string; value: number; unit: string; source: string; version: number; approved: boolean; effective_date?: string | null; calculation_boundary?: string | null; approved_by?: string | null; approved_at?: string | null }>;
   calc_run_id: string | null;
   approved: boolean;
   approved_by: string | null;

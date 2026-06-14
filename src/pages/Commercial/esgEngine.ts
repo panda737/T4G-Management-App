@@ -22,6 +22,10 @@ export interface FactorRef {
   version: number;
   source: string;
   unit: string;
+  effectiveDate: string | null;
+  calculationBoundary: string | null;
+  approvedBy: string | null;
+  approvedAt: string | null;
 }
 export type FactorMap = Map<string, FactorRef>;
 
@@ -29,7 +33,7 @@ export type FactorMap = Map<string, FactorRef>;
 export async function loadApprovedFactors(supabase: SupabaseClient, periodEnd: string): Promise<FactorMap> {
   const { data } = await supabase
     .from('esg_factors')
-    .select('factor_key, value, text_value, version, source, unit, effective_date')
+    .select('factor_key, value, text_value, version, source, unit, effective_date, calculation_boundary, approved_by, approved_at')
     .eq('approved', true)
     .eq('active', true)
     .lte('effective_date', periodEnd)
@@ -46,6 +50,10 @@ export async function loadApprovedFactors(supabase: SupabaseClient, periodEnd: s
       version: Number(r.version),
       source: String(r.source ?? ''),
       unit: String(r.unit ?? ''),
+      effectiveDate: (r.effective_date as string) ?? null,
+      calculationBoundary: (r.calculation_boundary as string) ?? null,
+      approvedBy: (r.approved_by as string) ?? null,
+      approvedAt: (r.approved_at as string) ?? null,
     });
   }
   return map;
@@ -131,7 +139,7 @@ export function computeClient(input: ClientPeriodInput, f: FactorMap): ComputedR
   const alloc = (v: number | null): number | null => (v == null ? null : v * share);
 
   // ── Treatment: T4G plant vs industry baseline comparator ──────────────────
-  const baselineKey = `treatment_factor:${get('baseline:treatment_comparator')?.text || 'incineration'}`;
+  const baselineKey = `treatment_factor:${get('baseline:treatment_comparator')?.text || 'autoclave'}`;
   const fT4g = get('treatment_factor:t4g_plant');
   const fBase = get(baselineKey);
   let treatmentSaved: number | null = null;
@@ -213,10 +221,8 @@ export function computeClient(input: ClientPeriodInput, f: FactorMap): ComputedR
   // ── Plant: electricity / water / effluent vs benchmark ────────────────────
   const fElecEf = get('emission_factor:electricity');
   const fWaterEf = get('water_factor:supply');
-  const fEffEf = get('water_factor:effluent');
   const fBkWh = get('plant_benchmark:autoclave_kwh_per_kg');
   const fBWater = get('plant_benchmark:autoclave_water_kl_per_kg');
-  const fBEff = get('plant_benchmark:autoclave_effluent_kl_per_kg');
 
   // electricity
   let electricitySaved: number | null = null;
@@ -250,24 +256,22 @@ export function computeClient(input: ClientPeriodInput, f: FactorMap): ComputedR
     } else { basis.water_saved_kl = 'awaiting'; audit.water = { status: 'awaiting', missing: ['monthly water_kl'] }; }
   } else { basis.water_saved_kl = 'awaiting'; audit.water = { status: 'awaiting', missing: [!fWaterEf && 'water_factor:supply', !fBWater && 'plant_benchmark:autoclave_water_kl_per_kg'].filter(Boolean) }; }
 
-  // effluent (contributes to residual + savings, no dedicated dashboard metric column beyond emissions)
-  let t4gEffEm = 0; let effEmSaved = 0;
-  if (fEffEf && fBEff) {
-    const t4gEffAlloc = alloc(op.effluent_kl);
-    if (t4gEffAlloc != null) {
-      const benchEff = nettKg * fBEff.value;
-      effEmSaved = (benchEff - t4gEffAlloc) * fEffEf.value;
-      t4gEffEm = t4gEffAlloc * fEffEf.value;
-      audit.effluent = { actual_kl: t4gEffAlloc, benchmark_kl: benchEff, effluent_ef: ref('water_factor:effluent'), basis: opBasis };
-    }
-  }
+  // Effluent: NOT APPLICABLE to Tech4Green — the treatment process generates no
+  // effluent stream. It is excluded from the Tech4Green boundary (never "awaiting").
+  // water_factor:effluent is retained ONLY as a reference factor for other
+  // technologies and is never applied to Tech4Green.
+  audit.effluent = {
+    status: 'not_applicable',
+    boundary: 'excluded_from_tech4green',
+    note: 'No effluent stream generated from the Tech4Green treatment process.',
+  };
 
   // ── Totals ────────────────────────────────────────────────────────────────
   const savedParts = [treatmentSaved, transportSaved, electricitySaved != null ? elecEmSaved : null, waterSaved != null ? waterEmSaved : null];
   const anySaved = savedParts.some(p => p != null);
   let co2eSaved: number | null = null;
   if (anySaved) {
-    co2eSaved = (treatmentSaved ?? 0) + (transportSaved ?? 0) + elecEmSaved + waterEmSaved + effEmSaved;
+    co2eSaved = (treatmentSaved ?? 0) + (transportSaved ?? 0) + elecEmSaved + waterEmSaved;
     basis.co2e_saved_kg = worst(basis.treatment, basis.transport, basis.electricity_saved_kwh, basis.water_saved_kl);
   } else { basis.co2e_saved_kg = 'awaiting'; }
 
@@ -276,7 +280,7 @@ export function computeClient(input: ClientPeriodInput, f: FactorMap): ComputedR
   const anyResidual = residualParts.some(p => p != null);
   let residualTco2e: number | null = null;
   if (anyResidual) {
-    const residualKg = (t4gTreatEm ?? 0) + (t4gTransportEm ?? 0) + t4gElecEm + t4gWaterEm + t4gEffEm;
+    const residualKg = (t4gTreatEm ?? 0) + (t4gTransportEm ?? 0) + t4gElecEm + t4gWaterEm;
     residualTco2e = residualKg / 1000;
     basis.residual_tco2e = worst(basis.treatment, basis.transport);
   } else { basis.residual_tco2e = 'awaiting'; }
@@ -298,6 +302,15 @@ export function computeClient(input: ClientPeriodInput, f: FactorMap): ComputedR
     basis.trees_equivalent = 'estimated';
     audit.trees_equivalent = { method: 'illustrative_equivalence', co2e_saved_kg: co2eSaved, kg_co2e_per_tree: ref('equivalence:kg_co2e_per_tree'), trees, note: 'Illustrative only — not verified offsetting or actual trees planted.' };
   } else { basis.trees_equivalent = 'awaiting'; }
+
+  // Headline framing — defensible wording for the dashboard/report.
+  audit.headline = {
+    metric: 'estimated_avoided_co2e',
+    comparison: 'treatment_only_vs_baseline',
+    baseline_comparator: get('baseline:treatment_comparator')?.text || 'autoclave',
+    operational_data_present: op.present,
+    note: 'Estimated avoided CO₂e vs the autoclave baseline (treatment-only). Operational emissions (electricity, water, diesel, transport) are included only from verified operational data; effluent is not applicable to Tech4Green.',
+  };
 
   return {
     client_id: clientId,
@@ -443,6 +456,8 @@ export async function runEsgRecalc(
   // factor snapshot (traceability) — frozen with this run's results
   const factorSnapshot = [...factors.values()].map(fr => ({
     key: fr.key, value: fr.value, unit: fr.unit, source: fr.source, version: fr.version, approved: true,
+    effective_date: fr.effectiveDate, calculation_boundary: fr.calculationBoundary,
+    approved_by: fr.approvedBy, approved_at: fr.approvedAt,
   }));
   const factorSetHash = hashFactors(factorSnapshot);
 
@@ -493,10 +508,12 @@ export async function runEsgRecalc(
     wrote = data?.length ?? 0;
   }
 
-  // which expected factor keys are missing (for the readiness hint)
+  // which expected factor keys are missing (for the readiness hint).
+  // Baseline comparator is dynamic (autoclave by default); effluent is N/A (excluded).
+  const comparator = factors.get('baseline:treatment_comparator')?.text || 'autoclave';
   const expected = [
-    'emission_factor:diesel', 'emission_factor:electricity', 'water_factor:supply', 'water_factor:effluent',
-    'treatment_factor:t4g_plant', 'treatment_factor:incineration',
+    'emission_factor:diesel', 'emission_factor:electricity', 'water_factor:supply',
+    'treatment_factor:t4g_plant', `treatment_factor:${comparator}`,
     'transport_assumption:boxbody_payload_kg', 'transport_assumption:avg_trip_km',
     'transport_assumption:diesel_l_per_km_t4g', 'transport_assumption:diesel_l_per_km_baseline',
     'plant_benchmark:autoclave_kwh_per_kg', 'plant_benchmark:autoclave_water_kl_per_kg',
