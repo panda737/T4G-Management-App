@@ -62,19 +62,23 @@ export function UserProvider({ session, children }: { session: Session; children
     let mounted = true;
 
     async function fetchProfile() {
-      const { data } = await supabase
-        .from('user_profiles')
-        .select('id, auth_user_id, display_name, role, is_active, employee_id, client_id, created_by, created_at, updated_at')
-        .eq('auth_user_id', session.user.id)
-        .maybeSingle();
+      try {
+        const { data } = await supabase
+          .from('user_profiles')
+          .select('id, auth_user_id, display_name, role, is_active, employee_id, client_id, site_id, created_by, created_at, updated_at')
+          .eq('auth_user_id', session.user.id)
+          .maybeSingle();
 
-      if (mounted) {
+        if (!mounted) return;
         if (data && !data.is_active) {
           await supabase.auth.signOut();
           return;
         }
         setProfile(data ?? null);
-        setLoading(false);
+      } catch {
+        if (mounted) setProfile(null);
+      } finally {
+        if (mounted) setLoading(false);
       }
     }
 

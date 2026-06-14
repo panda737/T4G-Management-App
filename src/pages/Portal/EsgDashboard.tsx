@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Leaf, Droplets, Fuel, Truck, Zap, Award, ChevronDown, Info, ShieldCheck, Clock } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import { supabase, type EsgResultCustomerRow, type EsgDataBasis, ESG_DATA_BASIS_LABELS } from '../../lib/supabase';
+import { type EsgResultCustomerRow, type EsgDataBasis, ESG_DATA_BASIS_LABELS } from '../../lib/supabase';
 import { usePageTitle } from '../../lib/usePageTitle';
 import { PageSpinner } from '../../components/Spinner';
-import { num, monthLabel } from './portalUtils';
+import { num, monthLabel, usePortalEsg } from './portalUtils';
+import { usePortalClient } from './PortalClientContext';
 
 const BASIS_STYLE: Record<EsgDataBasis, string> = {
   actual: 'bg-emerald-50 text-emerald-700 border-emerald-200',
@@ -21,19 +22,13 @@ function Badge({ b }: { b: EsgDataBasis | undefined }) {
 
 export default function EsgDashboard() {
   usePageTitle('Portal — ESG & Sustainability');
-  const [rows, setRows] = useState<EsgResultCustomerRow[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { rows, loading } = usePortalEsg();
+  const { siteScoped } = usePortalClient();
   const [month, setMonth] = useState('');
 
   useEffect(() => {
-    (async () => {
-      const { data } = await supabase.from('v_esg_results').select('*').order('period_month', { ascending: false });
-      const list = (data ?? []) as EsgResultCustomerRow[];
-      setRows(list);
-      setMonth(list[0]?.period_month ?? '');
-      setLoading(false);
-    })();
-  }, []);
+    setMonth(rows[0]?.period_month ?? '');
+  }, [rows]);
 
   const months = useMemo(() => Array.from(new Set(rows.map(r => r.period_month))).sort().reverse(), [rows]);
   const current = useMemo(() => rows.find(r => r.period_month === month), [rows, month]);
@@ -58,7 +53,12 @@ export default function EsgDashboard() {
         )}
       </div>
 
-      {rows.length === 0 ? (
+      {siteScoped ? (
+        <div className="bg-indigo-50 border border-indigo-200 rounded-xl px-4 py-3 flex items-start gap-2 text-sm text-indigo-800">
+          <Info size={15} className="flex-shrink-0 mt-0.5" />
+          Per-site ESG reporting is coming soon. ESG &amp; sustainability figures are currently calculated at the account level — please use the account login to view them.
+        </div>
+      ) : rows.length === 0 ? (
         <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3 flex items-start gap-2 text-sm text-emerald-800">
           <Info size={15} className="flex-shrink-0 mt-0.5" />
           Your ESG report is being prepared. Figures appear here once Tech4Green has verified the emission factors and monthly data for your account — no estimates are shown until then.

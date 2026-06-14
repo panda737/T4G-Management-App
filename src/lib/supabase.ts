@@ -503,6 +503,7 @@ export type UserProfile = {
   is_active: boolean;
   employee_id: string | null;
   client_id: string | null;
+  site_id: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;

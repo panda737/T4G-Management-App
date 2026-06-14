@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Building2, MapPin, User, Scale, Boxes, CalendarDays, Pencil, Plus } from 'lucide-react';
+import { Building2, MapPin, User, Scale, Boxes, CalendarDays, Pencil, Plus, Eye } from 'lucide-react';
 import {
   supabase,
   type Client,
@@ -202,14 +202,22 @@ export default function ClientView() {
           { label: 'Open Tasks', value: openTasks > 0 ? <span className="text-amber-600">{openTasks}</span> : '0' },
         ]}
         actions={
-          canEdit ? (
+          <>
             <button
-              onClick={() => setEditOpen(true)}
+              onClick={() => navigate(`/portal/dashboard?client=${clientId}`)}
               className="flex items-center gap-1.5 text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white hover:bg-gray-50 text-gray-700"
             >
-              <Pencil size={14} /> Edit
+              <Eye size={14} /> Preview Portal
             </button>
-          ) : undefined
+            {canEdit && (
+              <button
+                onClick={() => setEditOpen(true)}
+                className="flex items-center gap-1.5 text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white hover:bg-gray-50 text-gray-700"
+              >
+                <Pencil size={14} /> Edit
+              </button>
+            )}
+          </>
         }
         onBack={() => navigate('/commercial/clients')}
         backLabel="Back to Accounts"

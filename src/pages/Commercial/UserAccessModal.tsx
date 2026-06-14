@@ -14,8 +14,10 @@ export default function UserAccessModal({ user, clients, onClose, onSave }: Prop
   const { addToast } = useToast();
   const [clientId, setClientId] = useState(user.client_id ?? '');
   const [contactId, setContactId] = useState('');
+  const [siteId, setSiteId] = useState(user.site_id ?? '');
   const [isActive, setIsActive] = useState(user.is_active);
   const [contacts, setContacts] = useState<CrmContact[]>([]);
+  const [sites, setSites] = useState<{ id: string; generator_facility: string }[]>([]);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -45,12 +47,25 @@ export default function UserAccessModal({ user, clients, onClose, onSave }: Prop
     loadContacts();
   }, [clientId]);
 
+  useEffect(() => {
+    async function loadSites() {
+      if (!clientId) { setSites([]); return; }
+      const { data } = await supabase
+        .from('client_sites')
+        .select('id, generator_facility')
+        .eq('client_id', clientId)
+        .order('generator_facility');
+      setSites((data ?? []) as { id: string; generator_facility: string }[]);
+    }
+    loadSites();
+  }, [clientId]);
+
   async function handleSave() {
     setSaving(true);
 
     const { error: userErr } = await supabase
       .from('user_profiles')
-      .update({ client_id: clientId || null, is_active: isActive })
+      .update({ client_id: clientId || null, site_id: siteId || null, is_active: isActive })
       .eq('id', user.id);
     if (userErr) { addToast('Could not update user: ' + userErr.message, 'error'); setSaving(false); return; }
 
@@ -69,7 +84,7 @@ export default function UserAccessModal({ user, clients, onClose, onSave }: Prop
     }
 
     setSaving(false);
-    onSave({ ...user, client_id: clientId || null, is_active: isActive });
+    onSave({ ...user, client_id: clientId || null, site_id: siteId || null, is_active: isActive });
   }
 
   const selectedClient = clients.find(c => c.id === clientId);
@@ -103,13 +118,35 @@ export default function UserAccessModal({ user, clients, onClose, onSave }: Prop
           <label className="block text-xs font-medium text-gray-500 mb-1.5">Linked Account</label>
           <select
             value={clientId}
-            onChange={e => { setClientId(e.target.value); setContactId(''); }}
+            onChange={e => { setClientId(e.target.value); setContactId(''); setSiteId(''); }}
             className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
           >
             <option value="">— No access (unlinked) —</option>
             {clients.map(c => <option key={c.id} value={c.id}>{c.client_name}</option>)}
           </select>
         </div>
+
+        {clientId && (
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1.5">
+              Site access{' '}
+              <span className="text-gray-400 font-normal">(optional — restrict to one facility)</span>
+            </label>
+            <select
+              value={siteId}
+              onChange={e => setSiteId(e.target.value)}
+              className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            >
+              <option value="">Whole account (all sites)</option>
+              {sites.map(s => <option key={s.id} value={s.id}>{s.generator_facility}</option>)}
+            </select>
+            {siteId && (
+              <p className="text-xs text-amber-600 mt-1.5">
+                This login will only see this site's received-waste data. ESG is account-level and won't be shown.
+              </p>
+            )}
+          </div>
+        )}
 
         {clientId && (
           <div>

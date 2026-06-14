@@ -330,7 +330,8 @@ function StaffShell({ session }: { session: Session }) {
 }
 
 function RoleShell({ session }: { session: Session }) {
-  const { isCustomer, loading } = useUser();
+  const { isCustomer, isAdmin, loading } = useUser();
+  const { pathname } = useLocation();
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -341,7 +342,10 @@ function RoleShell({ session }: { session: Session }) {
       </div>
     );
   }
-  return isCustomer ? <PortalShell session={session} /> : <StaffShell session={session} />;
+  if (isCustomer) return <PortalShell session={session} />;
+  // Admins can preview the customer portal as any client.
+  if (isAdmin && pathname.startsWith('/portal')) return <PortalShell session={session} adminPreview />;
+  return <StaffShell session={session} />;
 }
 
 function AuthenticatedLayout({ session }: { session: Session }) {
