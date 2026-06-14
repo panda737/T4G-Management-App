@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Routes, Route, Navigate, NavLink, useNavigate, useSearchParams } from 'react-router-dom';
-import { LayoutDashboard, FileBarChart2, Building2, Recycle, FileText, Leaf, LogOut, Menu, X, Eye, ChevronDown } from 'lucide-react';
+import { LayoutDashboard, FileBarChart2, Building2, Recycle, FileText, Leaf, LogOut, Menu, X, Eye, ChevronDown, Scale } from 'lucide-react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from '../../lib/supabase';
 import { useUser } from '../../lib/UserContext';
+import PortalDashboard from './PortalDashboard';
 import ReceivedWasteDashboard from './ReceivedWasteDashboard';
 import MonthlyReport from './MonthlyReport';
 import SiteBreakdown from './SiteBreakdown';
@@ -13,7 +14,8 @@ import EsgDashboard from './EsgDashboard';
 import { PortalClientContext } from './PortalClientContext';
 
 const NAV = [
-  { to: '/portal/dashboard', label: 'Received Waste', icon: LayoutDashboard },
+  { to: '/portal/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { to: '/portal/received', label: 'Received Waste', icon: Scale },
   { to: '/portal/report', label: 'Monthly Report', icon: FileBarChart2 },
   { to: '/portal/sites', label: 'Site Breakdown', icon: Building2 },
   { to: '/portal/categories', label: 'Waste Categories', icon: Recycle },
@@ -164,7 +166,8 @@ export default function PortalShell({ session, adminPreview = false }: { session
           )}
           <Routes>
             <Route path="/portal" element={<Navigate to="/portal/dashboard" replace />} />
-            <Route path="/portal/dashboard" element={<ReceivedWasteDashboard />} />
+            <Route path="/portal/dashboard" element={<PortalDashboard />} />
+            <Route path="/portal/received" element={<ReceivedWasteDashboard />} />
             <Route path="/portal/report" element={<MonthlyReport />} />
             <Route path="/portal/sites" element={<SiteBreakdown />} />
             <Route path="/portal/categories" element={<CategoryBreakdown />} />
