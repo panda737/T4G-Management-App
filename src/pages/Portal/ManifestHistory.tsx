@@ -1,69 +1,57 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Search } from 'lucide-react';
 import { PageSpinner } from '../../components/Spinner';
 import { usePageTitle } from '../../lib/usePageTitle';
-import { usePortalWaste, kg, num, fmtDate } from './portalUtils';
-import type { ReceivedWasteCustomerRow } from '../../lib/supabase';
+import { usePortalClient } from './PortalClientContext';
+import { useManifests, type ManifestHistRow } from './portalApi';
+import { kg, num, fmtDate } from './portalUtils';
 
-interface ManifestAgg {
-  tracking: string;
-  received: string | null;
-  collected: string | null;
-  facility: string;
-  lines: number;
-  containers: number;
-  nettKg: number;
-  categories: string;
-}
+const PAGE = 100;
 
 export default function ManifestHistory() {
   usePageTitle('Portal — Manifest History');
-  const { rows, loading } = usePortalWaste();
+  const { clientId, siteId } = usePortalClient();
+  const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
+  const [offset, setOffset] = useState(0);
+  const [acc, setAcc] = useState<ManifestHistRow[]>([]);
 
-  const manifests = useMemo<ManifestAgg[]>(() => {
-    const by: Record<string, ReceivedWasteCustomerRow[]> = {};
-    rows.forEach(r => { const k = r.waste_manifest_tracking_number || '(none)'; (by[k] ||= []).push(r); });
-    return Object.entries(by).map(([tracking, rs]) => {
-      const cats = new Set<string>();
-      let containers = 0, nettKg = 0, received = '', collected = '';
-      rs.forEach(r => {
-        containers += Number(r.containers_received);
-        nettKg += Number(r.nett_weight_kg);
-        if (r.waste_category_name) cats.add(r.waste_category_name);
-        if (r.received_date && r.received_date > received) received = r.received_date;
-        if (r.collection_date && r.collection_date > collected) collected = r.collection_date;
-      });
-      return {
-        tracking, received: received || null, collected: collected || null,
-        facility: rs[0].generator_facility || '—', lines: rs.length, containers, nettKg,
-        categories: [...cats].join(', '),
-      };
-    }).sort((a, b) => (b.received || '').localeCompare(a.received || ''));
-  }, [rows]);
+  // Debounce the search box.
+  useEffect(() => {
+    const t = setTimeout(() => setSearch(searchInput.trim()), 300);
+    return () => clearTimeout(t);
+  }, [searchInput]);
 
-  const filtered = useMemo(() => {
-    const q = search.toLowerCase();
-    return manifests.filter(m => !q || m.tracking.toLowerCase().includes(q) || m.facility.toLowerCase().includes(q));
-  }, [manifests, search]);
+  // Reset paging whenever the query or scope changes.
+  useEffect(() => { setOffset(0); setAcc([]); }, [search, clientId, siteId]);
 
-  if (loading) return <PageSpinner layout="h64" />;
+  const { rows: page, total, loading, error } = useManifests(clientId, siteId, search, PAGE, offset);
+
+  // Append (or replace, for offset 0) each fetched page into the accumulator.
+  useEffect(() => {
+    if (loading) return;
+    setAcc(prev => (offset === 0 ? page : [...prev, ...page]));
+  }, [page, offset, loading]);
+
+  if (loading && acc.length === 0) return <PageSpinner layout="h64" />;
 
   return (
     <div className="space-y-5">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Manifest History</h1>
-        <p className="text-sm text-gray-500 mt-1">{manifests.length} manifests received</p>
+        <p className="text-sm text-gray-500 mt-1">{num(total)} manifest{total === 1 ? '' : 's'} received{search ? ` matching “${search}”` : ''}</p>
       </div>
 
       <div className="relative max-w-sm">
         <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search tracking # or facility…"
+        <input value={searchInput} onChange={e => setSearchInput(e.target.value)} placeholder="Search tracking # or facility…"
           className="w-full pl-10 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" />
       </div>
 
+      {error && <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-2.5 text-sm text-amber-800">Some data couldn’t load: {error}</div>}
+
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-        {filtered.length === 0 ? (
+        {acc.length === 0 ? (
           <div className="text-center py-12 text-sm text-gray-400">No manifests</div>
         ) : (
           <div className="overflow-x-auto">
@@ -80,15 +68,15 @@ export default function ManifestHistory() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {filtered.map((m, i) => (
+                {acc.map((m, i) => (
                   <tr key={m.tracking + i} className={i % 2 ? 'bg-gray-50/40' : 'bg-white'}>
                     <td className="px-4 py-2.5 font-medium text-gray-800 whitespace-nowrap">{m.tracking}</td>
-                    <td className="px-4 py-2.5 text-gray-600 whitespace-nowrap">{fmtDate(m.received)}</td>
-                    <td className="px-4 py-2.5 text-gray-500 whitespace-nowrap">{fmtDate(m.collected)}</td>
-                    <td className="px-4 py-2.5 text-gray-700">{m.facility}</td>
+                    <td className="px-4 py-2.5 text-gray-600 whitespace-nowrap">{fmtDate(m.received_date)}</td>
+                    <td className="px-4 py-2.5 text-gray-500 whitespace-nowrap">{fmtDate(m.collection_date)}</td>
+                    <td className="px-4 py-2.5 text-gray-700">{m.generator_facility}</td>
                     <td className="px-4 py-2.5 text-gray-500 max-w-[220px] truncate" title={m.categories}>{m.categories || '—'}</td>
                     <td className="px-4 py-2.5 text-right text-gray-700">{num(m.containers)}</td>
-                    <td className="px-4 py-2.5 text-right font-semibold text-gray-900">{kg(m.nettKg)}</td>
+                    <td className="px-4 py-2.5 text-right font-semibold text-gray-900">{kg(m.kg)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -96,6 +84,15 @@ export default function ManifestHistory() {
           </div>
         )}
       </div>
+
+      {acc.length < total && (
+        <div className="text-center">
+          <button onClick={() => setOffset(acc.length)} disabled={loading}
+            className="text-sm bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-lg font-medium disabled:opacity-50">
+            {loading ? 'Loading…' : `Load more (${num(acc.length)} of ${num(total)})`}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

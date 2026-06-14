@@ -1,78 +1,86 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Download, Printer, ChevronDown } from 'lucide-react';
 import { PageSpinner } from '../../components/Spinner';
 import { usePageTitle } from '../../lib/usePageTitle';
-import { usePortalWaste, kg, num, monthKey, fmtDate } from './portalUtils';
+import { usePortalClient } from './PortalClientContext';
+import { useReportRows, useReportFilters, fetchAllReportRows, type ReportFilters, type WasteDetailRow } from './portalApi';
+import { kg, num, fmtDate } from './portalUtils';
 
 const MONTHS = [
-  ['01', 'January'], ['02', 'February'], ['03', 'March'], ['04', 'April'], ['05', 'May'], ['06', 'June'],
-  ['07', 'July'], ['08', 'August'], ['09', 'September'], ['10', 'October'], ['11', 'November'], ['12', 'December'],
+  ['1', 'January'], ['2', 'February'], ['3', 'March'], ['4', 'April'], ['5', 'May'], ['6', 'June'],
+  ['7', 'July'], ['8', 'August'], ['9', 'September'], ['10', 'October'], ['11', 'November'], ['12', 'December'],
 ];
+const PAGE = 200;
+const EMPTY: ReportFilters = { year: '', month: '', siteId: '', category: '', container: '' };
 
 export default function MonthlyReport() {
   usePageTitle('Portal — Monthly Report');
-  const { rows, loading } = usePortalWaste();
-  const [year, setYear] = useState('');
-  const [month, setMonth] = useState('');
-  const [site, setSite] = useState('');
-  const [category, setCategory] = useState('');
-  const [container, setContainer] = useState('');
+  const { clientId, siteId } = usePortalClient();
+  const [f, setF] = useState<ReportFilters>(EMPTY);
+  const [offset, setOffset] = useState(0);
+  const [acc, setAcc] = useState<WasteDetailRow[]>([]);
+  const [exporting, setExporting] = useState(false);
 
-  const years = useMemo(() => Array.from(new Set(rows.map(r => monthKey(r.received_date).substring(0, 4)).filter(Boolean))).sort().reverse(), [rows]);
-  const sites = useMemo(() => Array.from(new Set(rows.map(r => r.generator_facility).filter(Boolean) as string[])).sort(), [rows]);
-  const categories = useMemo(() => Array.from(new Set(rows.map(r => r.waste_category_name).filter(Boolean) as string[])).sort(), [rows]);
-  const containers = useMemo(() => Array.from(new Set(rows.map(r => r.container_type_name).filter(Boolean) as string[])).sort(), [rows]);
+  const opts = useReportFilters(clientId, siteId);
 
-  const filtered = useMemo(() => rows.filter(r => {
-    const mk = monthKey(r.received_date);
-    if (year && mk.substring(0, 4) !== year) return false;
-    if (month && mk.substring(5, 7) !== month) return false;
-    if (site && r.generator_facility !== site) return false;
-    if (category && r.waste_category_name !== category) return false;
-    if (container && r.container_type_name !== container) return false;
-    return true;
-  }), [rows, year, month, site, category, container]);
+  // Reset paging whenever a filter or scope changes.
+  useEffect(() => { setOffset(0); setAcc([]); }, [f.year, f.month, f.siteId, f.category, f.container, clientId, siteId]);
 
-  const totalKg = filtered.reduce((s, r) => s + Number(r.nett_weight_kg), 0);
-  const totalContainers = filtered.reduce((s, r) => s + Number(r.containers_received), 0);
+  const { rows: page, total, totalKg, totalContainers, loading, error } = useReportRows(clientId, siteId, f, PAGE, offset);
 
-  function exportCsv() {
-    const header = ['Received Date', 'Collection Date', 'Generator Facility', 'Waste Category', 'HCRW Super Category', 'Container Type', 'Containers Received', 'Nett Weight kg', 'Reusable', 'Tracking Number'];
-    const lines = filtered.map(r => [
-      r.received_date ?? '', r.collection_date ?? '', r.generator_facility ?? '', r.waste_category_name ?? '',
-      r.hcrw_super_category ?? '', r.container_type_name ?? '', r.containers_received, r.nett_weight_kg,
-      r.reusable_boolean ? 'Yes' : 'No', r.waste_manifest_tracking_number,
-    ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(','));
-    const blob = new Blob([[header.join(','), ...lines].join('\n')], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = `received-waste-report.csv`; a.click();
-    URL.revokeObjectURL(url);
+  useEffect(() => {
+    if (loading) return;
+    setAcc(prev => (offset === 0 ? page : [...prev, ...page]));
+  }, [page, offset, loading]);
+
+  async function exportCsv() {
+    setExporting(true);
+    try {
+      const all = await fetchAllReportRows(clientId, siteId, f);
+      const header = ['Received Date', 'Collection Date', 'Generator Facility', 'Waste Category', 'HCRW Super Category', 'Container Type', 'Containers Received', 'Nett Weight kg', 'Reusable', 'Tracking Number'];
+      const lines = all.map(r => [
+        r.received_date ?? '', r.collection_date ?? '', r.generator_facility, r.waste_category,
+        r.hcrw_super, r.container_type, r.containers, r.nett_kg, r.reusable ? 'Yes' : 'No', r.tracking,
+      ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(','));
+      const blob = new Blob(['﻿' + [header.join(','), ...lines].join('\n')], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'received-waste-report.csv'; a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      alert(`Export failed: ${e instanceof Error ? e.message : 'unknown error'}`);
+    } finally {
+      setExporting(false);
+    }
   }
 
-  if (loading) return <PageSpinner layout="h64" />;
+  const set = (k: keyof ReportFilters) => (v: string) => setF(prev => ({ ...prev, [k]: v }));
+
+  if (loading && acc.length === 0) return <PageSpinner layout="h64" />;
 
   return (
     <div className="space-y-5">
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Monthly Received Waste Report</h1>
-          <p className="text-sm text-gray-500 mt-1">{filtered.length} records · {kg(totalKg)} kg · {num(totalContainers)} containers</p>
+          <p className="text-sm text-gray-500 mt-1">{num(total)} records · {kg(totalKg)} kg · {num(totalContainers)} containers</p>
         </div>
         <div className="flex gap-2 print:hidden">
-          <button onClick={exportCsv} className="flex items-center gap-1.5 text-sm bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 px-3 py-2 rounded-lg font-medium"><Download size={15} /> CSV</button>
+          <button onClick={exportCsv} disabled={exporting || total === 0} className="flex items-center gap-1.5 text-sm bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 px-3 py-2 rounded-lg font-medium disabled:opacity-50"><Download size={15} /> {exporting ? 'Exporting…' : 'CSV'}</button>
           <button onClick={() => window.print()} className="flex items-center gap-1.5 text-sm bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg font-medium"><Printer size={15} /> Print / PDF</button>
         </div>
       </div>
 
       {/* Filters */}
       <div className="flex flex-wrap gap-2 print:hidden">
-        <Select value={year} onChange={setYear} placeholder="All Years" options={years.map(y => [y, y])} />
-        <Select value={month} onChange={setMonth} placeholder="All Months" options={MONTHS.map(m => [m[0], m[1]])} />
-        <Select value={site} onChange={setSite} placeholder="All Sites" options={sites.map(s => [s, s])} />
-        <Select value={category} onChange={setCategory} placeholder="All Categories" options={categories.map(c => [c, c])} />
-        <Select value={container} onChange={setContainer} placeholder="All Containers" options={containers.map(c => [c, c])} />
+        <Select value={f.year} onChange={set('year')} placeholder="All Years" options={opts.years.map(y => [y, y])} />
+        <Select value={f.month} onChange={set('month')} placeholder="All Months" options={MONTHS.map(m => [m[0], m[1]])} />
+        <Select value={f.siteId} onChange={set('siteId')} placeholder="All Sites" options={opts.sites.map(s => [s.id, s.label])} />
+        <Select value={f.category} onChange={set('category')} placeholder="All Categories" options={opts.categories.map(c => [c, c])} />
+        <Select value={f.container} onChange={set('container')} placeholder="All Containers" options={opts.containers.map(c => [c, c])} />
       </div>
+
+      {error && <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-2.5 text-sm text-amber-800">Some data couldn’t load: {error}</div>}
 
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
@@ -85,31 +93,40 @@ export default function MonthlyReport() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {filtered.length === 0 ? (
+              {acc.length === 0 ? (
                 <tr><td colSpan={10} className="text-center py-12 text-sm text-gray-400">No records match the filters</td></tr>
-              ) : filtered.map((r, i) => (
+              ) : acc.map((r, i) => (
                 <tr key={r.id} className={i % 2 ? 'bg-gray-50/40' : 'bg-white'}>
                   <td className="px-3 py-2 text-gray-700 whitespace-nowrap">{fmtDate(r.received_date)}{r.received_date_source === 'collection_fallback' && <span className="ml-1 text-[10px] text-amber-600">(coll.)</span>}</td>
                   <td className="px-3 py-2 text-gray-500 whitespace-nowrap">{fmtDate(r.collection_date)}</td>
                   <td className="px-3 py-2 text-gray-700">{r.generator_facility || '—'}</td>
-                  <td className="px-3 py-2 text-gray-700 whitespace-nowrap">{r.waste_category_name || '—'}</td>
-                  <td className="px-3 py-2 text-gray-500 whitespace-nowrap">{r.hcrw_super_category || '—'}</td>
-                  <td className="px-3 py-2 text-gray-700 whitespace-nowrap">{r.container_type_name || '—'}</td>
-                  <td className="px-3 py-2 text-right text-gray-700">{num(Number(r.containers_received))}</td>
-                  <td className="px-3 py-2 text-right font-semibold text-gray-900">{Number(r.nett_weight_kg).toLocaleString('en-ZA', { maximumFractionDigits: 1 })}</td>
-                  <td className="px-3 py-2 text-gray-500">{r.reusable_boolean ? 'Yes' : 'No'}</td>
-                  <td className="px-3 py-2 text-gray-500 whitespace-nowrap">{r.waste_manifest_tracking_number || '—'}</td>
+                  <td className="px-3 py-2 text-gray-700 whitespace-nowrap">{r.waste_category || '—'}</td>
+                  <td className="px-3 py-2 text-gray-500 whitespace-nowrap">{r.hcrw_super || '—'}</td>
+                  <td className="px-3 py-2 text-gray-700 whitespace-nowrap">{r.container_type || '—'}</td>
+                  <td className="px-3 py-2 text-right text-gray-700">{num(r.containers)}</td>
+                  <td className="px-3 py-2 text-right font-semibold text-gray-900">{r.nett_kg.toLocaleString('en-ZA', { maximumFractionDigits: 1 })}</td>
+                  <td className="px-3 py-2 text-gray-500">{r.reusable ? 'Yes' : 'No'}</td>
+                  <td className="px-3 py-2 text-gray-500 whitespace-nowrap">{r.tracking || '—'}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       </div>
+
+      {acc.length < total && (
+        <div className="text-center print:hidden">
+          <button onClick={() => setOffset(acc.length)} disabled={loading}
+            className="text-sm bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-lg font-medium disabled:opacity-50">
+            {loading ? 'Loading…' : `Load more (${num(acc.length)} of ${num(total)})`}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
 
-function Select({ value, onChange, placeholder, options }: { value: string; onChange: (v: string) => void; placeholder: string; options: (string | string)[][] }) {
+function Select({ value, onChange, placeholder, options }: { value: string; onChange: (v: string) => void; placeholder: string; options: string[][] }) {
   return (
     <div className="relative">
       <select value={value} onChange={e => onChange(e.target.value)}

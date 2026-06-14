@@ -1,35 +1,24 @@
 import { useMemo } from 'react';
-import { Scale, Boxes, CalendarDays, FileText } from 'lucide-react';
+import { Scale, Boxes, CalendarDays } from 'lucide-react';
 import DonutChart from '../../components/DonutChart';
 import { PageSpinner } from '../../components/Spinner';
 import { usePageTitle } from '../../lib/usePageTitle';
-import { usePortalWaste, kg, num, monthKey, colorFor, sumBy, fmtDate } from './portalUtils';
+import { usePortalClient } from './PortalClientContext';
+import { useReceivedWaste } from './portalApi';
+import { kg, num, colorFor, fmtDate } from './portalUtils';
 
 export default function ReceivedWasteDashboard() {
   usePageTitle('Portal — Received Waste');
-  const { rows, loading } = usePortalWaste();
+  const { clientId, siteId } = usePortalClient();
+  const d = useReceivedWaste(clientId, siteId);
 
-  const stats = useMemo(() => {
-    const now = new Date();
-    const thisMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-    const thisYear = String(now.getFullYear());
-    let monthKgV = 0, ytdKgV = 0, monthContainers = 0;
-    let latestDate = '', latestManifest = '';
-    rows.forEach(r => {
-      const mk = monthKey(r.received_date);
-      if (mk === thisMonth) { monthKgV += Number(r.nett_weight_kg); monthContainers += Number(r.containers_received); }
-      if (mk.startsWith(thisYear)) ytdKgV += Number(r.nett_weight_kg);
-      if (r.received_date && r.received_date > latestDate) { latestDate = r.received_date; latestManifest = r.waste_manifest_tracking_number; }
-    });
-    return { thisMonth, monthKgV, ytdKgV, monthContainers, latestDate, latestManifest };
-  }, [rows]);
+  const byCategory = useMemo(() => d.byCategory.map(c => [c.category, c.kg] as [string, number]), [d.byCategory]);
+  const byContainer = useMemo(() => d.byContainer.map(c => [c.container_type, c.containers] as [string, number]), [d.byContainer]);
+  const bySite = useMemo(() => d.bySite.map(s => [s.generator_facility, s.kg] as [string, number]), [d.bySite]);
+  const totalKg = useMemo(() => d.byCategory.reduce((s, c) => s + c.kg, 0), [d.byCategory]);
+  const totalContainers = useMemo(() => d.byContainer.reduce((s, c) => s + c.containers, 0), [d.byContainer]);
 
-  const byCategory = useMemo(() => sumBy(rows, r => r.waste_category_name || 'Uncategorised', r => Number(r.nett_weight_kg)), [rows]);
-  const bySite = useMemo(() => sumBy(rows, r => r.generator_facility || 'Unknown', r => Number(r.nett_weight_kg)), [rows]);
-  const byContainer = useMemo(() => sumBy(rows, r => r.container_type_name || 'Unknown', r => Number(r.containers_received)), [rows]);
-  const totalKg = useMemo(() => rows.reduce((s, r) => s + Number(r.nett_weight_kg), 0), [rows]);
-
-  if (loading) return <PageSpinner layout="h64" />;
+  if (d.loading) return <PageSpinner layout="h64" />;
 
   return (
     <div className="space-y-5">
@@ -38,44 +27,40 @@ export default function ReceivedWasteDashboard() {
         <p className="text-sm text-gray-500 mt-1">Waste Tech4Green received from your sites</p>
       </div>
 
+      {d.error && (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-2.5 text-sm text-amber-800">Some data couldn’t load: {d.error}</div>
+      )}
+
       {/* KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <Kpi icon={Scale} tone="emerald" value={`${kg(stats.monthKgV)} kg`} label="Received this month" />
-        <Kpi icon={Scale} tone="blue" value={`${kg(stats.ytdKgV)} kg`} label="Year to date" />
-        <Kpi icon={Boxes} tone="amber" value={num(stats.monthContainers)} label="Containers this month" />
-        <Kpi icon={CalendarDays} tone="gray" value={fmtDate(stats.latestDate || null)} label="Latest received" />
+        <Kpi icon={Scale} tone="emerald" value={`${kg(d.monthKg)} kg`} label="Received this month" />
+        <Kpi icon={Scale} tone="blue" value={`${kg(d.ytdKg)} kg`} label="Year to date" />
+        <Kpi icon={Boxes} tone="amber" value={num(d.monthContainers)} label="Containers this month" />
+        <Kpi icon={CalendarDays} tone="gray" value={fmtDate(d.latest)} label="Latest received" />
       </div>
 
-      {rows.length === 0 ? (
+      {totalKg === 0 ? (
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm text-center py-16 text-sm text-gray-400">
-          No received-waste records yet.
+          No received-waste records this year.
         </div>
       ) : (
         <>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-            <Card title="By Waste Category">
+            <Card title="By Waste Category" sub="Year to date">
               <DonutChart
-                segments={byCategory.map(([k, v], i) => ({ label: k, value: v, color: colorFor(k, i) }))}
+                segments={d.byCategory.slice(0, 8).map((c, i) => ({ label: c.category, value: c.kg, color: colorFor(c.category, i) }))}
                 centerLabel={`${kg(totalKg)}`} centerSub="kg total"
               />
               <BreakdownList items={byCategory} total={totalKg} unit="kg" />
             </Card>
-            <Card title="By Container Type">
-              <BreakdownList items={byContainer} total={byContainer.reduce((s, [, v]) => s + v, 0)} unit="" />
+            <Card title="By Container Type" sub="Year to date">
+              <BreakdownList items={byContainer} total={totalContainers} unit="" />
             </Card>
           </div>
 
-          <Card title="By Site / Facility">
+          <Card title="By Site / Facility" sub="Year to date">
             <BreakdownList items={bySite} total={totalKg} unit="kg" />
           </Card>
-
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 flex items-center gap-3">
-            <FileText size={18} className="text-blue-500" />
-            <div>
-              <p className="text-xs text-gray-500">Latest manifest received</p>
-              <p className="text-sm font-semibold text-gray-900">{stats.latestManifest || '—'}</p>
-            </div>
-          </div>
         </>
       )}
     </div>
@@ -95,10 +80,13 @@ function Kpi({ icon: Icon, tone, value, label }: { icon: typeof Scale; tone: 'em
   );
 }
 
-function Card({ title, children }: { title: string; children: React.ReactNode }) {
+function Card({ title, sub, children }: { title: string; sub?: string; children: React.ReactNode }) {
   return (
     <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-      <h2 className="text-sm font-semibold text-gray-900 mb-4">{title}</h2>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-sm font-semibold text-gray-900">{title}</h2>
+        {sub && <span className="text-[11px] font-medium text-gray-400">{sub}</span>}
+      </div>
       {children}
     </div>
   );

@@ -1,25 +1,25 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
+import { ChevronDown } from 'lucide-react';
 import DonutChart from '../../components/DonutChart';
 import { PageSpinner } from '../../components/Spinner';
 import { usePageTitle } from '../../lib/usePageTitle';
-import { usePortalWaste, kg, num, colorFor } from './portalUtils';
-import type { ReceivedWasteCustomerRow } from '../../lib/supabase';
+import { usePortalClient } from './PortalClientContext';
+import { useCategoryBreakdown, periodRange, type PeriodKey } from './portalApi';
+import { kg, num, colorFor } from './portalUtils';
+
+const PERIODS: { key: PeriodKey; label: string }[] = [
+  { key: 'all', label: 'All time' },
+  { key: '12m', label: 'Last 12 months' },
+  { key: 'ytd', label: 'Year to date' },
+  { key: 'month', label: 'This month' },
+];
 
 export default function CategoryBreakdown() {
   usePageTitle('Portal — Waste Categories');
-  const { rows, loading } = usePortalWaste();
-
-  const cats = useMemo(() => {
-    const by: Record<string, { hcrw: string; kg: number; containers: number }> = {};
-    rows.forEach((r: ReceivedWasteCustomerRow) => {
-      const name = r.waste_category_name || 'Uncategorised';
-      const e = by[name] || { hcrw: r.hcrw_super_category || '—', kg: 0, containers: 0 };
-      e.kg += Number(r.nett_weight_kg);
-      e.containers += Number(r.containers_received);
-      by[name] = e;
-    });
-    return Object.entries(by).map(([name, v]) => ({ name, ...v })).sort((a, b) => b.kg - a.kg);
-  }, [rows]);
+  const { clientId, siteId } = usePortalClient();
+  const [periodKey, setPeriodKey] = useState<PeriodKey>('all');
+  const { start, end } = useMemo(() => periodRange(periodKey), [periodKey]);
+  const { rows: cats, loading, error } = useCategoryBreakdown(clientId, siteId, start, end);
 
   const totalKg = cats.reduce((s, c) => s + c.kg, 0);
 
@@ -27,18 +27,23 @@ export default function CategoryBreakdown() {
 
   return (
     <div className="space-y-5">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Waste Category Breakdown</h1>
-        <p className="text-sm text-gray-500 mt-1">Received waste by category and HCRW super category</p>
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Waste Category Breakdown</h1>
+          <p className="text-sm text-gray-500 mt-1">Received waste by category and HCRW super category</p>
+        </div>
+        <PeriodSelect value={periodKey} onChange={setPeriodKey} />
       </div>
 
+      {error && <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-2.5 text-sm text-amber-800">Some data couldn’t load: {error}</div>}
+
       {cats.length === 0 ? (
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm text-center py-12 text-sm text-gray-400">No data</div>
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm text-center py-12 text-sm text-gray-400">No data in this period</div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
           <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 lg:col-span-1">
             <DonutChart
-              segments={cats.map((c, i) => ({ label: c.name, value: c.kg, color: colorFor(c.name, i) }))}
+              segments={cats.map((c, i) => ({ label: c.category, value: c.kg, color: colorFor(c.category, i) }))}
               centerLabel={kg(totalKg)} centerSub="kg total"
             />
           </div>
@@ -56,12 +61,12 @@ export default function CategoryBreakdown() {
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {cats.map((c, i) => (
-                    <tr key={c.name} className={i % 2 ? 'bg-gray-50/40' : 'bg-white'}>
+                    <tr key={c.category} className={i % 2 ? 'bg-gray-50/40' : 'bg-white'}>
                       <td className="px-4 py-2.5 font-medium text-gray-800">
-                        <span className="inline-block w-2.5 h-2.5 rounded-full mr-2 align-middle" style={{ backgroundColor: colorFor(c.name, i) }} />
-                        {c.name}
+                        <span className="inline-block w-2.5 h-2.5 rounded-full mr-2 align-middle" style={{ backgroundColor: colorFor(c.category, i) }} />
+                        {c.category}
                       </td>
-                      <td className="px-4 py-2.5 text-gray-500">{c.hcrw || '—'}</td>
+                      <td className="px-4 py-2.5 text-gray-500">{c.hcrw_super || '—'}</td>
                       <td className="px-4 py-2.5 text-right font-semibold text-gray-900">{kg(c.kg)}</td>
                       <td className="px-4 py-2.5 text-right text-gray-500">{totalKg > 0 ? ((c.kg / totalKg) * 100).toFixed(1) : 0}%</td>
                       <td className="px-4 py-2.5 text-right text-gray-700">{num(c.containers)}</td>
@@ -73,6 +78,18 @@ export default function CategoryBreakdown() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+export function PeriodSelect({ value, onChange }: { value: PeriodKey; onChange: (v: PeriodKey) => void }) {
+  return (
+    <div className="relative print:hidden">
+      <select value={value} onChange={e => onChange(e.target.value as PeriodKey)}
+        className="appearance-none bg-white border border-gray-200 rounded-lg pl-3 pr-8 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+        {PERIODS.map(p => <option key={p.key} value={p.key}>{p.label}</option>)}
+      </select>
+      <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
     </div>
   );
 }
