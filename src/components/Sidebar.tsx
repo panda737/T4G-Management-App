@@ -42,6 +42,7 @@ const moduleGroups: ModuleGroup[] = [
       { path: '/commercial/upload', label: 'Received Waste', match: ['/commercial/upload', '/commercial/imports', '/commercial/import-errors'] },
       { path: '/commercial/esg', label: 'ESG Engine', match: ['/commercial/esg'] },
       { path: '/commercial/reports', label: 'Reports', match: ['/commercial/reports'] },
+      { path: '/commercial/audit', label: 'Portal Data Audit', match: ['/commercial/audit'] },
       { path: '/portal/dashboard', label: 'Portal Preview', match: ['/portal'] },
     ],
   },

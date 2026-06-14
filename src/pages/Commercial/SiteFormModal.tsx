@@ -20,6 +20,7 @@ export default function SiteFormModal({ site, lockedClientId, onClose, onSave }:
     generator_facility: site?.generator_facility ?? '',
     generator_group: site?.generator_group ?? '',
     site_code: site?.site_code ?? '',
+    province: site?.province ?? '',
     active: site?.active ?? true,
   });
   const [saving, setSaving] = useState(false);
@@ -105,6 +106,10 @@ export default function SiteFormModal({ site, lockedClientId, onClose, onSave }:
             <div>
               <label className="block text-xs font-medium text-gray-700 mb-1">Site Code</label>
               <input value={form.site_code} onChange={e => set('site_code', e.target.value)} className={inputCls} placeholder="e.g. SITE-001" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Province</label>
+              <input value={form.province} onChange={e => set('province', e.target.value)} className={inputCls} placeholder="e.g. Gauteng" />
             </div>
           </div>
         </div>

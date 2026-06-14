@@ -504,6 +504,7 @@ export type UserProfile = {
   employee_id: string | null;
   client_id: string | null;
   site_id: string | null;
+  portal_access_mode: 'all_sites' | 'selected_sites';
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -798,6 +799,16 @@ export type ClientSite = {
   generator_group: string;
   generator_facility: string;
   site_code: string;
+  province: string;
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type TreatmentMethod = {
+  id: string;
+  treatment_method_name: string;
+  display_order: number;
   active: boolean;
   created_at: string;
   updated_at: string;
@@ -812,6 +823,9 @@ export type DataImport = {
   imported_rows: number;
   skipped_rows: number;
   error_rows: number;
+  duplicate_rows: number;
+  import_kind: 'waste' | 'operational' | 'sites';
+  source_checksum: string;
   import_status: 'pending' | 'completed' | 'failed';
   notes: string;
   created_at: string;
@@ -844,6 +858,7 @@ export type ReceivedWasteRecord = {
   containers_received: number;
   nett_weight_kg: number;
   reusable_boolean: boolean;
+  treatment_method_id: string | null;
   // admin-only
   manifest_id: string;
   waste_manifest_creation_date: string | null;
@@ -1070,6 +1085,7 @@ export type ReceivedWasteCustomerRow = {
   site_id: string | null;
   generator_group: string | null;
   generator_facility: string | null;
+  province: string | null;
   waste_manifest_tracking_number: string;
   received_date: string | null;
   collection_date: string | null;
@@ -1080,6 +1096,8 @@ export type ReceivedWasteCustomerRow = {
   hcrw_super_category: string;
   container_type_id: string | null;
   container_type_name: string | null;
+  treatment_method_id: string | null;
+  treatment_method_name: string | null;
   containers_received: number;
   nett_weight_kg: number;
   reusable_boolean: boolean;

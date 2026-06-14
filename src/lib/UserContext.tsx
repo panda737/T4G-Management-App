@@ -63,9 +63,12 @@ export function UserProvider({ session, children }: { session: Session; children
 
     async function fetchProfile() {
       try {
+        // select('*') (not an explicit column list) so the app keeps working if a
+        // newly-added column (e.g. portal_access_mode) isn't migrated on the DB yet —
+        // naming a missing column makes PostgREST fail the whole query.
         const { data } = await supabase
           .from('user_profiles')
-          .select('id, auth_user_id, display_name, role, is_active, employee_id, client_id, site_id, created_by, created_at, updated_at')
+          .select('*')
           .eq('auth_user_id', session.user.id)
           .maybeSingle();
 

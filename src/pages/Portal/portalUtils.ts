@@ -4,7 +4,7 @@ import { usePortalClient } from './PortalClientContext';
 
 // ── customer-safe row mappers (admin-preview path queries base tables) ──────────
 function mapWasteRow(r: Record<string, unknown>): ReceivedWasteCustomerRow {
-  const site = r.client_sites as { generator_group: string | null; generator_facility: string | null } | null;
+  const site = r.client_sites as { generator_group: string | null; generator_facility: string | null; province: string | null } | null;
   return {
     id: r.id as string,
     client_id: r.client_id as string,
@@ -12,6 +12,7 @@ function mapWasteRow(r: Record<string, unknown>): ReceivedWasteCustomerRow {
     site_id: (r.site_id as string | null) ?? null,
     generator_group: site?.generator_group ?? null,
     generator_facility: site?.generator_facility ?? null,
+    province: site?.province ?? null,
     waste_manifest_tracking_number: (r.waste_manifest_tracking_number as string) ?? '',
     received_date: (r.received_date as string | null) ?? null,
     collection_date: (r.collection_date as string | null) ?? null,
@@ -22,6 +23,8 @@ function mapWasteRow(r: Record<string, unknown>): ReceivedWasteCustomerRow {
     hcrw_super_category: (r.hcrw_super_category as string) ?? '',
     container_type_id: (r.container_type_id as string | null) ?? null,
     container_type_name: (r.container_types as { container_type_name: string } | null)?.container_type_name ?? null,
+    treatment_method_id: (r.treatment_method_id as string | null) ?? null,
+    treatment_method_name: (r.treatment_methods as { treatment_method_name: string } | null)?.treatment_method_name ?? null,
     containers_received: Number(r.containers_received) || 0,
     nett_weight_kg: Number(r.nett_weight_kg) || 0,
     reusable_boolean: Boolean(r.reusable_boolean),
@@ -49,7 +52,7 @@ export function usePortalWaste() {
         if (adminPreview) {
           let q = supabase
             .from('received_waste_records')
-            .select('id, client_id, site_id, waste_manifest_tracking_number, received_date, collection_date, facility_receipt_date, received_date_source, waste_category_id, hcrw_super_category, container_type_id, containers_received, nett_weight_kg, reusable_boolean, clients(client_name), client_sites(generator_group, generator_facility), waste_categories(waste_category_name), container_types(container_type_name)')
+            .select('id, client_id, site_id, waste_manifest_tracking_number, received_date, collection_date, facility_receipt_date, received_date_source, waste_category_id, hcrw_super_category, container_type_id, treatment_method_id, containers_received, nett_weight_kg, reusable_boolean, clients(client_name), client_sites(generator_group, generator_facility, province), waste_categories(waste_category_name), container_types(container_type_name), treatment_methods(treatment_method_name)')
             .eq('client_id', clientId!)
             .eq('import_status', 'imported');
           if (siteId) q = q.eq('site_id', siteId);

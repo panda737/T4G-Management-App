@@ -64,6 +64,7 @@ import ActivityList from './pages/Commercial/ActivityList';
 import UserAccessList from './pages/Commercial/UserAccessList';
 import CommercialDashboard from './pages/Commercial/CommercialDashboard';
 import CommercialReports from './pages/Commercial/CommercialReports';
+import PortalDataAudit from './pages/Commercial/PortalDataAudit';
 import GlobalSearch from './components/crm/GlobalSearch';
 import PortalShell from './pages/Portal/PortalShell';
 
@@ -137,6 +138,7 @@ const ROUTE_LABELS: Record<string, string> = {
   '/stock/settings': 'Stock Categories',
   '/commercial/dashboard': 'Commercial Dashboard',
   '/commercial/reports': 'Reports',
+  '/commercial/audit': 'Portal Data Audit',
   '/commercial/upload': 'Upload Received Waste',
   '/commercial/imports': 'Import History',
   '/commercial/import-errors': 'Import Errors',
@@ -253,6 +255,7 @@ function StaffShell({ session }: { session: Session }) {
             <Route path="/commercial" element={<Navigate to="/commercial/dashboard" replace />} />
             <Route path="/commercial/dashboard" element={<CommercialDashboard />} />
             <Route path="/commercial/reports" element={<CommercialReports />} />
+            <Route path="/commercial/audit" element={<PortalDataAudit />} />
             <Route path="/commercial/upload" element={<UploadReceivedWaste />} />
             <Route path="/commercial/imports" element={<ImportHistory />} />
             <Route path="/commercial/import-errors" element={<ImportErrorReview />} />

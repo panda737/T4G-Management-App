@@ -52,8 +52,8 @@ export default function PortalShell({ session, adminPreview = false }: { session
   const portalClient = useMemo(
     () => adminPreview
       ? { clientId: selectedClientId || null, siteId: selectedSiteId || null, siteScoped: !!selectedSiteId, adminPreview: true }
-      : { clientId: null, siteId: null, siteScoped: !!profile?.site_id, adminPreview: false },
-    [adminPreview, selectedClientId, selectedSiteId, profile?.site_id],
+      : { clientId: null, siteId: null, siteScoped: profile?.portal_access_mode === 'selected_sites', adminPreview: false },
+    [adminPreview, selectedClientId, selectedSiteId, profile?.portal_access_mode],
   );
 
   const selectedClientName = clients.find(c => c.id === selectedClientId)?.client_name;

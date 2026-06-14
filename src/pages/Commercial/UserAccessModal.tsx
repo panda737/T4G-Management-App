@@ -10,14 +10,17 @@ interface Props {
   onSave: (updated: UserProfile) => void;
 }
 
+type AccessMode = 'all_sites' | 'selected_sites';
+
 export default function UserAccessModal({ user, clients, onClose, onSave }: Props) {
   const { addToast } = useToast();
   const [clientId, setClientId] = useState(user.client_id ?? '');
   const [contactId, setContactId] = useState('');
-  const [siteId, setSiteId] = useState(user.site_id ?? '');
+  const [accessMode, setAccessMode] = useState<AccessMode>(user.portal_access_mode ?? 'all_sites');
+  const [selectedSiteIds, setSelectedSiteIds] = useState<Set<string>>(new Set());
   const [isActive, setIsActive] = useState(user.is_active);
   const [contacts, setContacts] = useState<CrmContact[]>([]);
-  const [sites, setSites] = useState<{ id: string; generator_facility: string }[]>([]);
+  const [sites, setSites] = useState<{ id: string; generator_facility: string; province: string }[]>([]);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -29,7 +32,15 @@ export default function UserAccessModal({ user, clients, onClose, onSave }: Prop
         .maybeSingle();
       if (data) setContactId((data as { id: string }).id);
     }
+    async function loadAllowList() {
+      const { data } = await supabase
+        .from('portal_user_sites')
+        .select('site_id')
+        .eq('user_profile_id', user.id);
+      setSelectedSiteIds(new Set(((data ?? []) as { site_id: string }[]).map(r => r.site_id)));
+    }
     loadLinkedContact();
+    loadAllowList();
   }, [user.id]);
 
   useEffect(() => {
@@ -52,29 +63,47 @@ export default function UserAccessModal({ user, clients, onClose, onSave }: Prop
       if (!clientId) { setSites([]); return; }
       const { data } = await supabase
         .from('client_sites')
-        .select('id, generator_facility')
+        .select('id, generator_facility, province')
         .eq('client_id', clientId)
         .order('generator_facility');
-      setSites((data ?? []) as { id: string; generator_facility: string }[]);
+      setSites((data ?? []) as { id: string; generator_facility: string; province: string }[]);
     }
     loadSites();
   }, [clientId]);
 
+  function toggleSite(id: string) {
+    setSelectedSiteIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
   async function handleSave() {
     setSaving(true);
 
+    // user_profiles: client + access mode (+ deprecate the legacy single site_id).
     const { error: userErr } = await supabase
       .from('user_profiles')
-      .update({ client_id: clientId || null, site_id: siteId || null, is_active: isActive })
+      .update({ client_id: clientId || null, portal_access_mode: accessMode, site_id: null, is_active: isActive })
       .eq('id', user.id);
     if (userErr) { addToast('Could not update user: ' + userErr.message, 'error'); setSaving(false); return; }
 
+    // Replace the site allow-list.
+    const { error: delErr } = await supabase.from('portal_user_sites').delete().eq('user_profile_id', user.id);
+    if (delErr) { addToast('Could not update site access: ' + delErr.message, 'error'); setSaving(false); return; }
+    if (accessMode === 'selected_sites' && selectedSiteIds.size > 0) {
+      const rows = [...selectedSiteIds].map(site_id => ({ user_profile_id: user.id, site_id }));
+      const { error: insErr } = await supabase.from('portal_user_sites').insert(rows);
+      if (insErr) { addToast('Could not save selected sites: ' + insErr.message, 'error'); setSaving(false); return; }
+    }
+
+    // Re-point the optional linked contact.
     const { error: clearErr } = await supabase
       .from('crm_contacts')
       .update({ portal_user_id: null })
       .eq('portal_user_id', user.id);
     if (clearErr) { addToast('Could not clear contact link: ' + clearErr.message, 'error'); setSaving(false); return; }
-
     if (contactId) {
       const { error: linkErr } = await supabase
         .from('crm_contacts')
@@ -84,10 +113,11 @@ export default function UserAccessModal({ user, clients, onClose, onSave }: Prop
     }
 
     setSaving(false);
-    onSave({ ...user, client_id: clientId || null, site_id: siteId || null, is_active: isActive });
+    onSave({ ...user, client_id: clientId || null, portal_access_mode: accessMode, site_id: null, is_active: isActive });
   }
 
   const selectedClient = clients.find(c => c.id === clientId);
+  const noneSelected = accessMode === 'selected_sites' && selectedSiteIds.size === 0;
 
   return (
     <Modal
@@ -118,7 +148,7 @@ export default function UserAccessModal({ user, clients, onClose, onSave }: Prop
           <label className="block text-xs font-medium text-gray-500 mb-1.5">Linked Account</label>
           <select
             value={clientId}
-            onChange={e => { setClientId(e.target.value); setContactId(''); setSiteId(''); }}
+            onChange={e => { setClientId(e.target.value); setContactId(''); setSelectedSiteIds(new Set()); }}
             className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
           >
             <option value="">— No access (unlinked) —</option>
@@ -128,21 +158,45 @@ export default function UserAccessModal({ user, clients, onClose, onSave }: Prop
 
         {clientId && (
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1.5">
-              Site access{' '}
-              <span className="text-gray-400 font-normal">(optional — restrict to one facility)</span>
-            </label>
-            <select
-              value={siteId}
-              onChange={e => setSiteId(e.target.value)}
-              className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            >
-              <option value="">Whole account (all sites)</option>
-              {sites.map(s => <option key={s.id} value={s.id}>{s.generator_facility}</option>)}
-            </select>
-            {siteId && (
-              <p className="text-xs text-amber-600 mt-1.5">
-                This login will only see this site's received-waste data. ESG is account-level and won't be shown.
+            <label className="block text-xs font-medium text-gray-500 mb-1.5">Site access</label>
+            <div className="space-y-2">
+              <label className="flex items-center gap-2.5 text-sm text-gray-700 cursor-pointer">
+                <input type="radio" name="access-mode" checked={accessMode === 'all_sites'}
+                  onChange={() => setAccessMode('all_sites')}
+                  className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300" />
+                <span><b>All sites</b> — sees every site on the account</span>
+              </label>
+              <label className="flex items-center gap-2.5 text-sm text-gray-700 cursor-pointer">
+                <input type="radio" name="access-mode" checked={accessMode === 'selected_sites'}
+                  onChange={() => setAccessMode('selected_sites')}
+                  className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300" />
+                <span><b>Selected sites only</b> — tick the sites below</span>
+              </label>
+            </div>
+
+            {accessMode === 'selected_sites' && (
+              <div className="mt-3 border border-gray-200 rounded-lg max-h-52 overflow-y-auto divide-y divide-gray-50">
+                {sites.length === 0 ? (
+                  <p className="text-xs text-gray-400 px-3 py-3">No sites for {selectedClient?.client_name}. Add sites under the account first.</p>
+                ) : sites.map(s => (
+                  <label key={s.id} className="flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 cursor-pointer hover:bg-gray-50">
+                    <input type="checkbox" checked={selectedSiteIds.has(s.id)} onChange={() => toggleSite(s.id)}
+                      className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                    <span className="flex-1 truncate">{s.generator_facility}</span>
+                    {s.province && <span className="text-[11px] text-gray-400">{s.province}</span>}
+                  </label>
+                ))}
+              </div>
+            )}
+
+            {noneSelected && (
+              <p className="text-xs text-amber-600 mt-2">
+                No sites selected — this login will see <b>no data</b> until at least one site is ticked.
+              </p>
+            )}
+            {accessMode === 'selected_sites' && selectedSiteIds.size > 0 && (
+              <p className="text-xs text-gray-400 mt-2">
+                {selectedSiteIds.size} site{selectedSiteIds.size === 1 ? '' : 's'} selected. ESG &amp; sustainability figures are shown as an allocated estimate for the visible sites.
               </p>
             )}
           </div>
@@ -152,7 +206,7 @@ export default function UserAccessModal({ user, clients, onClose, onSave }: Prop
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1.5">
               Linked Contact{' '}
-              <span className="text-gray-400 font-normal">(optional — scopes data to this person)</span>
+              <span className="text-gray-400 font-normal">(optional)</span>
             </label>
             <select
               value={contactId}
@@ -170,7 +224,6 @@ export default function UserAccessModal({ user, clients, onClose, onSave }: Prop
             {contacts.length === 0 && (
               <p className="text-xs text-gray-400 mt-1.5">
                 No active contacts for {selectedClient?.client_name}.
-                Add contacts under the account record first.
               </p>
             )}
           </div>
