@@ -23,3 +23,6 @@ dist-ssr
 *.sw?
 .env
 scripts/
+
+# Local-only DB runner (reads connection string from a temp file outside the repo) — never commit
+_dbrun.cjs
