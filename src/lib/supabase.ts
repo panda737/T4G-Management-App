@@ -977,11 +977,18 @@ export type EsgResult = {
   km_avoided: number | null;
   trips_avoided: number | null;
   indicative_carbon_credits: number | null;
+  trees_equivalent: number | null;
+  t4g_water_kl: number | null;
+  t4g_electricity_kwh: number | null;
+  t4g_diesel_l: number | null;
+  t4g_trips: number | null;
   total_nett_kg: number;
   treatment_emissions_by_method: Record<string, number>;
   transport_comparison: Record<string, number>;
   data_basis: Record<string, EsgDataBasis>;
   audit: Record<string, unknown>;
+  factor_snapshot: Array<{ key: string; value: number; unit: string; source: string; version: number; approved: boolean }>;
+  calc_run_id: string | null;
   approved: boolean;
   approved_by: string | null;
   approved_at: string | null;
@@ -991,7 +998,7 @@ export type EsgResult = {
   updated_at: string;
 };
 
-// Customer-safe row shape returned by public.v_esg_results (no `audit`).
+// Customer-safe row shape returned by public.v_esg_results (no `audit`/`factor_snapshot`).
 export type EsgResultCustomerRow = {
   id: string;
   client_id: string;
@@ -1005,11 +1012,42 @@ export type EsgResultCustomerRow = {
   km_avoided: number | null;
   trips_avoided: number | null;
   indicative_carbon_credits: number | null;
+  trees_equivalent: number | null;
+  t4g_water_kl: number | null;
+  t4g_electricity_kwh: number | null;
+  t4g_diesel_l: number | null;
+  t4g_trips: number | null;
   total_nett_kg: number;
   treatment_emissions_by_method: Record<string, number>;
   transport_comparison: Record<string, number>;
   data_basis: Record<string, EsgDataBasis>;
   credits_verified: boolean;
+};
+
+// Per-site allocated ESG row from public.v_esg_site_allocated (allocated estimate).
+export type EsgSiteAllocatedRow = {
+  esg_result_id: string;
+  client_id: string;
+  client_name: string;
+  site_id: string;
+  generator_facility: string | null;
+  province: string | null;
+  period_month: string;
+  basis: 'allocated_estimate';
+  site_nett_kg: number;
+  allocation_share: number;
+  co2e_saved_kg: number | null;
+  residual_tco2e: number | null;
+  water_saved_kl: number | null;
+  electricity_saved_kwh: number | null;
+  diesel_saved_l: number | null;
+  km_avoided: number | null;
+  trips_avoided: number | null;
+  trees_equivalent: number | null;
+  t4g_water_kl: number | null;
+  t4g_electricity_kwh: number | null;
+  t4g_diesel_l: number | null;
+  t4g_trips: number | null;
 };
 
 export type CarbonCreditEvidence = {

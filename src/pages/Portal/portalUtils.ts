@@ -107,7 +107,7 @@ export function usePortalEsg() {
         const [esgRes, ccRes] = await Promise.all([
           supabase
             .from('esg_results')
-            .select('id, client_id, period_month, co2e_saved_kg, residual_tco2e, water_saved_kl, electricity_saved_kwh, diesel_saved_l, km_avoided, trips_avoided, indicative_carbon_credits, total_nett_kg, treatment_emissions_by_method, transport_comparison, data_basis, clients(client_name)')
+            .select('id, client_id, period_month, co2e_saved_kg, residual_tco2e, water_saved_kl, electricity_saved_kwh, diesel_saved_l, km_avoided, trips_avoided, indicative_carbon_credits, trees_equivalent, t4g_water_kl, t4g_electricity_kwh, t4g_diesel_l, t4g_trips, total_nett_kg, treatment_emissions_by_method, transport_comparison, data_basis, clients(client_name)')
             .eq('client_id', clientId!)
             .eq('approved', true)
             .order('period_month', { ascending: false }),
@@ -133,6 +133,11 @@ export function usePortalEsg() {
           km_avoided: r.km_avoided as number | null,
           trips_avoided: r.trips_avoided as number | null,
           indicative_carbon_credits: r.indicative_carbon_credits as number | null,
+          trees_equivalent: r.trees_equivalent as number | null,
+          t4g_water_kl: r.t4g_water_kl as number | null,
+          t4g_electricity_kwh: r.t4g_electricity_kwh as number | null,
+          t4g_diesel_l: r.t4g_diesel_l as number | null,
+          t4g_trips: r.t4g_trips as number | null,
           total_nett_kg: Number(r.total_nett_kg) || 0,
           treatment_emissions_by_method: (r.treatment_emissions_by_method as Record<string, number>) ?? {},
           transport_comparison: (r.transport_comparison as Record<string, number>) ?? {},

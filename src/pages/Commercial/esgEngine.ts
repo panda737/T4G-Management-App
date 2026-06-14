@@ -98,6 +98,12 @@ export interface ComputedResult {
   km_avoided: number | null;
   trips_avoided: number | null;
   indicative_carbon_credits: number | null;
+  trees_equivalent: number | null;
+  // Tech4Green "actual" side of each comparison metric (conventional = actual + saved).
+  t4g_water_kl: number | null;
+  t4g_electricity_kwh: number | null;
+  t4g_diesel_l: number | null;
+  t4g_trips: number | null;
   total_nett_kg: number;
   treatment_emissions_by_method: Record<string, number>;
   transport_comparison: Record<string, number>;
@@ -113,6 +119,11 @@ export function computeClient(input: ClientPeriodInput, f: FactorMap): ComputedR
 
   const audit: Record<string, unknown> = {};
   const basis: Record<string, Basis> = {};
+  // Tech4Green "actual" side of each comparison metric (customer-safe; conventional = actual + saved).
+  let t4gWaterActual: number | null = null;
+  let t4gElecActual: number | null = null;
+  let t4gDieselActual: number | null = null;
+  let t4gTripsActual: number | null = null;
   const get = (k: string) => f.get(k);
   const ref = (k: string) => { const r = f.get(k); return r ? { key: r.key, version: r.version, value: r.value, source: r.source } : { key: k, missing: true }; };
 
@@ -179,6 +190,8 @@ export function computeClient(input: ClientPeriodInput, f: FactorMap): ComputedR
 
     transportComparison['Tech4Green diesel (L)'] = round(t4gDiesel + idleDiesel);
     transportComparison['Conventional diesel (L)'] = round(convDiesel);
+    t4gDieselActual = round(t4gDiesel + idleDiesel);
+    t4gTripsActual = input.derivedTrips;
     basis.transport = worst('actual', t4gDieselBasis, t4gKmBasis, 'benchmark');
     basis.diesel_saved_l = basis.transport;
     basis.km_avoided = basis.transport;
@@ -215,6 +228,7 @@ export function computeClient(input: ClientPeriodInput, f: FactorMap): ComputedR
       electricitySaved = benchKwh - t4gKwhAlloc;
       elecEmSaved = electricitySaved * fElecEf.value;
       t4gElecEm = t4gKwhAlloc * fElecEf.value;
+      t4gElecActual = round(t4gKwhAlloc);
       basis.electricity_saved_kwh = worst(opBasis, 'benchmark');
       audit.electricity = { actual_kwh: t4gKwhAlloc, benchmark_kwh_per_kg: ref('plant_benchmark:autoclave_kwh_per_kg'), benchmark_kwh: benchKwh, electricity_ef: ref('emission_factor:electricity'), saved_kwh: electricitySaved, basis: basis.electricity_saved_kwh };
     } else { basis.electricity_saved_kwh = 'awaiting'; audit.electricity = { status: 'awaiting', missing: ['monthly electricity_kwh'] }; }
@@ -230,6 +244,7 @@ export function computeClient(input: ClientPeriodInput, f: FactorMap): ComputedR
       waterSaved = benchWater - t4gWaterAlloc;
       waterEmSaved = waterSaved * fWaterEf.value;
       t4gWaterEm = t4gWaterAlloc * fWaterEf.value;
+      t4gWaterActual = round(t4gWaterAlloc);
       basis.water_saved_kl = worst(opBasis, 'benchmark');
       audit.water = { actual_kl: t4gWaterAlloc, benchmark_kl_per_kg: ref('plant_benchmark:autoclave_water_kl_per_kg'), benchmark_kl: benchWater, water_ef: ref('water_factor:supply'), saved_kl: waterSaved, basis: basis.water_saved_kl };
     } else { basis.water_saved_kl = 'awaiting'; audit.water = { status: 'awaiting', missing: ['monthly water_kl'] }; }
@@ -275,6 +290,15 @@ export function computeClient(input: ClientPeriodInput, f: FactorMap): ComputedR
     audit.carbon_credits = { method: 'avoided_emissions', co2e_saved_kg: co2eSaved, tco2e_per_credit: ref('carbon_credit:tco2e_per_credit'), indicative_credits: credits, note: 'Indicative estimate only — not registry-verified.' };
   } else { basis.indicative_carbon_credits = 'awaiting'; }
 
+  // trees equivalent — ILLUSTRATIVE only (not verified offsetting / actual trees).
+  const fTree = get('equivalence:kg_co2e_per_tree');
+  let trees: number | null = null;
+  if (co2eSaved != null && fTree && fTree.value > 0) {
+    trees = Math.max(0, co2eSaved) / fTree.value;
+    basis.trees_equivalent = 'estimated';
+    audit.trees_equivalent = { method: 'illustrative_equivalence', co2e_saved_kg: co2eSaved, kg_co2e_per_tree: ref('equivalence:kg_co2e_per_tree'), trees, note: 'Illustrative only — not verified offsetting or actual trees planted.' };
+  } else { basis.trees_equivalent = 'awaiting'; }
+
   return {
     client_id: clientId,
     client_name: clientName,
@@ -287,6 +311,11 @@ export function computeClient(input: ClientPeriodInput, f: FactorMap): ComputedR
     km_avoided: kmAvoided == null ? null : round(kmAvoided),
     trips_avoided: tripsAvoided == null ? null : round(tripsAvoided),
     indicative_carbon_credits: credits == null ? null : round4(credits),
+    trees_equivalent: trees == null ? null : round(trees),
+    t4g_water_kl: t4gWaterActual,
+    t4g_electricity_kwh: t4gElecActual,
+    t4g_diesel_l: t4gDieselActual,
+    t4g_trips: t4gTripsActual,
     total_nett_kg: round(nettKg),
     treatment_emissions_by_method: treatmentByMethod,
     transport_comparison: transportComparison,
@@ -297,6 +326,14 @@ export function computeClient(input: ClientPeriodInput, f: FactorMap): ComputedR
 
 function round(n: number): number { return Math.round(n * 100) / 100; }
 function round4(n: number): number { return Math.round(n * 10000) / 10000; }
+
+/** Stable non-crypto fingerprint of the factor set used for a run (djb2). */
+function hashFactors(snap: Array<{ key: string; version: number; value: number }>): string {
+  const s = snap.map(fk => `${fk.key}@${fk.version}:${fk.value}`).sort().join('|');
+  let h = 5381;
+  for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) >>> 0;
+  return h.toString(16);
+}
 
 // ── period helpers ───────────────────────────────────────────────────────────
 export function monthBounds(ym: string): { start: string; end: string; first: string } {
@@ -403,9 +440,24 @@ export async function runEsgRecalc(
     }, factors));
   }
 
+  // factor snapshot (traceability) — frozen with this run's results
+  const factorSnapshot = [...factors.values()].map(fr => ({
+    key: fr.key, value: fr.value, unit: fr.unit, source: fr.source, version: fr.version, approved: true,
+  }));
+  const factorSetHash = hashFactors(factorSnapshot);
+
   // persist as DRAFT (approved=false) — re-approval required after each recalc
   let wrote = 0;
+  let calcRunId: string | null = null;
   if (results.length) {
+    // immutable calc-run record so every result traces to the exact factor set + run
+    const { data: runRow, error: runErr } = await supabase
+      .from('esg_calc_runs')
+      .insert({ period_month: first, run_by: computedBy, factor_set_hash: factorSetHash, factor_count: factorSnapshot.length, client_count: byClient.size })
+      .select('id').single();
+    if (runErr) throw new Error('Creating calc run: ' + runErr.message);
+    calcRunId = (runRow as { id: string }).id;
+
     const payload = results.map(r => ({
       client_id: r.client_id,
       period_month: r.period_month,
@@ -417,11 +469,18 @@ export async function runEsgRecalc(
       km_avoided: r.km_avoided,
       trips_avoided: r.trips_avoided,
       indicative_carbon_credits: r.indicative_carbon_credits,
+      trees_equivalent: r.trees_equivalent,
+      t4g_water_kl: r.t4g_water_kl,
+      t4g_electricity_kwh: r.t4g_electricity_kwh,
+      t4g_diesel_l: r.t4g_diesel_l,
+      t4g_trips: r.t4g_trips,
       total_nett_kg: r.total_nett_kg,
       treatment_emissions_by_method: r.treatment_emissions_by_method,
       transport_comparison: r.transport_comparison,
       data_basis: r.data_basis,
       audit: r.audit,
+      factor_snapshot: factorSnapshot,
+      calc_run_id: calcRunId,
       approved: false,
       computed_at: new Date().toISOString(),
       computed_by: computedBy,
