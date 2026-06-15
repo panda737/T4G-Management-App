@@ -15,7 +15,7 @@ import { PortalClientContext } from './PortalClientContext';
 
 const NAV = [
   { to: '/portal/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { to: '/portal/received', label: 'Received Waste', icon: Scale },
+  { to: '/portal/received', label: 'Waste Generated', icon: Scale },
   { to: '/portal/report', label: 'Monthly Report', icon: FileBarChart2 },
   { to: '/portal/sites', label: 'Site Breakdown', icon: Building2 },
   { to: '/portal/categories', label: 'Waste Categories', icon: Recycle },

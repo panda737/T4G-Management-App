@@ -26,7 +26,7 @@ export interface PortalReportProps {
 
 const PAGE = 'bg-white text-gray-900 p-8';
 const DISCLAIMER =
-  'Waste figures are from manifests Tech4Green received. Carbon is an estimated avoided CO₂e vs an autoclave baseline (treatment-only comparison); ' +
+  'Waste figures are from the manifests for your sites. Carbon is an estimated avoided CO₂e vs an autoclave baseline (treatment-only comparison); ' +
   'operational emissions (electricity, water, diesel, transport) are included only once verified operational data is loaded. ' +
   'Effluent: Not Applicable — no effluent stream is generated. Environmental figures are reviewed and approved before release; ' +
   '“trees equivalent”, where shown, is an illustrative comparison only — not verified offsetting or actual trees planted.';
@@ -72,10 +72,10 @@ export default function PortalReport(p: PortalReportProps) {
         <Header clientName={p.clientName} periodLabel={p.periodLabel} siteLabel={p.siteLabel} generatedAt={p.generatedAt} />
 
         <div className="grid grid-cols-4 gap-3 mb-6">
-          <Kpi label="Waste received" value={`${kg(p.summary?.total_kg ?? 0)} kg`} sub={p.periodLabel} />
+          <Kpi label="Waste generated" value={`${kg(p.summary?.total_kg ?? 0)} kg`} sub={p.periodLabel} />
           <Kpi label="Containers / RUCs" value={num(p.summary?.containers ?? 0)} sub={p.periodLabel} />
           <Kpi label="Manifests" value={num(p.summary?.manifests ?? 0)} sub={p.periodLabel} />
-          <Kpi label="Latest received" value={fmtDate(p.summary?.latest_date ?? null)} sub="" />
+          <Kpi label="Latest collection" value={fmtDate(p.summary?.latest_date ?? null)} sub="" />
         </div>
 
         <div className="rounded-lg border border-gray-200 p-4 mb-2">
@@ -98,6 +98,18 @@ export default function PortalReport(p: PortalReportProps) {
           )}
         </div>
 
+        {/* ESG readiness — keeps an awaiting report informative & client-ready */}
+        <div className="rounded-lg border border-gray-200 p-4 mb-2">
+          <div className="text-sm font-semibold text-gray-800 mb-2">ESG Readiness</div>
+          <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 text-[11px]">
+            <Ready label="Waste data loaded" value={(p.summary?.total_kg ?? 0) > 0 ? 'Loaded' : 'None yet'} ok={(p.summary?.total_kg ?? 0) > 0} />
+            <Ready label="Verified autoclave factor" value="Awaiting" ok={false} />
+            <Ready label="Monthly operational data" value="Awaiting" ok={false} />
+            <Ready label="ESG results" value={p.hasEsg ? 'Approved' : 'Awaiting approval'} ok={p.hasEsg} />
+            <Ready label="Effluent" value="Not Applicable" ok />
+          </div>
+        </div>
+
         <Footer page={1} />
       </div>
 
@@ -105,7 +117,7 @@ export default function PortalReport(p: PortalReportProps) {
       <div className={PAGE}>
         <Header clientName={p.clientName} periodLabel={p.periodLabel} siteLabel={p.siteLabel} generatedAt={p.generatedAt} />
 
-        <div className="text-sm font-semibold text-gray-800 mb-2">Waste received — last 12 months</div>
+        <div className="text-sm font-semibold text-gray-800 mb-2">Waste Generated — last 12 months</div>
         <div className="space-y-1 mb-6">
           {p.trend.map(t => (
             <div key={t.label} className="flex items-center gap-2">
@@ -118,13 +130,13 @@ export default function PortalReport(p: PortalReportProps) {
           ))}
         </div>
 
-        <div className="text-sm font-semibold text-gray-800 mb-2">Top sites by waste{p.bySite.length > 10 ? ' (top 10)' : ''}</div>
+        <div className="text-sm font-semibold text-gray-800 mb-2">Top Generating Sites{p.bySite.length > 10 ? ' (top 10)' : ''}</div>
         <table className="w-full text-xs mb-6">
           <thead>
             <tr className="text-left text-gray-500 border-b border-gray-200">
               <th className="py-1 pr-2 font-medium">Site</th>
               <th className="py-1 px-2 font-medium">Province</th>
-              <th className="py-1 px-2 font-medium text-right">Nett kg</th>
+              <th className="py-1 px-2 font-medium text-right">Generated (kg)</th>
               <th className="py-1 px-2 font-medium text-right">Containers</th>
               <th className="py-1 pl-2 font-medium text-right">Share</th>
             </tr>
@@ -147,7 +159,7 @@ export default function PortalReport(p: PortalReportProps) {
           <thead>
             <tr className="text-left text-gray-500 border-b border-gray-200">
               <th className="py-1 pr-2 font-medium">Category</th>
-              <th className="py-1 px-2 font-medium text-right">Nett kg</th>
+              <th className="py-1 px-2 font-medium text-right">Generated (kg)</th>
               <th className="py-1 pl-2 font-medium text-right">Share</th>
             </tr>
           </thead>
@@ -182,6 +194,15 @@ function Stat({ label, value }: { label: string; value: string }) {
     <div className="rounded bg-gray-50 px-3 py-2">
       <div className="text-[10px] text-gray-500">{label}</div>
       <div className="text-base font-bold text-gray-900">{value}</div>
+    </div>
+  );
+}
+
+function Ready({ label, value, ok }: { label: string; value: string; ok: boolean }) {
+  return (
+    <div className="flex items-center justify-between gap-2">
+      <span className="text-gray-600">{label}</span>
+      <span className={`font-semibold ${ok ? 'text-emerald-700' : 'text-amber-700'}`}>{value}</span>
     </div>
   );
 }

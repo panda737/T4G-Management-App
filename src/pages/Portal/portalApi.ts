@@ -121,7 +121,7 @@ export function usePortalDashboard(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Sub-page hooks (Received Waste / Site / Category / Manifest / Monthly Report).
+// Sub-page hooks (Waste Generated / Site / Category / Manifest / Monthly Report).
 // All read server-side aggregate/paginated RPCs — no 1000-row cap, no full-table
 // scan under the user session, and the same client + site allow-list scope.
 // ─────────────────────────────────────────────────────────────────────────────
@@ -149,7 +149,7 @@ function mapContainer(r: Record<string, unknown>): ContainerRow {
   return { container_type: String(r.container_type ?? ''), containers: n(r.containers), kg: n(r.kg), rows: n(r.rows) };
 }
 
-// ── Received Waste page: month + YTD KPIs and YTD breakdowns ──────────────────
+// ── Waste Generated page: month + YTD KPIs and YTD breakdowns ─────────────────
 export interface ReceivedWasteData {
   monthKg: number; ytdKg: number; monthContainers: number; latest: string | null;
   byCategory: CategoryRow[]; byContainer: ContainerRow[]; bySite: SiteRow[];

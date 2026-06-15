@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
-import { Download, Printer, ChevronDown } from 'lucide-react';
+import { Download, Printer, ChevronDown, FileBarChart2 } from 'lucide-react';
 import { PageSpinner } from '../../components/Spinner';
 import { usePageTitle } from '../../lib/usePageTitle';
 import { usePortalClient } from './PortalClientContext';
 import { useReportRows, useReportFilters, fetchAllReportRows, type ReportFilters, type WasteDetailRow } from './portalApi';
 import { exportReportRows } from './portalExport';
 import { kg, num, fmtDate } from './portalUtils';
+import { PageHeader } from './portalWidgets';
 
 const MONTHS = [
   ['1', 'January'], ['2', 'February'], ['3', 'March'], ['4', 'April'], ['5', 'May'], ['6', 'June'],
@@ -53,16 +54,14 @@ export default function MonthlyReport() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-start justify-between gap-3 flex-wrap">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Monthly Received Waste Report</h1>
-          <p className="text-sm text-gray-500 mt-1">{num(total)} records · {kg(totalKg)} kg · {num(totalContainers)} containers</p>
-        </div>
-        <div className="flex gap-2 print:hidden">
-          <button onClick={exportCsv} disabled={exporting || total === 0} className="flex items-center gap-1.5 text-sm bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 px-3 py-2 rounded-lg font-medium disabled:opacity-50"><Download size={15} /> {exporting ? 'Exporting…' : 'CSV'}</button>
-          <button onClick={() => window.print()} className="flex items-center gap-1.5 text-sm bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg font-medium"><Printer size={15} /> Print / PDF</button>
-        </div>
-      </div>
+      <PageHeader
+        icon={FileBarChart2}
+        title="Monthly Report"
+        subtitle={`${num(total)} waste records · ${kg(totalKg)} kg generated · ${num(totalContainers)} containers`}
+      >
+        <button onClick={exportCsv} disabled={exporting || total === 0} className="flex items-center gap-1.5 text-sm bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 px-3 py-2 rounded-lg font-medium disabled:opacity-50"><Download size={15} /> {exporting ? 'Exporting…' : 'Export CSV'}</button>
+        <button onClick={() => window.print()} className="flex items-center gap-1.5 text-sm bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2 rounded-lg font-medium"><Printer size={15} /> Print / PDF</button>
+      </PageHeader>
 
       {/* Filters */}
       <div className="flex flex-wrap gap-2 print:hidden">
@@ -80,14 +79,14 @@ export default function MonthlyReport() {
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-gray-800 text-white">
-                {['Received', 'Collected', 'Facility', 'Waste Category', 'HCRW', 'Container', 'Containers', 'Nett kg', 'Reusable', 'Tracking #'].map(h => (
+                {['Received by T4G', 'Collected', 'Facility', 'Waste Category', 'HCRW', 'Container', 'Containers', 'Generated (kg)', 'Reusable', 'Tracking #'].map(h => (
                   <th key={h} className="text-left px-3 py-2.5 text-xs font-medium uppercase tracking-wider whitespace-nowrap">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {acc.length === 0 ? (
-                <tr><td colSpan={10} className="text-center py-12 text-sm text-gray-400">No records match the filters</td></tr>
+                <tr><td colSpan={10} className="text-center py-12 text-sm text-gray-400">No waste records match the filters</td></tr>
               ) : acc.map((r, i) => (
                 <tr key={r.id} className={i % 2 ? 'bg-gray-50/40' : 'bg-white'}>
                   <td className="px-3 py-2 text-gray-700 whitespace-nowrap">{fmtDate(r.received_date)}{r.received_date_source === 'collection_fallback' && <span className="ml-1 text-[10px] text-amber-600">(coll.)</span>}</td>

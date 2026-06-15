@@ -1,11 +1,16 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Leaf, Droplets, Fuel, Truck, Zap, Award, ChevronDown, Info, ShieldCheck, Clock } from 'lucide-react';
+import {
+  Leaf, Droplets, Fuel, Truck, Zap, Award, ChevronDown, Info, ShieldCheck, Clock,
+  Scale, FileText, Building2, CalendarDays,
+} from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { type EsgResultCustomerRow, type EsgDataBasis, ESG_DATA_BASIS_LABELS } from '../../lib/supabase';
 import { usePageTitle } from '../../lib/usePageTitle';
 import { PageSpinner } from '../../components/Spinner';
-import { num, monthLabel, usePortalEsg } from './portalUtils';
+import { num, kg, fmtDate, monthLabel, usePortalEsg } from './portalUtils';
 import { usePortalClient } from './PortalClientContext';
+import { usePortalDashboard, periodRange } from './portalApi';
+import { PageHeader, KpiCard, SectionCard, ReadinessList, MethodologyPanel } from './portalWidgets';
 
 const BASIS_STYLE: Record<EsgDataBasis, string> = {
   actual: 'bg-emerald-50 text-emerald-700 border-emerald-200',
@@ -22,8 +27,10 @@ function Badge({ b }: { b: EsgDataBasis | undefined }) {
 
 export default function EsgDashboard() {
   usePageTitle('Portal — ESG & Sustainability');
-  const { rows, loading } = usePortalEsg();
-  const { siteScoped } = usePortalClient();
+  const { clientId, siteId, siteScoped } = usePortalClient();
+  const { rows, loading: esgLoading } = usePortalEsg();
+  const trendStart = useMemo(() => periodRange('12m').start, []);
+  const d = usePortalDashboard(clientId, siteId, null, null, trendStart);
   const [month, setMonth] = useState('');
 
   useEffect(() => {
@@ -33,17 +40,21 @@ export default function EsgDashboard() {
   const months = useMemo(() => Array.from(new Set(rows.map(r => r.period_month))).sort().reverse(), [rows]);
   const current = useMemo(() => rows.find(r => r.period_month === month), [rows, month]);
 
-  if (loading) return <PageSpinner layout="h64" />;
+  const wasteLoaded = (d.summary?.total_kg ?? 0) > 0;
+  const activeSites = useMemo(() => d.bySite.filter(s => s.kg > 0).length, [d.bySite]);
+  const hasApproved = rows.length > 0;
+
+  if (esgLoading || d.loading) return <PageSpinner layout="h64" />;
 
   return (
     <div className="space-y-5">
-      <div className="flex items-start justify-between gap-3 flex-wrap">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">ESG &amp; Sustainability</h1>
-          <p className="text-sm text-gray-500 mt-1">Your environmental impact with Tech4Green — estimated avoided CO₂e vs an autoclave baseline (treatment-only), with operational savings shown once verified data is loaded.</p>
-        </div>
+      <PageHeader
+        icon={Leaf}
+        title="ESG & Sustainability"
+        subtitle="Your environmental impact with Tech4Green — estimated avoided CO₂e vs an autoclave baseline (treatment-only)."
+      >
         {months.length > 0 && (
-          <div className="relative print:hidden">
+          <div className="relative">
             <select value={month} onChange={e => setMonth(e.target.value)}
               className="appearance-none bg-white border border-gray-200 rounded-lg pl-3 pr-8 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
               {months.map(m => <option key={m} value={m}>{monthLabel(m.substring(0, 7))}</option>)}
@@ -51,27 +62,54 @@ export default function EsgDashboard() {
             <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
           </div>
         )}
+      </PageHeader>
+
+      {/* Summary wording — sets the expectation while results are awaiting */}
+      <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3 flex items-start gap-2 text-sm text-emerald-900">
+        <Info size={16} className="flex-shrink-0 mt-0.5 text-emerald-600" />
+        Estimated avoided CO₂e vs autoclave will appear here once Tech4Green has verified and approved the emission factors and monthly results.
       </div>
 
-      {siteScoped ? (
+      {/* Data context — what we have for your account right now */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <KpiCard icon={Scale} tone="emerald" value={`${kg(d.summary?.total_kg ?? 0)} kg`} label="Waste generated" sub="all time" />
+        <KpiCard icon={FileText} tone="blue" value={num(d.summary?.manifests ?? 0)} label="Manifests" />
+        <KpiCard icon={Building2} tone="amber" value={num(activeSites)} label="Sites in scope" />
+        <KpiCard icon={CalendarDays} tone="gray" value={fmtDate(d.summary?.latest_date ?? null)} label="Latest collection" />
+      </div>
+
+      {siteScoped && (
         <div className="bg-indigo-50 border border-indigo-200 rounded-xl px-4 py-3 flex items-start gap-2 text-sm text-indigo-800">
           <Info size={15} className="flex-shrink-0 mt-0.5" />
-          Per-site ESG reporting is coming soon. ESG &amp; sustainability figures are currently calculated at the account level — please use the account login to view them.
+          Per-site ESG reporting is coming soon. ESG &amp; sustainability figures are currently calculated at the account level — please use the account login to view approved results.
         </div>
-      ) : rows.length === 0 ? (
-        <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3 flex items-start gap-2 text-sm text-emerald-800">
-          <Info size={15} className="flex-shrink-0 mt-0.5" />
-          Your ESG report is being prepared. Figures appear here once Tech4Green has verified the emission factors and monthly data for your account — no estimates are shown until then.
-        </div>
-      ) : !current ? (
-        <p className="text-sm text-gray-400">No data for the selected month.</p>
-      ) : (
-        <EsgMonth row={current} />
+      )}
+
+      {/* Readiness + methodology */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <SectionCard title="ESG Readiness" icon={Leaf}>
+          <ReadinessList items={[
+            { label: 'Waste data loaded', value: wasteLoaded ? 'Loaded' : 'None yet', tone: wasteLoaded ? 'emerald' : 'gray' },
+            { label: 'Verified autoclave factor', value: 'Awaiting', tone: 'amber' },
+            { label: 'Monthly operational data', value: 'Awaiting', tone: 'amber' },
+            { label: 'ESG results', value: hasApproved ? 'Approved' : 'Awaiting approval', tone: hasApproved ? 'emerald' : 'amber' },
+            { label: 'Effluent', value: 'Not Applicable', tone: 'gray' },
+          ]} />
+        </SectionCard>
+
+        <SectionCard title="Methodology" icon={Info}>
+          <MethodologyPanel />
+        </SectionCard>
+      </div>
+
+      {/* Approved monthly results — only render once results are reviewed & approved */}
+      {hasApproved && !siteScoped && (
+        current ? <EsgMonth row={current} /> : <p className="text-sm text-gray-400">No data for the selected month.</p>
       )}
 
       <div className="bg-gray-50 border border-gray-200 rounded-lg px-4 py-2.5 flex items-start gap-2 text-xs text-gray-500">
         <Info size={14} className="flex-shrink-0 mt-0.5" />
-        Each figure is tagged with its data basis — <b>Actual</b> (from your waste data), <b>Admin</b> (Tech4Green meter readings), <b>Estimated</b> (modelled) or <b>Benchmark</b> (industry comparison). All figures are reviewed and approved before they appear here.
+        Each figure, once published, is tagged with its data basis — <b>Actual</b> (from your waste data), <b>Admin</b> (Tech4Green meter readings), <b>Estimated</b> (modelled) or <b>Benchmark</b> (industry comparison). All figures are reviewed and approved before they appear here.
       </div>
     </div>
   );

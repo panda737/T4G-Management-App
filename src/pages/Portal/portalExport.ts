@@ -6,6 +6,9 @@
 // reconciliation-friendly CSV rows. They never touch the database, so the export
 // path cannot bypass the verified RPC/RLS scope. Numeric values are emitted raw
 // (no rounding/formatting) so a column sum reconciles exactly to the dashboard.
+//
+// Column headers use the customer-facing wording (the client generates the waste;
+// Tech4Green collects/receives it for treatment).
 // ─────────────────────────────────────────────────────────────────────────────
 import { downloadCsvSafe } from '../../lib/csvExport';
 import type {
@@ -20,10 +23,10 @@ export function exportDashboardSites(rows: SiteRow[], scope: string): boolean {
   return downloadCsvSafe(rows.map(s => ({
     'Site / Facility': s.generator_facility,
     'Province': s.province || '',
-    'Nett kg': s.kg,
+    'Waste Generated kg': s.kg,
     'Containers': s.containers,
-    'Records': s.rows,
-  })), file('dashboard-sites', scope));
+    'Waste Records': s.rows,
+  })), file('waste-by-site', scope));
 }
 
 /** Site Breakdown page. */
@@ -31,11 +34,11 @@ export function exportSiteBreakdown(rows: SiteBreakdownRow[], scope: string): bo
   return downloadCsvSafe(rows.map(s => ({
     'Generator Facility': s.generator_facility,
     'Province': s.province || '',
-    'Nett kg': s.kg,
+    'Waste Generated kg': s.kg,
     'Containers': s.containers,
     'Top Category': s.top_category,
     'Manifests': s.manifests,
-    'Last Received': s.last_received || '',
+    'Latest Collection': s.last_received || '',
   })), file('site-breakdown', scope));
 }
 
@@ -44,48 +47,48 @@ export function exportCategories(rows: CategoryRow[], scope: string): boolean {
   return downloadCsvSafe(rows.map(c => ({
     'Waste Category': c.category,
     'HCRW Super Category': c.hcrw_super || '',
-    'Nett kg': c.kg,
+    'Waste Generated kg': c.kg,
     'Containers': c.containers,
-    'Records': c.rows,
+    'Waste Records': c.rows,
   })), file('waste-categories', scope));
 }
 
-/** Received Waste page — by container type. */
+/** Waste Generated page — by container type. */
 export function exportContainers(rows: ContainerRow[], scope: string): boolean {
   return downloadCsvSafe(rows.map(c => ({
     'Container Type': c.container_type,
     'Containers': c.containers,
-    'Nett kg': c.kg,
-    'Records': c.rows,
-  })), file('received-containers', scope));
+    'Waste Generated kg': c.kg,
+    'Waste Records': c.rows,
+  })), file('waste-generated-containers', scope));
 }
 
 /** Manifest History page (rows from fetchAllManifests). */
 export function exportManifests(rows: ManifestHistRow[], scope: string): boolean {
   return downloadCsvSafe(rows.map(m => ({
     'Tracking #': m.tracking,
-    'Received Date': m.received_date || '',
     'Collection Date': m.collection_date || '',
+    'Received by Tech4Green': m.received_date || '',
     'Facility': m.generator_facility,
     'Categories': m.categories,
     'Containers': m.containers,
-    'Nett kg': m.kg,
-    'Lines': m.lines,
+    'Waste Generated kg': m.kg,
+    'Waste Records': m.lines,
   })), file('manifests', scope));
 }
 
 /** Monthly Report page (rows from fetchAllReportRows). */
 export function exportReportRows(rows: WasteDetailRow[], scope: string): boolean {
   return downloadCsvSafe(rows.map(r => ({
-    'Received Date': r.received_date || '',
     'Collection Date': r.collection_date || '',
+    'Received by Tech4Green': r.received_date || '',
     'Generator Facility': r.generator_facility,
     'Waste Category': r.waste_category,
     'HCRW Super Category': r.hcrw_super,
     'Container Type': r.container_type,
-    'Containers Received': r.containers,
-    'Nett Weight kg': r.nett_kg,
+    'Containers': r.containers,
+    'Waste Generated kg': r.nett_kg,
     'Reusable': r.reusable ? 'Yes' : 'No',
     'Tracking Number': r.tracking,
-  })), file('received-waste', scope));
+  })), file('waste-generated', scope));
 }
