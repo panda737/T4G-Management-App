@@ -1,8 +1,10 @@
 import { useMemo, useState } from 'react';
+import { Download } from 'lucide-react';
 import { PageSpinner } from '../../components/Spinner';
 import { usePageTitle } from '../../lib/usePageTitle';
 import { usePortalClient } from './PortalClientContext';
 import { useSiteBreakdown, periodRange, type PeriodKey } from './portalApi';
+import { exportSiteBreakdown } from './portalExport';
 import { kg, num, fmtDate } from './portalUtils';
 import { PeriodSelect } from './CategoryBreakdown';
 
@@ -22,7 +24,14 @@ export default function SiteBreakdown() {
           <h1 className="text-2xl font-bold text-gray-900">Site Breakdown</h1>
           <p className="text-sm text-gray-500 mt-1">Received waste per generator facility</p>
         </div>
-        <PeriodSelect value={periodKey} onChange={setPeriodKey} />
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => { if (!exportSiteBreakdown(sites, periodKey)) alert('No site data to export.'); }}
+            className="inline-flex items-center gap-1.5 text-sm bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 px-3 py-2 rounded-lg font-medium print:hidden">
+            <Download size={15} /> Export CSV
+          </button>
+          <PeriodSelect value={periodKey} onChange={setPeriodKey} />
+        </div>
       </div>
 
       {error && <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-2.5 text-sm text-amber-800">Some data couldn’t load: {error}</div>}

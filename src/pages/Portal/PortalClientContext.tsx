@@ -9,10 +9,12 @@ export interface PortalClientValue {
   siteScoped: boolean;
   /** True when an admin is previewing the portal as a specific client/site. */
   adminPreview: boolean;
+  /** Client display name for report branding (admin preview only; null for a real customer). */
+  clientName: string | null;
 }
 
 export const PortalClientContext = createContext<PortalClientValue>({
-  clientId: null, siteId: null, siteScoped: false, adminPreview: false,
+  clientId: null, siteId: null, siteScoped: false, adminPreview: false, clientName: null,
 });
 
 export const usePortalClient = () => useContext(PortalClientContext);

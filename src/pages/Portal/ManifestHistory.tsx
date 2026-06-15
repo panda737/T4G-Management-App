@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
-import { Search } from 'lucide-react';
+import { Search, Download } from 'lucide-react';
 import { PageSpinner } from '../../components/Spinner';
 import { usePageTitle } from '../../lib/usePageTitle';
 import { usePortalClient } from './PortalClientContext';
-import { useManifests, type ManifestHistRow } from './portalApi';
+import { useManifests, fetchAllManifests, type ManifestHistRow } from './portalApi';
+import { exportManifests } from './portalExport';
 import { kg, num, fmtDate } from './portalUtils';
 
 const PAGE = 100;
@@ -15,6 +16,7 @@ export default function ManifestHistory() {
   const [search, setSearch] = useState('');
   const [offset, setOffset] = useState(0);
   const [acc, setAcc] = useState<ManifestHistRow[]>([]);
+  const [exporting, setExporting] = useState(false);
 
   // Debounce the search box.
   useEffect(() => {
@@ -33,13 +35,31 @@ export default function ManifestHistory() {
     setAcc(prev => (offset === 0 ? page : [...prev, ...page]));
   }, [page, offset, loading]);
 
+  async function handleExport() {
+    setExporting(true);
+    try {
+      const all = await fetchAllManifests(clientId, siteId, search);
+      if (!exportManifests(all, search ? 'search' : 'all')) alert('No manifests to export for the current selection.');
+    } catch (e) {
+      alert(`Export failed: ${e instanceof Error ? e.message : 'unknown error'}`);
+    } finally {
+      setExporting(false);
+    }
+  }
+
   if (loading && acc.length === 0) return <PageSpinner layout="h64" />;
 
   return (
     <div className="space-y-5">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Manifest History</h1>
-        <p className="text-sm text-gray-500 mt-1">{num(total)} manifest{total === 1 ? '' : 's'} received{search ? ` matching “${search}”` : ''}</p>
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Manifest History</h1>
+          <p className="text-sm text-gray-500 mt-1">{num(total)} manifest{total === 1 ? '' : 's'} received{search ? ` matching “${search}”` : ''}</p>
+        </div>
+        <button onClick={handleExport} disabled={exporting || total === 0}
+          className="inline-flex items-center gap-1.5 text-sm bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 px-3 py-2 rounded-lg font-medium disabled:opacity-50 print:hidden">
+          <Download size={15} /> {exporting ? 'Exporting…' : 'Export CSV'}
+        </button>
       </div>
 
       <div className="relative max-w-sm">

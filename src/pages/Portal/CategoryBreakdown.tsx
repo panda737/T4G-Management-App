@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, Download } from 'lucide-react';
 import DonutChart from '../../components/DonutChart';
 import { PageSpinner } from '../../components/Spinner';
 import { usePageTitle } from '../../lib/usePageTitle';
 import { usePortalClient } from './PortalClientContext';
 import { useCategoryBreakdown, periodRange, type PeriodKey } from './portalApi';
+import { exportCategories } from './portalExport';
 import { kg, num, colorFor } from './portalUtils';
 
 const PERIODS: { key: PeriodKey; label: string }[] = [
@@ -32,7 +33,14 @@ export default function CategoryBreakdown() {
           <h1 className="text-2xl font-bold text-gray-900">Waste Category Breakdown</h1>
           <p className="text-sm text-gray-500 mt-1">Received waste by category and HCRW super category</p>
         </div>
-        <PeriodSelect value={periodKey} onChange={setPeriodKey} />
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => { if (!exportCategories(cats, periodKey)) alert('No category data to export.'); }}
+            className="inline-flex items-center gap-1.5 text-sm bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 px-3 py-2 rounded-lg font-medium print:hidden">
+            <Download size={15} /> Export CSV
+          </button>
+          <PeriodSelect value={periodKey} onChange={setPeriodKey} />
+        </div>
       </div>
 
       {error && <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-2.5 text-sm text-amber-800">Some data couldn’t load: {error}</div>}

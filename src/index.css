@@ -14,6 +14,13 @@
   nav, aside, header, [class*="sidebar"], [class*="Sidebar"] { display: none !important; }
   .print\:hidden { display: none !important; }
   @page { margin: 15mm 12mm; size: A4; }
+  /* Prevent clipped tables/cards and repeat table headers across printed pages */
+  .overflow-x-auto { overflow: visible !important; }
+  table { width: 100% !important; font-size: 11px; border-collapse: collapse; }
+  thead { display: table-header-group; }
+  tr { break-inside: avoid; }
+  .shadow-sm { box-shadow: none !important; }
+  [class*="rounded-xl"] { break-inside: avoid; }
 }
 
 @layer utilities {

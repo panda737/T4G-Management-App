@@ -4,6 +4,7 @@ import { PageSpinner } from '../../components/Spinner';
 import { usePageTitle } from '../../lib/usePageTitle';
 import { usePortalClient } from './PortalClientContext';
 import { useReportRows, useReportFilters, fetchAllReportRows, type ReportFilters, type WasteDetailRow } from './portalApi';
+import { exportReportRows } from './portalExport';
 import { kg, num, fmtDate } from './portalUtils';
 
 const MONTHS = [
@@ -37,16 +38,8 @@ export default function MonthlyReport() {
     setExporting(true);
     try {
       const all = await fetchAllReportRows(clientId, siteId, f);
-      const header = ['Received Date', 'Collection Date', 'Generator Facility', 'Waste Category', 'HCRW Super Category', 'Container Type', 'Containers Received', 'Nett Weight kg', 'Reusable', 'Tracking Number'];
-      const lines = all.map(r => [
-        r.received_date ?? '', r.collection_date ?? '', r.generator_facility, r.waste_category,
-        r.hcrw_super, r.container_type, r.containers, r.nett_kg, r.reusable ? 'Yes' : 'No', r.tracking,
-      ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(','));
-      const blob = new Blob(['﻿' + [header.join(','), ...lines].join('\n')], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url; a.download = 'received-waste-report.csv'; a.click();
-      URL.revokeObjectURL(url);
+      const scope = [f.year || 'all-years', f.month && `m${f.month}`, f.siteId && 'site', f.category && 'cat', f.container && 'cont'].filter(Boolean).join('-');
+      if (!exportReportRows(all, scope)) alert('No records to export for the current filters.');
     } catch (e) {
       alert(`Export failed: ${e instanceof Error ? e.message : 'unknown error'}`);
     } finally {

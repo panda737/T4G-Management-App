@@ -1,7 +1,7 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import {
   Scale, Boxes, FileText, CalendarDays, Leaf, Droplets, Fuel, TreePine,
-  ChevronDown, Printer, Info, MapPin, TrendingUp,
+  ChevronDown, Printer, Download, Info, MapPin, TrendingUp,
 } from 'lucide-react';
 import DonutChart from '../../components/DonutChart';
 import { PageSpinner } from '../../components/Spinner';
@@ -10,6 +10,8 @@ import { usePageTitle } from '../../lib/usePageTitle';
 import { usePortalClient } from './PortalClientContext';
 import { kg, num, fmtDate, colorFor } from './portalUtils';
 import { usePortalDashboard, usePortalSites, periodRange, type PeriodKey, type EsgSummary } from './portalApi';
+import { exportDashboardSites } from './portalExport';
+import PortalReport from './PortalReport';
 
 const PERIODS: { key: PeriodKey; label: string }[] = [
   { key: 'month', label: 'This month' },
@@ -20,10 +22,12 @@ const PERIODS: { key: PeriodKey; label: string }[] = [
 
 export default function PortalDashboard() {
   usePageTitle('Portal — ESG & Sustainability Dashboard');
-  const { clientId, siteId: ctxSiteId, adminPreview, siteScoped } = usePortalClient();
+  const { clientId, siteId: ctxSiteId, adminPreview, siteScoped, clientName } = usePortalClient();
 
   const [periodKey, setPeriodKey] = useState<PeriodKey>('12m');
   const [localSiteId, setLocalSiteId] = useState<string>('');
+  const [generating, setGenerating] = useState(false);
+  const reportRef = useRef<HTMLDivElement>(null);
   const sites = usePortalSites(adminPreview ? clientId : null);
 
   const { start, end, label } = useMemo(() => periodRange(periodKey), [periodKey]);
@@ -40,6 +44,26 @@ export default function PortalDashboard() {
   }, [d.byMonth]);
 
   const totalKg = useMemo(() => d.bySite.reduce((s, r) => s + r.kg, 0), [d.bySite]);
+
+  const siteLabel = siteId ? (sites.find(s => s.id === siteId)?.label ?? 'Selected site') : 'All sites';
+  const scope = `${periodKey}${siteId ? '-site' : ''}`;
+
+  function handleExportData() {
+    if (!exportDashboardSites(d.bySite, scope)) alert('No data in the current selection to export.');
+  }
+
+  async function handleGenerateReport() {
+    if (!reportRef.current) return;
+    setGenerating(true);
+    try {
+      const { downloadElementPagesAsPdf } = await import('../../lib/pdf');
+      await downloadElementPagesAsPdf(reportRef.current, `t4g-esg-report-${scope}-${new Date().toISOString().slice(0, 10)}.pdf`);
+    } catch {
+      window.print(); // fallback
+    } finally {
+      setGenerating(false);
+    }
+  }
 
   if (d.loading) return <PageSpinner layout="h64" />;
 
@@ -72,8 +96,11 @@ export default function PortalDashboard() {
             </select>
             <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
           </div>
-          <button onClick={() => window.print()} className="inline-flex items-center gap-1.5 text-sm bg-emerald-600 text-white hover:bg-emerald-700 rounded-lg px-3 py-2 font-medium">
-            <Printer size={15} /> Generate Report
+          <button onClick={handleExportData} className="inline-flex items-center gap-1.5 text-sm bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 rounded-lg px-3 py-2 font-medium">
+            <Download size={15} /> Export Data
+          </button>
+          <button onClick={handleGenerateReport} disabled={generating} className="inline-flex items-center gap-1.5 text-sm bg-emerald-600 text-white hover:bg-emerald-700 rounded-lg px-3 py-2 font-medium disabled:opacity-50">
+            <Printer size={15} /> {generating ? 'Generating…' : 'Generate Report'}
           </button>
         </div>
       </div>
@@ -213,6 +240,22 @@ export default function PortalDashboard() {
       <div className="bg-gray-50 border border-gray-200 rounded-lg px-4 py-2.5 flex items-start gap-2 text-xs text-gray-500">
         <Info size={14} className="flex-shrink-0 mt-0.5" />
         Waste figures are from manifests Tech4Green received. Carbon is an <b>estimated avoided CO₂e vs an autoclave baseline (treatment-only comparison)</b>; operational emissions (electricity, water, diesel, transport) are included only once verified operational data is loaded. Effluent is <b>Not Applicable</b> — no effluent stream is generated. All environmental figures are reviewed and approved before they appear, and "trees equivalent" is an illustrative comparison only — not verified carbon offsetting or actual trees planted.
+      </div>
+
+      {/* Off-screen branded report — rasterised to PDF by Generate Report. */}
+      <div ref={reportRef} className="hidden" aria-hidden="true">
+        <PortalReport
+          clientName={clientName}
+          periodLabel={label}
+          siteLabel={siteLabel}
+          generatedAt={new Date().toLocaleDateString('en-ZA', { day: 'numeric', month: 'short', year: 'numeric' })}
+          summary={d.summary}
+          trend={trend}
+          bySite={d.bySite}
+          byCategory={d.byCategory}
+          esg={d.esg}
+          hasEsg={hasEsg}
+        />
       </div>
     </div>
   );

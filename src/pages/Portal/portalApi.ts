@@ -334,6 +334,31 @@ export async function fetchAllReportRows(clientId: string | null, scopeSiteId: s
   return out;
 }
 
+function mapManifest(r: Record<string, unknown>): ManifestHistRow {
+  return {
+    tracking: String(r.tracking ?? ''), received_date: (r.received_date as string) ?? null, collection_date: (r.collection_date as string) ?? null,
+    generator_facility: String(r.generator_facility ?? ''), categories: String(r.categories ?? ''), lines: n(r.lines), containers: n(r.containers), kg: n(r.kg),
+  };
+}
+
+/** Pages through portal_manifests (capped 500/call) to collect ALL manifests for a CSV export. */
+export async function fetchAllManifests(clientId: string | null, siteId: string | null, search: string): Promise<ManifestHistRow[]> {
+  const out: ManifestHistRow[] = [];
+  const LIMIT = 500;
+  let offset = 0, total = Infinity;
+  while (out.length < total) {
+    const { data, error } = await supabase.rpc('portal_manifests', { p_client_id: clientId, p_start: null, p_end: null, p_site_id: siteId, p_search: search || null, p_limit: LIMIT, p_offset: offset });
+    if (error) throw new Error(error.message);
+    const arr = (data ?? []) as Record<string, unknown>[];
+    if (arr.length === 0) break;
+    total = n(arr[0].total_count) || arr.length;
+    out.push(...arr.map(mapManifest));
+    if (arr.length < LIMIT) break;
+    offset += LIMIT;
+  }
+  return out;
+}
+
 // ── Filter options for the Monthly Report (years / sites / categories / containers) ─
 export interface ReportFilterOptions { years: string[]; sites: { id: string; label: string }[]; categories: string[]; containers: string[]; loading: boolean }
 

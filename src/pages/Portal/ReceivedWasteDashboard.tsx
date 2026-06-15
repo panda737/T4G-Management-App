@@ -1,10 +1,11 @@
 import { useMemo } from 'react';
-import { Scale, Boxes, CalendarDays } from 'lucide-react';
+import { Scale, Boxes, CalendarDays, Download } from 'lucide-react';
 import DonutChart from '../../components/DonutChart';
 import { PageSpinner } from '../../components/Spinner';
 import { usePageTitle } from '../../lib/usePageTitle';
 import { usePortalClient } from './PortalClientContext';
 import { useReceivedWaste } from './portalApi';
+import { exportContainers } from './portalExport';
 import { kg, num, colorFor, fmtDate } from './portalUtils';
 
 export default function ReceivedWasteDashboard() {
@@ -22,9 +23,16 @@ export default function ReceivedWasteDashboard() {
 
   return (
     <div className="space-y-5">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Received Waste</h1>
-        <p className="text-sm text-gray-500 mt-1">Waste Tech4Green received from your sites</p>
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Received Waste</h1>
+          <p className="text-sm text-gray-500 mt-1">Waste Tech4Green received from your sites</p>
+        </div>
+        <button
+          onClick={() => { if (!exportContainers(d.byContainer, 'ytd')) alert('No container data to export.'); }}
+          className="inline-flex items-center gap-1.5 text-sm bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 px-3 py-2 rounded-lg font-medium print:hidden">
+          <Download size={15} /> Export CSV
+        </button>
       </div>
 
       {d.error && (

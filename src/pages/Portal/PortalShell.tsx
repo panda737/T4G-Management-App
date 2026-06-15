@@ -51,14 +51,14 @@ export default function PortalShell({ session, adminPreview = false }: { session
       .then(({ data }) => setSites((data ?? []) as { id: string; generator_facility: string }[]));
   }, [adminPreview, selectedClientId]);
 
+  const selectedClientName = clients.find(c => c.id === selectedClientId)?.client_name;
+
   const portalClient = useMemo(
     () => adminPreview
-      ? { clientId: selectedClientId || null, siteId: selectedSiteId || null, siteScoped: !!selectedSiteId, adminPreview: true }
-      : { clientId: null, siteId: null, siteScoped: profile?.portal_access_mode === 'selected_sites', adminPreview: false },
-    [adminPreview, selectedClientId, selectedSiteId, profile?.portal_access_mode],
+      ? { clientId: selectedClientId || null, siteId: selectedSiteId || null, siteScoped: !!selectedSiteId, adminPreview: true, clientName: selectedClientName ?? null }
+      : { clientId: null, siteId: null, siteScoped: profile?.portal_access_mode === 'selected_sites', adminPreview: false, clientName: null },
+    [adminPreview, selectedClientId, selectedSiteId, profile?.portal_access_mode, selectedClientName],
   );
-
-  const selectedClientName = clients.find(c => c.id === selectedClientId)?.client_name;
 
   const nav = (
     <nav className="flex-1 px-3 py-4 space-y-1">
