@@ -4,6 +4,7 @@ import {
   Calendar, User, Pencil, Trash2, RefreshCw,
 } from 'lucide-react';
 import { PageSpinner } from '../../components/Spinner';
+import DashboardError from '../../components/DashboardError';
 import { supabase, TreatmentDailyLog, TreatmentMonthlySummary, Employee } from '../../lib/supabase';
 import { usePageTitle } from '../../lib/usePageTitle';
 import { fmtKgTons as fmtKg, fmtKgRaw } from '../../lib/formatters';
@@ -27,6 +28,7 @@ export default function TreatmentDashboard() {
   const [monthlySummaries, setMonthlySummaries] = useState<TreatmentMonthlySummary[]>([]);
   const [employees, setEmployees] = useState<EmployeeName[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [period, setPeriod] = useState<Period>('month');
   const [selectedMonth, setSelectedMonth] = useState(() => {
     const now = new Date();
@@ -62,16 +64,24 @@ export default function TreatmentDashboard() {
 
   async function loadData() {
     setLoading(true);
+    setError('');
+    try {
     const [logRes, sumRes, empRes] = await Promise.all([
       supabase.from('treatment_daily_log').select('id, date, day_shift_cycles, day_shift_treated_kg, afternoon_shift_cycles, afternoon_shift_treated_kg, night_shift_cycles, night_shift_treated_kg, total_cycles, total_treated_kg, chemical_litres, downtime_minutes, downtime_reason, supervisor_id, day_shift_supervisor_id, afternoon_shift_supervisor_id, night_shift_supervisor_id, notes, status, created_at, updated_at').order('date', { ascending: true }),
       supabase.from('treatment_monthly_summary').select('*').order('month'),
       supabase.from('employees').select('id, first_name, surname, position').in('position', ['Supervisor', 'Senior Operator', 'Health & Safety Officer']).eq('status', 'active').order('surname'),
     ]);
+    const firstErr = [logRes, sumRes, empRes].find(r => r.error)?.error;
+    if (firstErr) throw new Error(firstErr.message);
     setLogs((logRes.data || []) as TreatmentDailyLog[]);
     setMonthlySummaries(sumRes.data || []);
     setEmployees(empRes.data || []);
     setLastFetched(new Date());
-    setLoading(false);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to load treatment data');
+    } finally {
+      setLoading(false);
+    }
   }
 
   function timeSince(d: Date) {
@@ -295,6 +305,10 @@ export default function TreatmentDashboard() {
     return (
       <PageSpinner layout="h64" />
     );
+  }
+
+  if (error) {
+    return <DashboardError title="Treatment Plant Dashboard" message={error} onRetry={loadData} />;
   }
 
   const periodLabel = period === 'day'

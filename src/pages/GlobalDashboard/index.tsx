@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Package, Factory, ShieldCheck, ShieldAlert, Users, RefreshCw } from 'lucide-react';
 import { PageSpinner } from '../../components/Spinner';
+import DashboardError from '../../components/DashboardError';
 import { supabase } from '../../lib/supabase';
 import { usePageTitle } from '../../lib/usePageTitle';
 import type { MonthlyTreatment, RecentMovement, UpcomingEvent } from './constants';
@@ -16,6 +17,7 @@ import UpcomingEventsWidget from './UpcomingEventsWidget';
 export default function GlobalDashboard() {
   usePageTitle('Dashboard');
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [employeeCount, setEmployeeCount] = useState(0);
   const [stockStats, setStockStats] = useState({ total: 0, outOfStock: 0, lowStock: 0, inStock: 0 });
   const [treatmentMonths, setTreatmentMonths] = useState<MonthlyTreatment[]>([]);
@@ -43,6 +45,8 @@ export default function GlobalDashboard() {
 
   async function loadData() {
     setLoading(true);
+    setError('');
+    try {
     const now = new Date();
     const todayStr = now.toISOString().split('T')[0];
     const yDate = new Date(now);
@@ -70,6 +74,13 @@ export default function GlobalDashboard() {
       supabase.from('training_certificates').select('id, status, expiry_date, employee_name, course_name'),
       supabase.from('training_schedule').select('id, status, scheduled_date, course_name'),
     ]);
+
+    const firstErr = [
+      itemsRes, recentMovRes, empRes, treatAllRes,
+      incidentsRes, actionsRes, drillsRes, inspectionsRes,
+      coursesRes, certsRes, scheduleRes,
+    ].find(r => r.error)?.error;
+    if (firstErr) throw new Error(firstErr.message);
 
     setEmployeeCount(empRes.count || 0);
     setRecentMovements((recentMovRes.data || []) as unknown as RecentMovement[]);
@@ -208,7 +219,11 @@ export default function GlobalDashboard() {
     setUpcomingEvents(events);
 
     setLastFetched(new Date());
-    setLoading(false);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to load dashboard');
+    } finally {
+      setLoading(false);
+    }
   }
 
   function timeSince(d: Date) {
@@ -219,6 +234,7 @@ export default function GlobalDashboard() {
   }
 
   if (loading) return <PageSpinner layout="h64" />;
+  if (error) return <DashboardError title="Management Dashboard" message={error} onRetry={loadData} />;
 
   const stockHealthPct = stockStats.total > 0 ? Math.round(stockStats.inStock / stockStats.total * 100) : 100;
   const certHealthPct = trainingStats.totalCerts > 0 ? Math.round(trainingStats.validCerts / trainingStats.totalCerts * 100) : 100;

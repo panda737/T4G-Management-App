@@ -10,6 +10,7 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import { usePageTitle } from '../../lib/usePageTitle';
+import DashboardError from '../../components/DashboardError';
 import {
   supabase,
   SafetyIncident,
@@ -45,6 +46,7 @@ export default function SheqDashboard() {
   const [talks, setTalks] = useState<SafetyToolboxTalk[]>([]);
   const [risks, setRisks] = useState<SafetyRiskAssessment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [lastFetched, setLastFetched] = useState<Date | null>(null);
 
   useEffect(() => {
@@ -58,6 +60,8 @@ export default function SheqDashboard() {
 
   async function load() {
     setLoading(true);
+    setError('');
+    try {
     const today = new Date();
     const thisYear = new Date(today.getFullYear(), 0, 1).toISOString();
 
@@ -70,6 +74,9 @@ export default function SheqDashboard() {
         supabase.from('safety_inspections').select('*').order('inspection_date', { ascending: false }),
         supabase.from('safety_risk_assessments').select('*').order('assessment_date', { ascending: false }),
       ]);
+
+    const firstErr = [incidentsRes, actionsRes, drillsRes, talksRes, inspectionsRes, risksRes].find(r => r.error)?.error;
+    if (firstErr) throw new Error(firstErr.message);
 
     const allIncidents = incidentsRes.data || [];
     const allActions = actionsRes.data || [];
@@ -120,7 +127,11 @@ export default function SheqDashboard() {
     setTalks(allTalks);
     setRisks(allRisks);
     setLastFetched(new Date());
-    setLoading(false);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to load SHEQ data');
+    } finally {
+      setLoading(false);
+    }
   }
 
   function timeSince(d: Date) {
@@ -239,6 +250,10 @@ export default function SheqDashboard() {
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-600" />
       </div>
     );
+  }
+
+  if (error) {
+    return <DashboardError title="SHEQ Dashboard" message={error} onRetry={load} />;
   }
 
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];

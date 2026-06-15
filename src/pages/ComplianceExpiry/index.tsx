@@ -5,6 +5,7 @@ import { supabase } from '../../lib/supabase';
 import { usePageTitle } from '../../lib/usePageTitle';
 import { useUser } from '../../lib/UserContext';
 import { downloadCSV } from '../../lib/csvExport';
+import DashboardError from '../../components/DashboardError';
 
 type ExpiryStatus = 'expired' | 'soon' | 'ok';
 
@@ -33,6 +34,7 @@ export default function ComplianceExpiry() {
   const { isAdmin } = useUser();
   const [items, setItems] = useState<ExpiryItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'attention'>('attention');
 
@@ -42,6 +44,8 @@ export default function ComplianceExpiry() {
 
   async function load() {
     setLoading(true);
+    setError('');
+    try {
     const [docsRes, apptRes, certRes, medRes, empRes] = await Promise.all([
       supabase.from('documents').select('title, category, expiry_date, review_date, is_active'),
       supabase.from('legal_appointments').select('appointment_type, expiry_date, employee_id'),
@@ -49,6 +53,9 @@ export default function ComplianceExpiry() {
       supabase.from('employee_medical_records').select('record_type, name, expiry_date, employee_id'),
       supabase.from('employees').select('id, first_name, surname'),
     ]);
+
+    const firstErr = [docsRes, apptRes, certRes, medRes, empRes].find(r => r.error)?.error;
+    if (firstErr) throw new Error(firstErr.message);
 
     const empName = new Map<string, string>();
     for (const e of empRes.data ?? []) empName.set(e.id, `${e.first_name} ${e.surname}`.trim());
@@ -72,7 +79,11 @@ export default function ComplianceExpiry() {
 
     collected.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
     setItems(collected);
-    setLoading(false);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to load compliance data');
+    } finally {
+      setLoading(false);
+    }
   }
 
   const filtered = useMemo(() => {
@@ -88,6 +99,7 @@ export default function ComplianceExpiry() {
   const soonCount = items.filter(i => i.status === 'soon').length;
 
   if (!isAdmin) return <Navigate to="/" replace />;
+  if (error) return <DashboardError title="Compliance Expiry Dashboard" message={error} onRetry={load} />;
 
   function handleExport() {
     downloadCSV(filtered.map(i => ({
