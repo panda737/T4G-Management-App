@@ -198,10 +198,10 @@ function StaffShell({ session }: { session: Session }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const pageLabel = usePageLabel();
+  const { isAdmin } = useUser();
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
-      <GlobalSearch />
       <div className="print:hidden">
         <Sidebar
           collapsed={sidebarCollapsed}
@@ -228,10 +228,17 @@ function StaffShell({ session }: { session: Session }) {
         </div>
       </div>
 
+      {/* Desktop global search bar — fixed, admin-only */}
+      {isAdmin && (
+        <div className={`hidden lg:flex fixed top-0 right-0 z-40 h-14 items-center justify-center px-6 bg-gray-50/80 backdrop-blur border-b border-gray-200/70 transition-all duration-300 print:hidden ${sidebarCollapsed ? 'left-16' : 'left-64'}`}>
+          <GlobalSearch />
+        </div>
+      )}
+
       <main
         className={`flex-1 min-w-0 overflow-x-hidden transition-all duration-300 print:ml-0 pt-14 lg:pt-0 ${sidebarCollapsed ? 'lg:ml-16' : 'lg:ml-64'}`}
       >
-        <div className="min-h-screen p-3 sm:p-4 lg:p-6 max-w-screen-2xl mx-auto">
+        <div className={`min-h-screen p-3 sm:p-4 lg:px-6 lg:pb-6 max-w-screen-2xl mx-auto ${isAdmin ? 'lg:pt-[4.5rem]' : 'lg:pt-6'}`}>
           <ErrorBoundary>
           <StockControllerGuard>
           <Routes>
