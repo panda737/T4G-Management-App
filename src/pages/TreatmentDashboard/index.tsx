@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import {
   Factory, Beaker, Clock, TrendingUp, AlertTriangle,
-  Calendar, User, Pencil, Trash2, RefreshCw,
+  Calendar, User, Pencil, Trash2, RefreshCw, Recycle,
 } from 'lucide-react';
 import { PageSpinner } from '../../components/Spinner';
 import DashboardError from '../../components/DashboardError';
@@ -67,7 +67,7 @@ export default function TreatmentDashboard() {
     setError('');
     try {
     const [logRes, sumRes, empRes] = await Promise.all([
-      supabase.from('treatment_daily_log').select('id, date, day_shift_cycles, day_shift_treated_kg, afternoon_shift_cycles, afternoon_shift_treated_kg, night_shift_cycles, night_shift_treated_kg, total_cycles, total_treated_kg, chemical_litres, downtime_minutes, downtime_reason, supervisor_id, day_shift_supervisor_id, afternoon_shift_supervisor_id, night_shift_supervisor_id, notes, status, created_at, updated_at').order('date', { ascending: true }),
+      supabase.from('treatment_daily_log').select('id, date, day_shift_cycles, day_shift_treated_kg, afternoon_shift_cycles, afternoon_shift_treated_kg, night_shift_cycles, night_shift_treated_kg, day_shift_ruc_washed, day_shift_lids_washed, day_shift_wheelie_bins, afternoon_shift_ruc_washed, afternoon_shift_lids_washed, afternoon_shift_wheelie_bins, night_shift_ruc_washed, night_shift_lids_washed, night_shift_wheelie_bins, total_cycles, total_treated_kg, chemical_litres, downtime_minutes, downtime_reason, supervisor_id, day_shift_supervisor_id, afternoon_shift_supervisor_id, night_shift_supervisor_id, notes, status, created_at, updated_at').order('date', { ascending: true }),
       supabase.from('treatment_monthly_summary').select('*').order('month'),
       supabase.from('employees').select('id, first_name, surname, position').in('position', ['Supervisor', 'Senior Operator', 'Health & Safety Officer']).eq('status', 'active').order('surname'),
     ]);
@@ -154,8 +154,19 @@ export default function TreatmentDashboard() {
     const upgradeCount = scope.filter(l =>
       l.downtime_reason && /install|maintenance|upgrade|civil/i.test(l.downtime_reason)
     ).length;
-    return { totalKg, totalCycles, dayKg, aftKg, nightKg, dayCycles, aftCycles, nightCycles, activeDays, downtimeDays, topReason, upgradeCount };
+    const totalRuc = scope.reduce((s, l) => s + Number(l.day_shift_ruc_washed || 0) + Number(l.afternoon_shift_ruc_washed || 0) + Number(l.night_shift_ruc_washed || 0), 0);
+    const totalWheelie = scope.reduce((s, l) => s + Number(l.day_shift_wheelie_bins || 0) + Number(l.afternoon_shift_wheelie_bins || 0) + Number(l.night_shift_wheelie_bins || 0), 0);
+    return { totalKg, totalCycles, dayKg, aftKg, nightKg, dayCycles, aftCycles, nightCycles, activeDays, downtimeDays, topReason, upgradeCount, totalRuc, totalWheelie };
   }, [period, logs, selectedYear, selectedYearMonth]);
+
+  const headerWashed = useMemo(() => {
+    if (period === 'year') return { ruc: yearHeaderStats?.totalRuc ?? 0, wheelie: yearHeaderStats?.totalWheelie ?? 0 };
+    if (!headerLog) return { ruc: 0, wheelie: 0 };
+    return {
+      ruc: Number(headerLog.day_shift_ruc_washed || 0) + Number(headerLog.afternoon_shift_ruc_washed || 0) + Number(headerLog.night_shift_ruc_washed || 0),
+      wheelie: Number(headerLog.day_shift_wheelie_bins || 0) + Number(headerLog.afternoon_shift_wheelie_bins || 0) + Number(headerLog.night_shift_wheelie_bins || 0),
+    };
+  }, [period, yearHeaderStats, headerLog]);
 
   const periodLogs = useMemo(() => {
     if (period === 'day') return logs.filter(l => l.date === yesterday);
@@ -195,10 +206,12 @@ export default function TreatmentDashboard() {
     const prevCycles = prevPeriodLogs.reduce((s, l) => s + Number(l.total_cycles), 0);
     const kgChange = prevKg > 0 ? ((totalKg - prevKg) / prevKg) * 100 : 0;
     const cycleChange = prevCycles > 0 ? ((totalCycles - prevCycles) / prevCycles) * 100 : 0;
+    const totalRuc = periodLogs.reduce((s, l) => s + Number(l.day_shift_ruc_washed || 0) + Number(l.afternoon_shift_ruc_washed || 0) + Number(l.night_shift_ruc_washed || 0), 0);
+    const totalWheelie = periodLogs.reduce((s, l) => s + Number(l.day_shift_wheelie_bins || 0) + Number(l.afternoon_shift_wheelie_bins || 0) + Number(l.night_shift_wheelie_bins || 0), 0);
     return {
       totalKg, totalCycles, totalChemical, activeDays, avgKgPerDay, downtimeDays,
       dayKg, aftKg, nightKg, dayCycles, aftCycles, nightCycles,
-      kgChange, cycleChange,
+      kgChange, cycleChange, totalRuc, totalWheelie,
     };
   }, [periodLogs, prevPeriodLogs]);
 
@@ -471,6 +484,17 @@ export default function TreatmentDashboard() {
           </div>
         ) : null}
 
+        {(headerWashed.ruc > 0 || headerWashed.wheelie > 0) && (
+          <div className="mt-3 flex flex-wrap gap-2">
+            <span className="inline-flex items-center gap-1.5 text-xs font-medium bg-white/15 rounded-full px-2.5 py-1">
+              <Recycle size={12} /> RUC washed: {headerWashed.ruc.toLocaleString()}
+            </span>
+            <span className="inline-flex items-center gap-1.5 text-xs font-medium bg-white/15 rounded-full px-2.5 py-1">
+              <Trash2 size={12} /> Wheelie bins: {headerWashed.wheelie.toLocaleString()}
+            </span>
+          </div>
+        )}
+
         <div className="mt-3 pt-2.5 border-t border-white/20 flex flex-wrap gap-x-5 gap-y-1 min-h-[22px]">
           {period === 'year' && yearHeaderStats ? (
             yearHeaderStats.downtimeDays > 0 || yearHeaderStats.upgradeCount > 0 ? (
@@ -528,13 +552,15 @@ export default function TreatmentDashboard() {
         </div>
       )}
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
         <KpiCard icon={Factory} label="Total Treated" value={fmtKg(stats.totalKg)} change={stats.kgChange} color="bg-emerald-50 text-emerald-600" />
         <KpiCard icon={TrendingUp} label="Total Cycles" value={stats.totalCycles.toString()} change={stats.cycleChange} color="bg-green-50 text-green-600" />
         <KpiCard icon={Calendar} label="Active Days" value={stats.activeDays.toString()} color="bg-emerald-50 text-emerald-700" />
         <KpiCard icon={Factory} label="Avg / Day" value={fmtKg(stats.avgKgPerDay)} color="bg-green-50 text-green-700" />
         <KpiCard icon={Beaker} label="Chemical Used" value={`${fmtKg(stats.totalChemical)} L`} sub="27L per cycle" color="bg-emerald-50 text-emerald-600" />
         <KpiCard icon={Clock} label="Downtime Days" value={stats.downtimeDays.toString()} color="bg-amber-50 text-amber-600" alert={stats.downtimeDays > 5} />
+        <KpiCard icon={Recycle} label="RUC Washed" value={stats.totalRuc.toLocaleString()} color="bg-sky-50 text-sky-600" />
+        <KpiCard icon={Trash2} label="Wheelie Bins" value={stats.totalWheelie.toLocaleString()} color="bg-indigo-50 text-indigo-600" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

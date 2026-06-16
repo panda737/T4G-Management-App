@@ -161,6 +161,15 @@ export type TreatmentDailyLog = {
   afternoon_shift_treated_kg: number;
   night_shift_cycles: number;
   night_shift_treated_kg: number;
+  day_shift_ruc_washed: number;
+  day_shift_lids_washed: number;
+  day_shift_wheelie_bins: number;
+  afternoon_shift_ruc_washed: number;
+  afternoon_shift_lids_washed: number;
+  afternoon_shift_wheelie_bins: number;
+  night_shift_ruc_washed: number;
+  night_shift_lids_washed: number;
+  night_shift_wheelie_bins: number;
   total_cycles: number;
   total_treated_kg: number;
   chemical_litres: number;
