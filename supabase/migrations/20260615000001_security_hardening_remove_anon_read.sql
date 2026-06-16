@@ -64,27 +64,32 @@ CREATE POLICY "Authenticated users can read toolbox topics"
 -- Each of these tables' ONLY SELECT policy currently targets `anon, authenticated`,
 -- so it must be dropped AND replaced (otherwise internal users would lose read).
 
-DROP POLICY IF EXISTS "Allow all access to stock_categories" ON public.stock_categories;
+DROP POLICY IF EXISTS "Allow all access to stock_categories" ON public.stock_categories;        -- repo name
+DROP POLICY IF EXISTS "Authenticated users can read stock_categories" ON public.stock_categories; -- actual prod name (drift)
 CREATE POLICY "Read stock_categories (internal)"
   ON public.stock_categories FOR SELECT TO authenticated
   USING (NOT public.is_customer());
 
-DROP POLICY IF EXISTS "Allow select on stock_items" ON public.stock_items;
+DROP POLICY IF EXISTS "Allow select on stock_items" ON public.stock_items;            -- repo name
+DROP POLICY IF EXISTS "Authenticated users can read stock_items" ON public.stock_items; -- actual prod name (drift)
 CREATE POLICY "Read stock_items (internal)"
   ON public.stock_items FOR SELECT TO authenticated
   USING (NOT public.is_customer());
 
-DROP POLICY IF EXISTS "Allow select on stock_movements" ON public.stock_movements;
+DROP POLICY IF EXISTS "Allow select on stock_movements" ON public.stock_movements;            -- repo name
+DROP POLICY IF EXISTS "Authenticated users can read stock_movements" ON public.stock_movements; -- actual prod name (drift)
 CREATE POLICY "Read stock_movements (internal)"
   ON public.stock_movements FOR SELECT TO authenticated
   USING (NOT public.is_customer());
 
-DROP POLICY IF EXISTS "Allow select on stock_take_sessions" ON public.stock_take_sessions;
+DROP POLICY IF EXISTS "Allow select on stock_take_sessions" ON public.stock_take_sessions;            -- repo name
+DROP POLICY IF EXISTS "Authenticated users can read stock_take_sessions" ON public.stock_take_sessions; -- actual prod name (drift)
 CREATE POLICY "Read stock_take_sessions (internal)"
   ON public.stock_take_sessions FOR SELECT TO authenticated
   USING (NOT public.is_customer());
 
-DROP POLICY IF EXISTS "Allow select on stock_take_line_items" ON public.stock_take_line_items;
+DROP POLICY IF EXISTS "Allow select on stock_take_line_items" ON public.stock_take_line_items;            -- repo name
+DROP POLICY IF EXISTS "Authenticated users can read stock_take_line_items" ON public.stock_take_line_items; -- actual prod name (drift)
 CREATE POLICY "Read stock_take_line_items (internal)"
   ON public.stock_take_line_items FOR SELECT TO authenticated
   USING (NOT public.is_customer());
