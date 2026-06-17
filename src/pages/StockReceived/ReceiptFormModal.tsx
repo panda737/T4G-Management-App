@@ -1,14 +1,14 @@
 import { useState } from 'react';
-import { Plus, Search, Trash2, ArrowDownCircle } from 'lucide-react';
+import { Plus, Trash2, ArrowDownCircle } from 'lucide-react';
 import { supabase, StockItem } from '../../lib/supabase';
 import { generateSequentialNumber } from '../../lib/numberGenerator';
+import { useUser } from '../../lib/UserContext';
 import Modal from '../../components/Modal';
+import StockItemSearch from '../../components/StockItemSearch';
 
 interface ReceiptLine {
   id: number;
   itemId: string;
-  search: string;
-  showDropdown: boolean;
   quantity: number;
 }
 
@@ -19,14 +19,17 @@ interface Props {
 }
 
 export default function ReceiptFormModal({ items, onClose, onSave }: Props) {
-  const [lines, setLines] = useState<ReceiptLine[]>([{ id: 1, itemId: '', search: '', showDropdown: false, quantity: 1 }]);
+  const { profile } = useUser();
+  const [lines, setLines] = useState<ReceiptLine[]>([{ id: 1, itemId: '', quantity: 1 }]);
   const [supplier, setSupplier] = useState('');
   const [supplierRef, setSupplierRef] = useState('');
   const [receivedDate, setReceivedDate] = useState(new Date().toISOString().slice(0, 10));
-  const [capturedBy, setCapturedBy] = useState('');
+  // Captured By is always the logged-in user — recorded, not editable.
+  const capturedBy = profile?.display_name || '';
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [attempted, setAttempted] = useState(false);
 
   function updateLine(id: number, patch: Partial<ReceiptLine>) {
     setLines(prev => prev.map(l => l.id === id ? { ...l, ...patch } : l));
@@ -38,24 +41,7 @@ export default function ReceiptFormModal({ items, onClose, onSave }: Props) {
 
   function addLine() {
     const newId = lines.reduce((max, l) => Math.max(max, l.id), 0) + 1;
-    setLines(prev => [...prev, { id: newId, itemId: '', search: '', showDropdown: false, quantity: 1 }]);
-  }
-
-  function displayName(item: StockItem) {
-    return (item.description || item.stock_item).replace(/\s*\([^)]*\)\s*$/, '').trim();
-  }
-
-  function getFilteredItems(search: string, currentLineId: number) {
-    const usedIds = lines.filter(l => l.id !== currentLineId && l.itemId).map(l => l.itemId);
-    const tokens = search.toLowerCase().split(/\s+/).filter(Boolean);
-    return items
-      .filter(i => !usedIds.includes(i.id))
-      .filter(i => {
-        if (tokens.length === 0) return true;
-        const haystack = `${i.stock_code} ${i.stock_item} ${i.description} ${i.category}`.toLowerCase();
-        return tokens.every(t => haystack.includes(t));
-      })
-      .slice(0, 30);
+    setLines(prev => [...prev, { id: newId, itemId: '', quantity: 1 }]);
   }
 
   function buildPayload(receiptNumber: string) {
@@ -84,8 +70,9 @@ export default function ReceiptFormModal({ items, onClose, onSave }: Props) {
 
   async function handleSave() {
     setError('');
+    setAttempted(true);
     const validLines = lines.filter(l => l.itemId);
-    if (validLines.length === 0) { setError('Please add at least one item.'); return; }
+    if (validLines.length === 0) { setError('Select at least one item to receive — the highlighted line is required.'); return; }
     for (const line of validLines) {
       if (line.quantity <= 0) { setError('All quantities must be greater than 0.'); return; }
     }
@@ -132,7 +119,14 @@ export default function ReceiptFormModal({ items, onClose, onSave }: Props) {
         </div>
         <div>
           <label className="block text-[11px] font-semibold text-gray-600 mb-0.5">Captured By</label>
-          <input value={capturedBy} onChange={e => setCapturedBy(e.target.value)} className={inputBase} placeholder="Your name" />
+          <input
+            value={capturedBy}
+            readOnly
+            disabled
+            title="Recorded as the logged-in user"
+            className={`${inputBase} bg-gray-100 text-gray-600 cursor-not-allowed`}
+            placeholder="—"
+          />
         </div>
       </div>
 
@@ -147,75 +141,29 @@ export default function ReceiptFormModal({ items, onClose, onSave }: Props) {
         <div className="divide-y divide-gray-100 bg-white">
           {lines.map((line, idx) => {
             const stockItem = items.find(i => i.id === line.itemId);
-            const filteredItems = getFilteredItems(line.search, line.id);
-            const newQty = stockItem ? stockItem.current_quantity + line.quantity : null;
+            const otherIds = lines.filter(l => l.id !== line.id && l.itemId).map(l => l.itemId);
 
             return (
               <div key={line.id} className="px-3 py-1.5">
                 <div className="flex gap-2 items-center">
                   <span className="text-xs font-bold w-5 text-center flex-shrink-0 text-emerald-600">{idx + 1}</span>
 
-                  <div className="flex-1 relative">
-                    {stockItem ? (
-                      <div className="flex items-center justify-between px-2.5 py-1.5 rounded-lg border-2 text-sm border-emerald-300 bg-emerald-50">
-                        <div className="min-w-0 flex-1">
-                          <p className="font-semibold text-gray-900 text-sm truncate leading-tight">{displayName(stockItem)}</p>
-                          <p className="text-[10px] text-gray-500 font-mono leading-tight">{stockItem.stock_code || '(no code)'} &bull; {stockItem.stock_item} &bull; on hand: <strong>{stockItem.current_quantity}</strong></p>
-                        </div>
-                        <button
-                          onClick={() => updateLine(line.id, { itemId: '', search: '', showDropdown: false })}
-                          className="ml-2 text-gray-400 hover:text-gray-600 flex-shrink-0 text-xs underline"
-                        >
-                          change
-                        </button>
-                      </div>
-                    ) : (
-                      <>
-                        <div className="relative">
-                          <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-                          <input
-                            type="text"
-                            placeholder="Search and select item..."
-                            value={line.search}
-                            onChange={e => updateLine(line.id, { search: e.target.value, showDropdown: true })}
-                            onFocus={() => updateLine(line.id, { showDropdown: true })}
-                            className="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white"
-                            autoFocus={idx === lines.length - 1 && !stockItem}
-                          />
-                        </div>
-                        {line.showDropdown && (
-                          <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-xl max-h-56 overflow-y-auto">
-                            {filteredItems.length === 0 ? (
-                              <p className="text-xs text-gray-400 text-center py-6">No items found</p>
-                            ) : filteredItems.map(item => (
-                              <button
-                                key={item.id}
-                                onMouseDown={e => e.preventDefault()}
-                                onClick={() => updateLine(line.id, { itemId: item.id, search: displayName(item), showDropdown: false })}
-                                className="w-full text-left px-4 py-3 text-sm border-b border-gray-100 last:border-0 hover:bg-gray-50 transition-colors flex items-center justify-between gap-3"
-                              >
-                                <div className="min-w-0 flex-1">
-                                  <p className="font-semibold text-gray-900 truncate">{displayName(item)}</p>
-                                  <p className="text-[10px] text-gray-400 font-mono mt-0.5">{item.stock_code || '(no code)'} &bull; {item.category}</p>
-                                </div>
-                                <div className="text-right flex-shrink-0">
-                                  <p className="text-[10px] text-gray-400">on hand</p>
-                                  <p className={`text-sm font-bold ${item.current_quantity === 0 ? 'text-red-600' : item.current_quantity <= (item.minimum_stock_level || 0) ? 'text-amber-600' : 'text-gray-700'}`}>{item.current_quantity}</p>
-                                </div>
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                      </>
-                    )}
+                  <div className="flex-1">
+                    <StockItemSearch
+                      items={items}
+                      value={line.itemId}
+                      excludeIds={otherIds}
+                      accent="emerald"
+                      invalid={attempted && !line.itemId}
+                      onSelect={item => updateLine(line.id, { itemId: item.id })}
+                      onClear={() => updateLine(line.id, { itemId: '' })}
+                    />
                   </div>
 
                   {stockItem && (
-                    <div className="flex items-center gap-1 text-xs flex-shrink-0 text-gray-500">
-                      <span className="font-bold text-gray-600">{stockItem.current_quantity}</span>
-                      <span className="text-emerald-600 font-bold">+{line.quantity}</span>
-                      <span className="text-gray-400">=</span>
-                      <span className="font-extrabold text-emerald-700">{newQty}</span>
+                    <div className="text-center flex-shrink-0 w-16">
+                      <p className="text-[10px] text-gray-400 leading-tight">on hand</p>
+                      <p className="text-sm font-bold text-gray-700 leading-tight">{stockItem.current_quantity}</p>
                     </div>
                   )}
 
@@ -269,7 +217,7 @@ export default function ReceiptFormModal({ items, onClose, onSave }: Props) {
         <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">Cancel</button>
         <button
           onClick={handleSave}
-          disabled={saving || validLineCount === 0}
+          disabled={saving}
           className="px-6 py-2 text-sm text-white rounded-lg disabled:opacity-50 font-semibold shadow-sm transition-colors bg-emerald-600 hover:bg-emerald-700"
         >
           {saving ? 'Saving...' : `Receive Stock (${validLineCount} item${validLineCount !== 1 ? 's' : ''})`}
