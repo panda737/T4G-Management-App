@@ -5,7 +5,7 @@ import { supabase, StockItem } from '../../lib/supabase';
 import { usePageTitle } from '../../lib/usePageTitle';
 import { useToast } from '../../lib/toast';
 import { useUser } from '../../lib/UserContext';
-import { downloadCSV } from '../../lib/csvExport';
+import { exportToXlsx } from '../../lib/xlsxExport';
 import { PageHeader, Button, Toolbar, SearchInput, FilterSelect, FilterTabs } from '../../components/ui';
 import { MOVEMENT_TYPES, INCREASE_TYPES, DECREASE_TYPES, EITHER_TYPES, MovementWithItem, OrderGroup, buildGroups, directionColor } from './constants';
 import { MovementIcon } from './MovementIcon';
@@ -107,6 +107,40 @@ export default function StockMovements() {
     setDetailGroup(g);
   }
 
+  async function handleExport() {
+    const rows = filtered.flatMap(g => g.lines.map(l => ({
+      date: new Date(l.movement_date),
+      item: l.stock_items?.stock_item || '',
+      code: l.stock_code || '',
+      type: l.movement_type,
+      qty: l.quantity,
+      reference: l.reference_number || '',
+      supplierClient: l.supplier_client_department || '',
+      capturedBy: l.captured_by || '',
+      notes: l.notes || '',
+    })));
+    await exportToXlsx({
+      filename: `tech4green_stock_movements_${new Date().toISOString().slice(0, 10)}`,
+      title: 'Stock Movements',
+      subtitle: `${rows.length} movement line${rows.length !== 1 ? 's' : ''}`,
+      sheets: [{
+        name: 'Movements',
+        columns: [
+          { header: 'Date', key: 'date', width: 18, numFmt: 'yyyy-mm-dd hh:mm' },
+          { header: 'Stock Item', key: 'item', width: 32 },
+          { header: 'Stock Code', key: 'code', width: 14 },
+          { header: 'Type', key: 'type', width: 18 },
+          { header: 'Quantity', key: 'qty', width: 12, numFmt: '#,##0' },
+          { header: 'Reference', key: 'reference', width: 18 },
+          { header: 'Supplier / Client', key: 'supplierClient', width: 24 },
+          { header: 'Captured By', key: 'capturedBy', width: 18 },
+          { header: 'Notes', key: 'notes', width: 32 },
+        ],
+        rows,
+      }],
+    });
+  }
+
   if (detailGroup) {
     return <OrderDetail group={detailGroup} onBack={() => setDetailGroup(null)} />;
   }
@@ -123,20 +157,7 @@ export default function StockMovements() {
               variant="secondary"
               icon={Download}
               hideLabelOnMobile
-              onClick={() => downloadCSV(
-                filtered.flatMap(g => g.lines.map(l => ({
-                  Date: l.movement_date,
-                  'Stock Item': l.stock_items?.stock_item || '',
-                  'Stock Code': l.stock_code || '',
-                  Type: l.movement_type,
-                  Quantity: l.quantity,
-                  Reference: l.reference_number || '',
-                  'Supplier/Client': l.supplier_client_department || '',
-                  'Captured By': l.captured_by || '',
-                  Notes: l.notes || '',
-                }))),
-                'stock-movements'
-              )}
+              onClick={handleExport}
             >Export</Button>
             {isAdmin && (
               <Button variant="primary" accent="emerald" icon={SlidersHorizontal} hideLabelOnMobile onClick={() => setShowAdjust(true)}>Adjust Stock</Button>

@@ -3,7 +3,7 @@ import { Printer, Download, FileBarChart, ArrowDownToLine, ArrowUpFromLine, Truc
 import { supabase, StockOrder, StockOrderItem, Client } from '../../lib/supabase';
 import { usePageTitle } from '../../lib/usePageTitle';
 import { useUser } from '../../lib/UserContext';
-import { downloadCSV } from '../../lib/csvExport';
+import { exportToXlsx } from '../../lib/xlsxExport';
 import { PageSpinner } from '../../components/Spinner';
 import { buildGroups, MovementWithItem, INCREASE_TYPES, directionColor, qtySign } from '../StockMovements/constants';
 import { DeliveryNoteSheet } from '../StockOrders/DeliveryNotePrint';
@@ -83,19 +83,37 @@ export default function StockDayEnd() {
     return { unitsIn, unitsOut, deliveries: completedOrders.length };
   }, [movements, completedOrders]);
 
-  function exportMovementsCSV() {
-    const rows = movements.map(m => ({
-      'Date/Time': new Date(m.movement_date).toLocaleString(),
-      'Type': m.movement_type,
-      'Stock Code': m.stock_code,
-      'Item': m.stock_items?.stock_item || '',
-      'Quantity': m.quantity,
-      'Reference': m.reference_number,
-      'Supplier/Client/Dept': m.supplier_client_department,
-      'Captured By': m.captured_by,
-      'Notes': m.notes,
-    }));
-    downloadCSV(rows, `stock-day-end-${date}`);
+  function exportMovementsXlsx() {
+    exportToXlsx({
+      filename: `tech4green_day_end_${date}`,
+      title: 'Day-End Stock Report',
+      subtitle: `${new Date(`${date}T00:00:00`).toLocaleDateString()}  ·  ${movements.length} movement line${movements.length !== 1 ? 's' : ''}`,
+      sheets: [{
+        name: 'Day-End',
+        columns: [
+          { header: 'Date / Time', key: 'datetime', width: 20, numFmt: 'yyyy-mm-dd hh:mm' },
+          { header: 'Type', key: 'type', width: 18 },
+          { header: 'Stock Code', key: 'code', width: 14 },
+          { header: 'Item', key: 'item', width: 32 },
+          { header: 'Quantity', key: 'qty', width: 12, numFmt: '#,##0' },
+          { header: 'Reference', key: 'reference', width: 18 },
+          { header: 'Supplier / Client / Dept', key: 'supplierClient', width: 26 },
+          { header: 'Captured By', key: 'capturedBy', width: 18 },
+          { header: 'Notes', key: 'notes', width: 32 },
+        ],
+        rows: movements.map(m => ({
+          datetime: new Date(m.movement_date),
+          type: m.movement_type,
+          code: m.stock_code,
+          item: m.stock_items?.stock_item || '',
+          qty: m.quantity,
+          reference: m.reference_number,
+          supplierClient: m.supplier_client_department,
+          capturedBy: m.captured_by,
+          notes: m.notes,
+        })),
+      }],
+    });
   }
 
   const reportDate = new Date(`${date}T00:00:00`).toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
@@ -118,11 +136,11 @@ export default function StockDayEnd() {
             className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
           />
           <button
-            onClick={exportMovementsCSV}
+            onClick={exportMovementsXlsx}
             disabled={movements.length === 0}
             className="flex items-center gap-1.5 px-3 py-2 text-sm border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium disabled:opacity-50"
           >
-            <Download size={14} /> Export CSV
+            <Download size={14} /> Export Excel
           </button>
           <button
             onClick={() => window.print()}

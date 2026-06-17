@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo, useCallback } from 'react';
 import { Download, TrendingUp, TrendingDown, AlertTriangle } from 'lucide-react';
 import { supabase, StockItem, StockMovement, getStockStatus } from '../lib/supabase';
 import { usePageTitle } from '../lib/usePageTitle';
-import { downloadCSV } from '../lib/csvExport';
+import { exportToXlsx } from '../lib/xlsxExport';
 import StatusBadge from '../components/StatusBadge';
 import { PageSpinner } from '../components/Spinner';
 
@@ -53,30 +53,67 @@ export default function Reports() {
   }, [movements]);
 
   function exportStockList() {
-    downloadCSV(items.map(i => ({
-      stock_code: i.stock_code,
-      stock_item: i.stock_item,
-      category: i.category,
-      description: i.description,
-      unit_of_measure: i.unit_of_measure,
-      current_quantity: i.current_quantity,
-      minimum_stock_level: i.minimum_stock_level,
-      maximum_stock_level: i.maximum_stock_level,
-      status: getStockStatus(i),
-    })), `tech4green_stock_list_${new Date().toISOString().slice(0, 10)}`);
+    exportToXlsx({
+      filename: `tech4green_stock_list_${new Date().toISOString().slice(0, 10)}`,
+      title: 'Stock List',
+      subtitle: `${items.length} active item${items.length !== 1 ? 's' : ''}`,
+      sheets: [{
+        name: 'Stock List',
+        columns: [
+          { header: 'Code', key: 'stock_code', width: 14 },
+          { header: 'Item', key: 'stock_item', width: 30 },
+          { header: 'Category', key: 'category', width: 22 },
+          { header: 'Description', key: 'description', width: 36 },
+          { header: 'Unit', key: 'unit_of_measure', width: 12 },
+          { header: 'On Hand', key: 'current_quantity', width: 12, numFmt: '#,##0' },
+          { header: 'Min', key: 'minimum_stock_level', width: 10, numFmt: '#,##0' },
+          { header: 'Max', key: 'maximum_stock_level', width: 10, numFmt: '#,##0' },
+          { header: 'Status', key: 'status', width: 16 },
+        ],
+        rows: items.map(i => ({
+          stock_code: i.stock_code,
+          stock_item: i.stock_item,
+          category: i.category,
+          description: i.description,
+          unit_of_measure: i.unit_of_measure,
+          current_quantity: i.current_quantity,
+          minimum_stock_level: i.minimum_stock_level,
+          maximum_stock_level: i.maximum_stock_level,
+          status: getStockStatus(i),
+        })),
+      }],
+    });
   }
 
   function exportMovements() {
-    downloadCSV(movements.map(m => ({
-      date: new Date(m.movement_date).toLocaleDateString(),
-      stock_code: m.stock_code,
-      movement_type: m.movement_type,
-      quantity: m.quantity,
-      reference: m.reference_number,
-      supplier_client: m.supplier_client_department,
-      captured_by: m.captured_by,
-      notes: m.notes,
-    })), `tech4green_movements_${fromDate}_to_${toDate}`);
+    exportToXlsx({
+      filename: `tech4green_movements_${fromDate}_to_${toDate}`,
+      title: 'Stock Movements',
+      subtitle: `${fromDate} to ${toDate}  ·  ${movements.length} movement${movements.length !== 1 ? 's' : ''}`,
+      sheets: [{
+        name: 'Movements',
+        columns: [
+          { header: 'Date', key: 'date', width: 18, numFmt: 'yyyy-mm-dd hh:mm' },
+          { header: 'Stock Code', key: 'stock_code', width: 14 },
+          { header: 'Type', key: 'movement_type', width: 18 },
+          { header: 'Quantity', key: 'quantity', width: 12, numFmt: '#,##0' },
+          { header: 'Reference', key: 'reference', width: 18 },
+          { header: 'Supplier / Client', key: 'supplier_client', width: 24 },
+          { header: 'Captured By', key: 'captured_by', width: 18 },
+          { header: 'Notes', key: 'notes', width: 32 },
+        ],
+        rows: movements.map(m => ({
+          date: new Date(m.movement_date),
+          stock_code: m.stock_code,
+          movement_type: m.movement_type,
+          quantity: m.quantity,
+          reference: m.reference_number,
+          supplier_client: m.supplier_client_department,
+          captured_by: m.captured_by,
+          notes: m.notes,
+        })),
+      }],
+    });
   }
 
   const tabs = [
