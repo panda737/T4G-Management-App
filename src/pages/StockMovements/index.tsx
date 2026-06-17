@@ -215,9 +215,6 @@ export default function StockMovements() {
                                 <MovementIcon type={g.movementType} />
                                 {g.movementType}
                               </span>
-                              {g.isGroup && g.label !== g.movementType && (
-                                <p className="text-xs text-gray-500 mt-0.5">{g.label}</p>
-                              )}
                             </div>
                           </div>
                         </td>
@@ -266,9 +263,6 @@ export default function StockMovements() {
                         {qtySign}{g.totalQty}
                       </span>
                     </div>
-                    {g.isGroup && g.label !== g.movementType && (
-                      <p className="text-xs text-gray-500 mb-1 ml-6">{g.label}</p>
-                    )}
                     <div className="flex items-center justify-between text-xs text-gray-400 mt-1">
                       <span>{new Date(g.date).toLocaleDateString()}</span>
                       <span className="flex items-center gap-1.5">

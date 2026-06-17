@@ -3,13 +3,13 @@ import { Plus, Edit2, AlertCircle, ChevronDown, ChevronRight, Package } from 'lu
 import { supabase, StockItem, getStockStatus } from '../../lib/supabase';
 import { usePageTitle } from '../../lib/usePageTitle';
 import { useToast } from '../../lib/toast';
+import { CATEGORY_ORDER, categoryMeta, compareCategories } from '../../lib/stockCategories';
 import StatusBadge from '../../components/StatusBadge';
 import { PageHeader, Button, Toolbar, SearchInput, FilterSelect, StatStrip } from '../../components/ui';
 import ItemFormModal from './ItemFormModal';
 
-const CATEGORIES = ['All', 'Liners', 'Sharps', 'External Customer Containers', 'Anatomical (Specibins)', 'Pharmaceutical', 'Box Sets', 'Other'];
+const CATEGORIES = ['All', ...CATEGORY_ORDER];
 const STATUSES = ['All', 'In Stock', 'Low Stock', 'Out of Stock'];
-const CATEGORY_ORDER = ['Liners', 'Sharps', 'External Customer Containers', 'Anatomical (Specibins)', 'Pharmaceutical', 'Box Sets', 'Other'];
 
 export default function StockMasterList() {
   usePageTitle('Stock — Master List');
@@ -57,14 +57,7 @@ export default function StockMasterList() {
     return map;
   }, [filtered]);
 
-  const sortedCategories = Object.keys(groupedByCategory).sort((a, b) => {
-    const ai = CATEGORY_ORDER.indexOf(a);
-    const bi = CATEGORY_ORDER.indexOf(b);
-    if (ai === -1 && bi === -1) return a.localeCompare(b);
-    if (ai === -1) return 1;
-    if (bi === -1) return -1;
-    return ai - bi;
-  });
+  const sortedCategories = Object.keys(groupedByCategory).sort(compareCategories);
 
   const totalQty = useMemo(() => items.reduce((s, i) => s + i.current_quantity, 0), [items]);
   const lowCount = useMemo(() => items.filter(i => getStockStatus(i) === 'Low Stock').length, [items]);
@@ -123,20 +116,21 @@ export default function StockMasterList() {
             const catItems = groupedByCategory[category];
             const collapsed = collapsedCategories.has(category);
             const catTotal = catItems.reduce((s, i) => s + i.current_quantity, 0);
+            const meta = categoryMeta(category);
             return (
               <div key={category} className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
                 <div
-                  className="flex items-center justify-between px-4 py-2.5 bg-gradient-to-r from-gray-800 to-gray-700 cursor-pointer hover:from-gray-700 hover:to-gray-600 transition-colors select-none"
+                  className={`flex items-center justify-between pl-3 pr-4 py-2.5 cursor-pointer transition-opacity hover:opacity-90 select-none border-l-4 ${meta.header} ${meta.border}`}
                   onClick={() => toggleCategory(category)}
                 >
                   <div className="flex items-center gap-2.5">
                     {collapsed
-                      ? <ChevronRight size={14} className="text-gray-300" />
-                      : <ChevronDown size={14} className="text-gray-300" />}
-                    <span className="text-xs font-bold text-white uppercase tracking-wider">{category}</span>
-                    <span className="text-[10px] text-gray-300 bg-white/10 border border-white/20 px-1.5 py-0.5 rounded-full font-medium">{catItems.length} items</span>
+                      ? <ChevronRight size={14} className={meta.chevron} />
+                      : <ChevronDown size={14} className={meta.chevron} />}
+                    <span className="text-xs font-bold uppercase tracking-wider">{category}</span>
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${meta.chip}`}>{catItems.length} items</span>
                   </div>
-                  <span className="text-xs text-gray-300">Total on hand: <strong className="text-white">{catTotal}</strong></span>
+                  <span className="text-xs opacity-90">Total on hand: <strong>{catTotal}</strong></span>
                 </div>
 
                 {!collapsed && (
