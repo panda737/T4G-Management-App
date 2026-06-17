@@ -1,4 +1,4 @@
-import { ArrowLeft, ArrowDownCircle, Package } from 'lucide-react';
+import { ArrowLeft, ArrowDownCircle, Package, Building2 } from 'lucide-react';
 import { StockReceipt, StockReceiptItem } from '../../lib/supabase';
 
 interface Props {
@@ -27,44 +27,48 @@ export default function ReceiptDetailView({ receipt, items, onBack }: Props) {
               <h1 className="text-2xl font-bold text-gray-900 font-mono">{receipt.receipt_number}</h1>
             </div>
             <p className="text-sm text-gray-500 mt-1">
-              {new Date(receipt.received_date).toLocaleDateString()}
-              {receipt.supplier && <> · {receipt.supplier}</>}
-              {receipt.supplier_ref && <> · ref <span className="font-mono">{receipt.supplier_ref}</span></>}
+              Goods received note · {new Date(receipt.received_date).toLocaleDateString()}
             </p>
           </div>
         </div>
 
-        <div className="flex gap-3">
-          <div className="bg-white border border-gray-200 rounded-xl px-5 py-3 text-center shadow-sm">
-            <p className="text-2xl font-bold text-gray-900">{sorted.length}</p>
-            <p className="text-xs text-gray-500">Line items</p>
-          </div>
-          <div className="bg-white border border-gray-200 rounded-xl px-5 py-3 text-center shadow-sm">
-            <p className="text-2xl font-bold text-emerald-700">+{totalUnits}</p>
-            <p className="text-xs text-gray-500">Total units</p>
-          </div>
-        </div>
       </div>
 
-      {/* Info / notes */}
-      {(receipt.notes || receipt.movement_group_id) && (
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+      {/* Supplier / receipt details — the "who we got what from" record */}
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+        <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-100 flex items-center gap-2">
+          <Building2 size={14} className="text-gray-500" />
+          <span className="text-xs font-bold text-gray-700 uppercase tracking-wider">Supplier &amp; receipt details</span>
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-3 p-4">
+          <div className="sm:col-span-2">
+            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Supplier</p>
+            <p className="text-sm font-semibold text-gray-900">{receipt.supplier || <span className="text-amber-600">Not recorded</span>}</p>
+          </div>
+          <div>
+            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Supplier Ref / DN No.</p>
+            <p className="text-sm font-mono text-gray-800">{receipt.supplier_ref || '—'}</p>
+          </div>
+          <div>
+            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Received Date</p>
+            <p className="text-sm text-gray-800">{new Date(receipt.received_date).toLocaleDateString()}</p>
+          </div>
           {receipt.notes && (
-            <>
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Notes</p>
+            <div className="col-span-2 sm:col-span-4 pt-1 border-t border-gray-100">
+              <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5 mt-2">Notes</p>
               <p className="text-sm text-gray-700">{receipt.notes}</p>
-            </>
-          )}
-          {receipt.movement_group_id && (
-            <p className={`text-[10px] text-gray-400 ${receipt.notes ? 'mt-3' : ''}`}>
-              <span className="inline-flex items-center gap-1">
-                <Package size={11} /> Stock movement recorded — see Movements for group{' '}
-                <span className="font-mono">Stock Received · {receipt.receipt_number}</span>.
-              </span>
-            </p>
+            </div>
           )}
         </div>
-      )}
+        {receipt.movement_group_id && (
+          <div className="px-4 py-2 border-t border-gray-100 bg-gray-50/50">
+            <p className="text-[10px] text-gray-400 inline-flex items-center gap-1">
+              <Package size={11} /> Stock movement recorded — see Movements for group{' '}
+              <span className="font-mono">Stock Received · {receipt.receipt_number}</span>.
+            </p>
+          </div>
+        )}
+      </div>
 
       {/* Items table */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
