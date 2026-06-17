@@ -57,6 +57,7 @@ export type StockTakeSession = {
   approved_by: string;
   approved_at: string | null;
   corrections_applied_at: string | null;
+  correction_movement_group_id: string | null;
 };
 
 export type StockTakeLineItem = {

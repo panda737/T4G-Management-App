@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Plus, ChevronRight, CheckCheck } from 'lucide-react';
 import { supabase, StockItem, StockTakeSession, StockTakeLineItem } from '../../lib/supabase';
 import { usePageTitle } from '../../lib/usePageTitle';
@@ -17,8 +18,19 @@ export default function StockTake() {
   const [showNew, setShowNew] = useState(false);
   const [activeSession, setActiveSession] = useState<StockTakeSession | null>(null);
   const [view, setView] = useState<View>('list');
+  const location = useLocation();
+  const pendingSessionId = (location.state as { openSessionId?: string } | null)?.openSessionId;
+  const deepLinkApplied = useRef(false);
 
   useEffect(() => { loadSessions(); }, []);
+
+  // Deep-link from a 'Stock Take Correction' movement: open that session's report
+  // once the sessions have loaded (apply once).
+  useEffect(() => {
+    if (deepLinkApplied.current || !pendingSessionId || sessions.length === 0) return;
+    const s = sessions.find(x => x.id === pendingSessionId);
+    if (s) { deepLinkApplied.current = true; setActiveSession(s); setView('report'); }
+  }, [sessions, pendingSessionId]);
 
   async function loadSessions() {
     setLoading(true);

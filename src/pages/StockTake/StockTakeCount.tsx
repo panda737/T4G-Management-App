@@ -120,7 +120,7 @@ export default function StockTakeCount({ session, onBack, onSessionUpdate, onRep
 
     const { data: updated } = await supabase
       .from('stock_take_sessions')
-      .update({ corrections_applied_at: now })
+      .update({ corrections_applied_at: now, correction_movement_group_id: groupId })
       .eq('id', session.id)
       .select()
       .maybeSingle();

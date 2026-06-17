@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Plus, PackagePlus, ChevronRight } from 'lucide-react';
 import { supabase, StockReceipt, StockReceiptItem, StockItem } from '../../lib/supabase';
 import { usePageTitle } from '../../lib/usePageTitle';
@@ -14,13 +15,14 @@ export default function StockReceived() {
   const { addToast } = useToast();
   const { canWrite } = useUser();
   const canWriteStock = canWrite('stock');
+  const location = useLocation();
   const [receipts, setReceipts] = useState<StockReceipt[]>([]);
   const [itemCounts, setItemCounts] = useState<Record<string, number>>({});
   const [stockItems, setStockItems] = useState<StockItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [showForm, setShowForm] = useState(false);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>((location.state as { openReceiptId?: string } | null)?.openReceiptId ?? null);
   const [detailItems, setDetailItems] = useState<StockReceiptItem[]>([]);
   const [detailLoading, setDetailLoading] = useState(false);
 

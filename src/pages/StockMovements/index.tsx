@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { SlidersHorizontal, ChevronRight, Package, ArrowLeftRight, ClipboardCheck, Download } from 'lucide-react';
 import { supabase, StockItem } from '../../lib/supabase';
 import { usePageTitle } from '../../lib/usePageTitle';
@@ -22,6 +23,7 @@ export default function StockMovements() {
   usePageTitle('Stock — Movements');
   const { addToast } = useToast();
   const { isAdmin } = useUser();
+  const navigate = useNavigate();
   const [movements, setMovements] = useState<MovementWithItem[]>([]);
   const [items, setItems] = useState<StockItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -85,6 +87,25 @@ export default function StockMovements() {
       return matchType && matchDir && matchSearch;
     });
   }, [groups, search, filterType, directionTab]);
+
+  // Clicking a movement opens its source record where one exists (orders, receipts,
+  // stock-take sessions). Otherwise (manual adjustments, legacy data) fall back to
+  // the inline movement-group detail.
+  async function openGroup(g: OrderGroup) {
+    if (g.movementType === 'Customer Delivery') {
+      const { data } = await supabase.from('stock_orders').select('id').eq('movement_group_id', g.groupId).maybeSingle();
+      if (data?.id) { navigate('/stock/orders', { state: { openOrderId: data.id } }); return; }
+    } else if (g.movementType === 'Stock Received') {
+      const { data } = await supabase.from('stock_receipts').select('id').eq('movement_group_id', g.groupId).maybeSingle();
+      if (data?.id) { navigate('/stock/received', { state: { openReceiptId: data.id } }); return; }
+    } else if (g.movementType === 'Stock Take Correction') {
+      // A label-backfilled group can map to >1 legacy session (duplicate names) —
+      // take the first match rather than erroring on multiple rows.
+      const { data } = await supabase.from('stock_take_sessions').select('id').eq('correction_movement_group_id', g.groupId).limit(1);
+      if (data && data.length) { navigate('/stock/stock-take', { state: { openSessionId: data[0].id } }); return; }
+    }
+    setDetailGroup(g);
+  }
 
   if (detailGroup) {
     return <OrderDetail group={detailGroup} onBack={() => setDetailGroup(null)} />;
@@ -180,7 +201,7 @@ export default function StockMovements() {
                       <tr
                         key={g.groupId}
                         className={`hover:bg-emerald-50/40 transition-colors cursor-pointer group ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}
-                        onClick={() => setDetailGroup(g)}
+                        onClick={() => openGroup(g)}
                       >
                         <td className="px-4 py-2.5 text-xs text-gray-500 whitespace-nowrap">
                           {new Date(g.date).toLocaleDateString()}<br />
@@ -231,7 +252,7 @@ export default function StockMovements() {
                   <div
                     key={g.groupId}
                     className="p-4 hover:bg-emerald-50/40 transition-colors cursor-pointer"
-                    onClick={() => setDetailGroup(g)}
+                    onClick={() => openGroup(g)}
                   >
                     <div className="flex items-start justify-between gap-2 mb-1.5">
                       <div className="flex items-center gap-2 min-w-0">

@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Plus, ClipboardList, ChevronRight } from 'lucide-react';
 import { supabase, StockOrder, StockOrderItem, StockItem, Client, ClientSite, StockOrderStatus, ORDER_STATUS_COLORS } from '../../lib/supabase';
 import { usePageTitle } from '../../lib/usePageTitle';
@@ -18,6 +19,7 @@ export default function StockOrders() {
   const { addToast } = useToast();
   const { canWrite } = useUser();
   const canWriteStock = canWrite('stock');
+  const location = useLocation();
   const [orders, setOrders] = useState<StockOrder[]>([]);
   const [itemCounts, setItemCounts] = useState<Record<string, number>>({});
   const [stockItems, setStockItems] = useState<StockItem[]>([]);
@@ -27,7 +29,7 @@ export default function StockOrders() {
   const [tab, setTab] = useState<Tab>('Open');
   const [search, setSearch] = useState('');
   const [showForm, setShowForm] = useState(false);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>((location.state as { openOrderId?: string } | null)?.openOrderId ?? null);
   const [detailItems, setDetailItems] = useState<StockOrderItem[]>([]);
   const [detailLoading, setDetailLoading] = useState(false);
 
