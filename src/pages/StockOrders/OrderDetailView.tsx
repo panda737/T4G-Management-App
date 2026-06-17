@@ -3,7 +3,7 @@ import {
   ArrowLeft, Download, Truck, Upload, CheckCircle2, XCircle, Pencil,
   FileText, ExternalLink, Check, ClipboardList,
 } from 'lucide-react';
-import { supabase, StockOrder, StockOrderItem, Client, StockItem, ORDER_STATUS_COLORS } from '../../lib/supabase';
+import { supabase, StockOrder, StockOrderItem, Client, ClientSite, StockItem, ORDER_STATUS_COLORS } from '../../lib/supabase';
 import { useUser } from '../../lib/UserContext';
 import { useToast } from '../../lib/toast';
 import { downloadElementPagesAsPdf } from '../../lib/pdf';
@@ -18,13 +18,15 @@ interface Props {
   order: StockOrder;
   items: StockOrderItem[];
   client: Client | null;
+  site: ClientSite | null;
   stockItems: StockItem[];
   clients: Client[];
+  sites: ClientSite[];
   onBack: () => void;
   onChanged: () => void;
 }
 
-export default function OrderDetailView({ order, items, client, stockItems, clients, onBack, onChanged }: Props) {
+export default function OrderDetailView({ order, items, client, site, stockItems, clients, sites, onBack, onChanged }: Props) {
   const { canWrite } = useUser();
   const canWriteStock = canWrite('stock');
   const { addToast } = useToast();
@@ -57,6 +59,7 @@ export default function OrderDetailView({ order, items, client, stockItems, clie
   }
 
   async function handleDispatch() {
+    if (!order.printed_at) { addToast('Download the delivery note before dispatching', 'error'); return; }
     const { error } = await supabase
       .from('stock_orders')
       .update({ status: 'Dispatched', dispatched_at: new Date().toISOString() })
@@ -125,7 +128,12 @@ export default function OrderDetailView({ order, items, client, stockItems, clie
               </button>
             )}
             {canDispatch(order.status) && (
-              <button onClick={handleDispatch} className="flex items-center gap-1.5 px-3 py-2 text-sm bg-amber-500 hover:bg-amber-600 text-white rounded-lg transition-colors font-semibold shadow-sm">
+              <button
+                onClick={handleDispatch}
+                disabled={!order.printed_at}
+                title={!order.printed_at ? 'Download the delivery note first' : undefined}
+                className="flex items-center gap-1.5 px-3 py-2 text-sm bg-amber-500 hover:bg-amber-600 text-white rounded-lg transition-colors font-semibold shadow-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-amber-500"
+              >
                 <Truck size={14} /> Mark Dispatched
               </button>
             )}
@@ -181,13 +189,27 @@ export default function OrderDetailView({ order, items, client, stockItems, clie
         {/* Client & order info */}
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
           <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Deliver To</p>
-          <p className="font-semibold text-gray-900 text-sm">{order.client_name}</p>
-          {addressLines.length > 0 ? (
-            <div className="text-xs text-gray-500 mt-1 space-y-0.5">
-              {addressLines.map((l, i) => <p key={i}>{l}</p>)}
-            </div>
+          {(order.site_name || site) ? (
+            <>
+              <p className="font-semibold text-gray-900 text-sm">{site?.generator_facility || order.site_name}</p>
+              <div className="text-xs text-gray-500 mt-1 space-y-0.5">
+                <p>{order.client_name}</p>
+                {site && [site.site_code, site.province, site.generator_group].filter(Boolean).length > 0 && (
+                  <p>{[site.site_code, site.province, site.generator_group].filter(Boolean).join(' · ')}</p>
+                )}
+              </div>
+            </>
           ) : (
-            <p className="text-xs text-gray-400 mt-1">No address on file for this client.</p>
+            <>
+              <p className="font-semibold text-gray-900 text-sm">{order.client_name}</p>
+              {addressLines.length > 0 ? (
+                <div className="text-xs text-gray-500 mt-1 space-y-0.5">
+                  {addressLines.map((l, i) => <p key={i}>{l}</p>)}
+                </div>
+              ) : (
+                <p className="text-xs text-gray-400 mt-1">No address on file for this client.</p>
+              )}
+            </>
           )}
           {order.notes && (
             <div className="mt-3 pt-3 border-t border-gray-100">
@@ -304,7 +326,7 @@ export default function OrderDetailView({ order, items, client, stockItems, clie
       {/* Print/PDF source — delivery note, 3 copies (hidden on screen) */}
       {canPrint(order.status) && (
         <div ref={printRef}>
-          <DeliveryNotePrint order={order} items={sorted} client={client} />
+          <DeliveryNotePrint order={order} items={sorted} client={client} site={site} />
         </div>
       )}
 
@@ -313,6 +335,7 @@ export default function OrderDetailView({ order, items, client, stockItems, clie
         <OrderFormModal
           items={stockItems}
           clients={clients}
+          sites={sites}
           order={order}
           orderItems={sorted}
           onClose={() => setModal(null)}

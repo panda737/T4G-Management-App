@@ -714,6 +714,8 @@ export type StockOrder = {
   order_number: string;
   client_id: string;
   client_name: string;
+  site_id: string | null;
+  site_name: string;
   order_date: string;
   source: OrderSource;
   customer_reference: string;

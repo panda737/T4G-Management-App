@@ -1,4 +1,4 @@
-import { StockOrder, StockOrderItem, Client } from '../../lib/supabase';
+import { StockOrder, StockOrderItem, Client, ClientSite } from '../../lib/supabase';
 
 interface NoteProps {
   order: StockOrder;
@@ -6,6 +6,7 @@ interface NoteProps {
   copyLabel: string;
   showDelivered?: boolean;
   client?: Client | null;
+  site?: ClientSite | null;
 }
 
 /*
@@ -13,15 +14,25 @@ interface NoteProps {
   without relying on background colors. Rendered inside a print-only
   container by the caller.
 */
-export function DeliveryNoteSheet({ order, items, copyLabel, showDelivered = false, client }: NoteProps) {
-  const addressLines = [
+export function DeliveryNoteSheet({ order, items, copyLabel, showDelivered = false, client, site }: NoteProps) {
+  // Deliveries go to a site (generator facility). Fall back to the client account
+  // and its address for legacy orders that predate site tracking.
+  const siteLines = [
+    site?.generator_facility || order.site_name,
+    order.client_name,
+    site ? [site.site_code, site.province].filter(Boolean).join(', ') : '',
+    site?.generator_group,
+  ];
+  const clientLines = [
     order.client_name,
     client?.contact_person,
     client?.address_line_1,
     client?.address_line_2,
     [client?.address_line_3, client?.postal_code].filter(Boolean).join(', '),
     client?.phone,
-  ].filter((l): l is string => !!l && l.trim() !== '');
+  ];
+  const addressLines = ((order.site_name || site) ? siteLines : clientLines)
+    .filter((l): l is string => !!l && l.trim() !== '');
 
   return (
     <div className="bg-white text-gray-900" style={{ breakAfter: 'page', pageBreakAfter: 'always' }}>
@@ -157,6 +168,7 @@ interface PrintProps {
   order: StockOrder;
   items: StockOrderItem[];
   client?: Client | null;
+  site?: ClientSite | null;
 }
 
 /*
@@ -164,12 +176,12 @@ interface PrintProps {
   (store / customer / driver), each on its own A4 page.
   Hidden on screen; visible only when printing.
 */
-export default function DeliveryNotePrint({ order, items, client }: PrintProps) {
+export default function DeliveryNotePrint({ order, items, client, site }: PrintProps) {
   const sorted = [...items].sort((a, b) => a.line_no - b.line_no);
   return (
     <div className="hidden print:block">
       {['STORE COPY', 'CUSTOMER COPY', 'DRIVER COPY'].map(label => (
-        <DeliveryNoteSheet key={label} order={order} items={sorted} copyLabel={label} client={client} />
+        <DeliveryNoteSheet key={label} order={order} items={sorted} copyLabel={label} client={client} site={site} />
       ))}
     </div>
   );

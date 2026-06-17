@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Plus, Search, Trash2, ClipboardList } from 'lucide-react';
-import { supabase, StockItem, Client, StockOrder, StockOrderItem, OrderSource } from '../../lib/supabase';
+import { supabase, StockItem, Client, ClientSite, StockOrder, StockOrderItem, OrderSource } from '../../lib/supabase';
 import { generateSequentialNumber } from '../../lib/numberGenerator';
 import Modal from '../../components/Modal';
 import { ORDER_SOURCES } from './constants';
@@ -16,13 +16,14 @@ interface OrderLine {
 interface Props {
   items: StockItem[];
   clients: Client[];
+  sites: ClientSite[];
   order?: StockOrder | null;          // present = edit (Open orders only)
   orderItems?: StockOrderItem[];
   onClose: () => void;
   onSave: () => void;
 }
 
-export default function OrderFormModal({ items, clients, order, orderItems, onClose, onSave }: Props) {
+export default function OrderFormModal({ items, clients, sites, order, orderItems, onClose, onSave }: Props) {
   const isEdit = !!order;
   const [lines, setLines] = useState<OrderLine[]>(() => {
     if (orderItems && orderItems.length > 0) {
@@ -42,6 +43,9 @@ export default function OrderFormModal({ items, clients, order, orderItems, onCl
   const [clientId, setClientId] = useState(order?.client_id || '');
   const [clientSearch, setClientSearch] = useState('');
   const [clientDropdown, setClientDropdown] = useState(false);
+  const [siteId, setSiteId] = useState(order?.site_id || '');
+  const [siteSearch, setSiteSearch] = useState('');
+  const [siteDropdown, setSiteDropdown] = useState(false);
   const [source, setSource] = useState<OrderSource>(order?.source || 'OrderCo');
   const [customerRef, setCustomerRef] = useState(order?.customer_reference || '');
   const [orderDate, setOrderDate] = useState(order?.order_date || new Date().toISOString().slice(0, 10));
@@ -55,6 +59,17 @@ export default function OrderFormModal({ items, clients, order, orderItems, onCl
     const q = clientSearch.toLowerCase();
     return !q || `${c.client_name} ${c.client_code} ${c.contact_person}`.toLowerCase().includes(q);
   });
+
+  const selectedSite = sites.find(s => s.id === siteId);
+  const clientSites = sites.filter(s => s.client_id === clientId && s.active);
+  const filteredSites = clientSites.filter(s => {
+    const q = siteSearch.toLowerCase();
+    return !q || `${s.generator_facility} ${s.site_code} ${s.generator_group} ${s.province}`.toLowerCase().includes(q);
+  });
+
+  // Sites are client-specific — clearing/changing the client invalidates the site.
+  function selectClient(id: string) { setClientId(id); setClientDropdown(false); setSiteId(''); setSiteSearch(''); }
+  function clearClient() { setClientId(''); setClientSearch(''); setSiteId(''); setSiteSearch(''); }
 
   function updateLine(id: number, patch: Partial<OrderLine>) {
     setLines(prev => prev.map(l => l.id === id ? { ...l, ...patch } : l));
@@ -95,6 +110,8 @@ export default function OrderFormModal({ items, clients, order, orderItems, onCl
         order_number: orderNumber,
         client_id: clientId,
         client_name: selectedClient?.client_name || '',
+        site_id: siteId || null,
+        site_name: selectedSite?.generator_facility || '',
         order_date: orderDate,
         source,
         customer_reference: customerRef,
@@ -137,6 +154,8 @@ export default function OrderFormModal({ items, clients, order, orderItems, onCl
       .update({
         client_id: clientId,
         client_name: selectedClient?.client_name || '',
+        site_id: siteId || null,
+        site_name: selectedSite?.generator_facility || '',
         order_date: orderDate,
         source,
         customer_reference: customerRef,
@@ -172,6 +191,7 @@ export default function OrderFormModal({ items, clients, order, orderItems, onCl
   async function handleSave() {
     setError('');
     if (!clientId) { setError('Please select a client.'); return; }
+    if (!isEdit && !siteId) { setError('Please select a delivery site.'); return; }
     const validLines = lines.filter(l => l.itemId);
     if (validLines.length === 0) { setError('Please add at least one item.'); return; }
     for (const line of validLines) {
@@ -226,7 +246,7 @@ export default function OrderFormModal({ items, clients, order, orderItems, onCl
                 <p className="font-semibold text-gray-900 truncate">{selectedClient.client_name}</p>
                 <p className="text-[10px] text-gray-500">{[selectedClient.client_code, selectedClient.contact_person, selectedClient.phone].filter(Boolean).join(' · ') || 'no details'}</p>
               </div>
-              <button onClick={() => { setClientId(''); setClientSearch(''); }} className="ml-2 text-gray-400 hover:text-gray-600 flex-shrink-0 text-xs underline">change</button>
+              <button onClick={clearClient} className="ml-2 text-gray-400 hover:text-gray-600 flex-shrink-0 text-xs underline">change</button>
             </div>
           ) : (
             <>
@@ -251,7 +271,7 @@ export default function OrderFormModal({ items, clients, order, orderItems, onCl
                     <button
                       key={c.id}
                       onMouseDown={e => e.preventDefault()}
-                      onClick={() => { setClientId(c.id); setClientDropdown(false); }}
+                      onClick={() => selectClient(c.id)}
                       className="w-full text-left px-4 py-2.5 text-sm border-b border-gray-100 last:border-0 hover:bg-gray-50 transition-colors"
                     >
                       <p className="font-semibold text-gray-900">{c.client_name}</p>
@@ -263,6 +283,53 @@ export default function OrderFormModal({ items, clients, order, orderItems, onCl
             </>
           )}
         </div>
+        {clientId && (
+          <div className="col-span-2 relative">
+            <label className="block text-[11px] font-semibold text-gray-600 mb-0.5">Delivery Site *</label>
+            {selectedSite ? (
+              <div className="flex items-center justify-between px-3 py-2 rounded-lg border-2 border-blue-300 bg-blue-50 text-sm">
+                <div className="min-w-0">
+                  <p className="font-semibold text-gray-900 truncate">{selectedSite.generator_facility}</p>
+                  <p className="text-[10px] text-gray-500">{[selectedSite.site_code, selectedSite.province, selectedSite.generator_group].filter(Boolean).join(' · ') || 'no details'}</p>
+                </div>
+                <button onClick={() => { setSiteId(''); setSiteSearch(''); }} className="ml-2 text-gray-400 hover:text-gray-600 flex-shrink-0 text-xs underline">change</button>
+              </div>
+            ) : (
+              <>
+                <div className="relative">
+                  <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                  <input
+                    type="text"
+                    placeholder="Search site / facility..."
+                    value={siteSearch}
+                    onChange={e => { setSiteSearch(e.target.value); setSiteDropdown(true); }}
+                    onFocus={() => setSiteDropdown(true)}
+                    className="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white"
+                  />
+                </div>
+                {siteDropdown && (
+                  <div className="absolute z-30 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-xl max-h-56 overflow-y-auto">
+                    {filteredSites.length === 0 ? (
+                      <p className="text-xs text-gray-400 text-center py-6">
+                        No sites for this client — add sites under Commercial → Sites
+                      </p>
+                    ) : filteredSites.map(s => (
+                      <button
+                        key={s.id}
+                        onMouseDown={e => e.preventDefault()}
+                        onClick={() => { setSiteId(s.id); setSiteDropdown(false); }}
+                        className="w-full text-left px-4 py-2.5 text-sm border-b border-gray-100 last:border-0 hover:bg-gray-50 transition-colors"
+                      >
+                        <p className="font-semibold text-gray-900">{s.generator_facility}</p>
+                        <p className="text-[10px] text-gray-400">{[s.site_code, s.province, s.generator_group].filter(Boolean).join(' · ') || ' '}</p>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
         <div>
           <label className="block text-[11px] font-semibold text-gray-600 mb-0.5">Order Source *</label>
           <select value={source} onChange={e => setSource(e.target.value as OrderSource)} className={inputCls}>
@@ -408,7 +475,7 @@ export default function OrderFormModal({ items, clients, order, orderItems, onCl
         <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">Cancel</button>
         <button
           onClick={handleSave}
-          disabled={saving || validLineCount === 0 || !clientId}
+          disabled={saving || validLineCount === 0 || !clientId || (!isEdit && !siteId)}
           className="px-6 py-2 text-sm text-white rounded-lg disabled:opacity-50 font-semibold shadow-sm transition-colors bg-blue-600 hover:bg-blue-700"
         >
           {saving ? 'Saving...' : isEdit ? 'Save Changes' : `Load Order (${validLineCount} item${validLineCount !== 1 ? 's' : ''})`}
