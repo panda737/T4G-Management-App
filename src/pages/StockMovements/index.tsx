@@ -1,14 +1,15 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
-import { Plus, ChevronRight, Package, ArrowLeftRight, ClipboardCheck, Download } from 'lucide-react';
+import { SlidersHorizontal, ChevronRight, Package, ArrowLeftRight, ClipboardCheck, Download } from 'lucide-react';
 import { supabase, StockItem } from '../../lib/supabase';
 import { usePageTitle } from '../../lib/usePageTitle';
 import { useToast } from '../../lib/toast';
+import { useUser } from '../../lib/UserContext';
 import { downloadCSV } from '../../lib/csvExport';
 import { PageHeader, Button, Toolbar, SearchInput, FilterSelect, FilterTabs } from '../../components/ui';
 import { MOVEMENT_TYPES, INCREASE_TYPES, DECREASE_TYPES, EITHER_TYPES, MovementWithItem, OrderGroup, buildGroups, directionColor } from './constants';
 import { MovementIcon } from './MovementIcon';
 import OrderDetail from './OrderDetail';
-import MovementFormModal from './MovementFormModal';
+import AdjustStockModal from './AdjustStockModal';
 
 function GroupTypeIcon({ type }: { type: string }) {
   if (type === 'Stock Take Correction') return <ClipboardCheck size={15} className="text-amber-600" />;
@@ -20,10 +21,11 @@ function GroupTypeIcon({ type }: { type: string }) {
 export default function StockMovements() {
   usePageTitle('Stock — Movements');
   const { addToast } = useToast();
+  const { isAdmin } = useUser();
   const [movements, setMovements] = useState<MovementWithItem[]>([]);
   const [items, setItems] = useState<StockItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showAdd, setShowAdd] = useState(false);
+  const [showAdjust, setShowAdjust] = useState(false);
   const [search, setSearch] = useState('');
   const [filterType, setFilterType] = useState('All');
   const [directionTab, setDirectionTab] = useState<'All' | 'In' | 'Out' | 'Adjustment'>('All');
@@ -115,7 +117,9 @@ export default function StockMovements() {
                 'stock-movements'
               )}
             >Export</Button>
-            <Button variant="primary" accent="emerald" icon={Plus} hideLabelOnMobile onClick={() => setShowAdd(true)}>Record Movement</Button>
+            {isAdmin && (
+              <Button variant="primary" accent="emerald" icon={SlidersHorizontal} hideLabelOnMobile onClick={() => setShowAdjust(true)}>Adjust Stock</Button>
+            )}
           </>
         }
       />
@@ -263,11 +267,11 @@ export default function StockMovements() {
         )}
       </div>
 
-      {showAdd && (
-        <MovementFormModal
+      {showAdjust && (
+        <AdjustStockModal
           items={items}
-          onClose={() => setShowAdd(false)}
-          onSave={() => { setShowAdd(false); addToast('Movement recorded'); load(); }}
+          onClose={() => setShowAdjust(false)}
+          onSave={() => { setShowAdjust(false); addToast('Stock adjustment recorded'); load(); }}
         />
       )}
     </div>

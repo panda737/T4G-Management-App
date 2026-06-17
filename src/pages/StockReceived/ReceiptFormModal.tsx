@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { Plus, Search, ArrowDownCircle, ArrowUpCircle, Trash2 } from 'lucide-react';
+import { Plus, Search, Trash2, ArrowDownCircle } from 'lucide-react';
 import { supabase, StockItem } from '../../lib/supabase';
+import { generateSequentialNumber } from '../../lib/numberGenerator';
 import Modal from '../../components/Modal';
 
-interface MovementLine {
+interface ReceiptLine {
   id: number;
   itemId: string;
   search: string;
@@ -12,23 +13,22 @@ interface MovementLine {
 }
 
 interface Props {
-  direction: 'in' | 'out';
   items: StockItem[];
   onClose: () => void;
   onSave: () => void;
 }
 
-export default function QuickMovementModal({ direction, items, onClose, onSave }: Props) {
-  const isIn = direction === 'in';
-  const [lines, setLines] = useState<MovementLine[]>([{ id: 1, itemId: '', search: '', showDropdown: false, quantity: 1 }]);
-  const [supplierClient, setSupplierClient] = useState('');
-  const [reference, setReference] = useState('');
+export default function ReceiptFormModal({ items, onClose, onSave }: Props) {
+  const [lines, setLines] = useState<ReceiptLine[]>([{ id: 1, itemId: '', search: '', showDropdown: false, quantity: 1 }]);
+  const [supplier, setSupplier] = useState('');
+  const [supplierRef, setSupplierRef] = useState('');
+  const [receivedDate, setReceivedDate] = useState(new Date().toISOString().slice(0, 10));
   const [capturedBy, setCapturedBy] = useState('');
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
-  function updateLine(id: number, patch: Partial<MovementLine>) {
+  function updateLine(id: number, patch: Partial<ReceiptLine>) {
     setLines(prev => prev.map(l => l.id === id ? { ...l, ...patch } : l));
   }
 
@@ -58,82 +58,88 @@ export default function QuickMovementModal({ direction, items, onClose, onSave }
       .slice(0, 30);
   }
 
+  function buildPayload(receiptNumber: string) {
+    const validLines = lines.filter(l => l.itemId);
+    const p_lines = validLines.map(line => {
+      const stockItem = items.find(i => i.id === line.itemId)!;
+      return {
+        stock_item_id: line.itemId,
+        stock_code: stockItem.stock_code || '',
+        stock_item: stockItem.stock_item,
+        description: stockItem.description || '',
+        unit_of_measure: stockItem.unit_of_measure || '',
+        qty_received: line.quantity,
+      };
+    });
+    return {
+      p_receipt_number: receiptNumber,
+      p_supplier: supplier,
+      p_supplier_ref: supplierRef,
+      p_received_date: receivedDate,
+      p_notes: notes,
+      p_lines,
+      p_captured_by: capturedBy,
+    };
+  }
+
   async function handleSave() {
     setError('');
     const validLines = lines.filter(l => l.itemId);
     if (validLines.length === 0) { setError('Please add at least one item.'); return; }
     for (const line of validLines) {
       if (line.quantity <= 0) { setError('All quantities must be greater than 0.'); return; }
-      if (!isIn) {
-        const stockItem = items.find(i => i.id === line.itemId);
-        if (stockItem && line.quantity > stockItem.current_quantity) {
-          setError(`Cannot issue ${line.quantity} of "${stockItem.stock_item}". Only ${stockItem.current_quantity} on hand.`);
-          return;
-        }
-      }
     }
 
     setSaving(true);
-    const groupId = crypto.randomUUID();
-    const itemCount = validLines.length;
-    const groupLabel = `${isIn ? 'Stock In' : 'Stock Out'}${reference ? ` · ${reference}` : ''} · ${itemCount} item${itemCount !== 1 ? 's' : ''}`;
-    const now = new Date().toISOString();
 
-    const movements = validLines.map(line => {
-      const stockItem = items.find(i => i.id === line.itemId)!;
-      const delta = isIn ? line.quantity : -line.quantity;
-      return {
-        stock_item_id: line.itemId,
-        stock_code: stockItem.stock_code || '',
-        stock_item: stockItem.stock_item,
-        movement_type: isIn ? 'Stock Received' : 'Stock Issued',
-        quantity: line.quantity,
-        delta,
-      };
-    });
-
-    const { error: rpcErr } = await supabase.rpc('record_stock_movement_group', {
-      p_movements: movements,
-      p_movement_date: now,
-      p_reference_number: reference,
-      p_supplier_client_dept: supplierClient,
-      p_captured_by: capturedBy,
-      p_movement_group_id: groupId,
-      p_movement_group_label: groupLabel,
-    });
-
-    if (rpcErr) {
-      const msg = rpcErr.message.includes('Insufficient stock')
-        ? rpcErr.message.replace(/^.*?(Insufficient)/, '$1')
-        : rpcErr.message;
-      setError(msg);
-      setSaving(false);
-      return;
+    let receiptNumber = await generateSequentialNumber('stock_receipts', 'receipt_number', 'GRN');
+    let { error: rpcErr } = await supabase.rpc('record_stock_receipt', buildPayload(receiptNumber));
+    if (rpcErr && (rpcErr.code === '23505' || /duplicate key/i.test(rpcErr.message))) {
+      // Number collision (concurrent insert) — regenerate once and retry.
+      receiptNumber = await generateSequentialNumber('stock_receipts', 'receipt_number', 'GRN');
+      ({ error: rpcErr } = await supabase.rpc('record_stock_receipt', buildPayload(receiptNumber)));
     }
+
+    if (rpcErr) { setError(rpcErr.message); setSaving(false); return; }
 
     setSaving(false);
     onSave();
   }
 
-  const inputBase = 'w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 bg-white';
-  const focusRing = isIn ? 'focus:ring-emerald-400' : 'focus:ring-red-400';
+  const inputBase = 'w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white';
   const validLineCount = lines.filter(l => l.itemId).length;
 
   return (
-    <Modal
-      title={isIn ? 'Stock In — Receive Stock' : 'Stock Out — Internal Issue'}
-      onClose={onClose}
-      size="xl"
-      accent={isIn ? 'green' : 'red'}
-    >
-      <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold mb-3 ${isIn ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
-        {isIn ? <ArrowDownCircle size={12} /> : <ArrowUpCircle size={12} />}
-        {isIn ? 'Recording stock received into store' : 'Internal issues only — customer deliveries go through Orders & Deliveries'}
+    <Modal title="Receive Stock" onClose={onClose} size="xl" accent="green">
+      <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold mb-3 bg-emerald-100 text-emerald-700">
+        <ArrowDownCircle size={12} />
+        Recording stock received into store — posts a Stock Received movement and increases on-hand.
       </div>
 
-      <div className={`rounded-xl border-2 ${isIn ? 'border-emerald-200' : 'border-red-200'}`}>
-        <div className={`px-4 py-2 flex items-center gap-2 ${isIn ? 'bg-emerald-600' : 'bg-red-600'}`}>
-          <span className="text-xs font-bold text-white uppercase tracking-wider flex-1">Stock Items</span>
+      {/* Receipt header */}
+      <div className="grid grid-cols-2 gap-2 mb-3">
+        <div>
+          <label className="block text-[11px] font-semibold text-gray-600 mb-0.5">Supplier</label>
+          <input value={supplier} onChange={e => setSupplier(e.target.value)} className={inputBase} placeholder="e.g. Pailpac, Mediwaste" />
+        </div>
+        <div>
+          <label className="block text-[11px] font-semibold text-gray-600 mb-0.5">Supplier Ref / Delivery Note No.</label>
+          <input value={supplierRef} onChange={e => setSupplierRef(e.target.value)} className={inputBase} placeholder="e.g. INV-12345" />
+        </div>
+        <div>
+          <label className="block text-[11px] font-semibold text-gray-600 mb-0.5">Received Date</label>
+          <input type="date" value={receivedDate} onChange={e => setReceivedDate(e.target.value)} className={inputBase} />
+        </div>
+        <div>
+          <label className="block text-[11px] font-semibold text-gray-600 mb-0.5">Captured By</label>
+          <input value={capturedBy} onChange={e => setCapturedBy(e.target.value)} className={inputBase} placeholder="Your name" />
+        </div>
+      </div>
+
+      {/* Line items */}
+      <div className="rounded-xl border-2 border-emerald-200">
+        <div className="px-4 py-2 flex items-center gap-2 bg-emerald-600">
+          <span className="text-xs font-bold text-white uppercase tracking-wider flex-1">Items Received</span>
           <span className="text-xs text-white/70">Qty</span>
           <span className="w-7" />
         </div>
@@ -142,17 +148,16 @@ export default function QuickMovementModal({ direction, items, onClose, onSave }
           {lines.map((line, idx) => {
             const stockItem = items.find(i => i.id === line.itemId);
             const filteredItems = getFilteredItems(line.search, line.id);
-            const newQty = stockItem ? Math.max(0, stockItem.current_quantity + (isIn ? line.quantity : -line.quantity)) : null;
-            const overStock = !isIn && stockItem && line.quantity > stockItem.current_quantity;
+            const newQty = stockItem ? stockItem.current_quantity + line.quantity : null;
 
             return (
-              <div key={line.id} className={`px-3 py-1.5 ${overStock ? 'bg-red-50' : ''}`}>
+              <div key={line.id} className="px-3 py-1.5">
                 <div className="flex gap-2 items-center">
-                  <span className={`text-xs font-bold w-5 text-center flex-shrink-0 ${isIn ? 'text-emerald-600' : 'text-red-500'}`}>{idx + 1}</span>
+                  <span className="text-xs font-bold w-5 text-center flex-shrink-0 text-emerald-600">{idx + 1}</span>
 
                   <div className="flex-1 relative">
                     {stockItem ? (
-                      <div className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg border-2 text-sm ${isIn ? 'border-emerald-300 bg-emerald-50' : 'border-red-300 bg-red-50'}`}>
+                      <div className="flex items-center justify-between px-2.5 py-1.5 rounded-lg border-2 text-sm border-emerald-300 bg-emerald-50">
                         <div className="min-w-0 flex-1">
                           <p className="font-semibold text-gray-900 text-sm truncate leading-tight">{displayName(stockItem)}</p>
                           <p className="text-[10px] text-gray-500 font-mono leading-tight">{stockItem.stock_code || '(no code)'} &bull; {stockItem.stock_item} &bull; on hand: <strong>{stockItem.current_quantity}</strong></p>
@@ -174,7 +179,7 @@ export default function QuickMovementModal({ direction, items, onClose, onSave }
                             value={line.search}
                             onChange={e => updateLine(line.id, { search: e.target.value, showDropdown: true })}
                             onFocus={() => updateLine(line.id, { showDropdown: true })}
-                            className={`w-full pl-8 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 ${focusRing} bg-white`}
+                            className="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white"
                             autoFocus={idx === lines.length - 1 && !stockItem}
                           />
                         </div>
@@ -206,16 +211,11 @@ export default function QuickMovementModal({ direction, items, onClose, onSave }
                   </div>
 
                   {stockItem && (
-                    <div className={`flex items-center gap-1 text-xs flex-shrink-0 ${overStock ? 'text-red-600 font-semibold' : 'text-gray-500'}`}>
-                      {overStock
-                        ? <span className="whitespace-nowrap">Only {stockItem.current_quantity} on hand</span>
-                        : <>
-                            <span className="font-bold text-gray-600">{stockItem.current_quantity}</span>
-                            <span className={isIn ? 'text-emerald-600 font-bold' : 'text-red-500 font-bold'}>{isIn ? `+${line.quantity}` : `−${line.quantity}`}</span>
-                            <span className="text-gray-400">=</span>
-                            <span className={`font-extrabold ${isIn ? 'text-emerald-700' : 'text-red-700'}`}>{newQty}</span>
-                          </>
-                      }
+                    <div className="flex items-center gap-1 text-xs flex-shrink-0 text-gray-500">
+                      <span className="font-bold text-gray-600">{stockItem.current_quantity}</span>
+                      <span className="text-emerald-600 font-bold">+{line.quantity}</span>
+                      <span className="text-gray-400">=</span>
+                      <span className="font-extrabold text-emerald-700">{newQty}</span>
                     </div>
                   )}
 
@@ -244,10 +244,10 @@ export default function QuickMovementModal({ direction, items, onClose, onSave }
           })}
         </div>
 
-        <div className={`px-3 py-2 border-t ${isIn ? 'border-emerald-100 bg-emerald-50/50' : 'border-red-100 bg-red-50/50'}`}>
+        <div className="px-3 py-2 border-t border-emerald-100 bg-emerald-50/50">
           <button
             onClick={addLine}
-            className={`flex items-center gap-1.5 text-xs font-semibold transition-colors ${isIn ? 'text-emerald-700 hover:text-emerald-800' : 'text-red-700 hover:text-red-800'}`}
+            className="flex items-center gap-1.5 text-xs font-semibold transition-colors text-emerald-700 hover:text-emerald-800"
           >
             <Plus size={13} /> Add another item
           </button>
@@ -255,25 +255,8 @@ export default function QuickMovementModal({ direction, items, onClose, onSave }
       </div>
 
       <div className="mt-3">
-        <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Movement Details</p>
-        <div className="grid grid-cols-2 gap-2">
-          <div>
-            <label className="block text-[11px] font-semibold text-gray-600 mb-0.5">{isIn ? 'Supplier' : 'Department'}</label>
-            <input value={supplierClient} onChange={e => setSupplierClient(e.target.value)} className={`${inputBase} ${focusRing}`} placeholder={isIn ? 'e.g. Pailpac, Mediwaste' : 'e.g. Treatment Plant, Workshop'} />
-          </div>
-          <div>
-            <label className="block text-[11px] font-semibold text-gray-600 mb-0.5">Reference Number</label>
-            <input value={reference} onChange={e => setReference(e.target.value)} className={`${inputBase} ${focusRing}`} placeholder="e.g. PO-12345" />
-          </div>
-          <div>
-            <label className="block text-[11px] font-semibold text-gray-600 mb-0.5">Captured By</label>
-            <input value={capturedBy} onChange={e => setCapturedBy(e.target.value)} className={`${inputBase} ${focusRing}`} placeholder="Your name" />
-          </div>
-          <div>
-            <label className="block text-[11px] font-semibold text-gray-600 mb-0.5">Notes</label>
-            <input value={notes} onChange={e => setNotes(e.target.value)} className={`${inputBase} ${focusRing}`} placeholder="Optional notes" />
-          </div>
-        </div>
+        <label className="block text-[11px] font-semibold text-gray-600 mb-0.5">Notes</label>
+        <input value={notes} onChange={e => setNotes(e.target.value)} className={inputBase} placeholder="Optional notes" />
       </div>
 
       {error && (
@@ -287,11 +270,9 @@ export default function QuickMovementModal({ direction, items, onClose, onSave }
         <button
           onClick={handleSave}
           disabled={saving || validLineCount === 0}
-          className={`px-6 py-2 text-sm text-white rounded-lg disabled:opacity-50 font-semibold shadow-sm transition-colors ${
-            isIn ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-red-600 hover:bg-red-700'
-          }`}
+          className="px-6 py-2 text-sm text-white rounded-lg disabled:opacity-50 font-semibold shadow-sm transition-colors bg-emerald-600 hover:bg-emerald-700"
         >
-          {saving ? 'Saving...' : isIn ? `Confirm Stock In (${validLineCount})` : `Confirm Stock Out (${validLineCount})`}
+          {saving ? 'Saving...' : `Receive Stock (${validLineCount} item${validLineCount !== 1 ? 's' : ''})`}
         </button>
       </div>
     </Modal>

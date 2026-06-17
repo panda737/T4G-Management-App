@@ -1,11 +1,10 @@
 import { useEffect, useRef, useState, useMemo } from 'react';
-import { Plus, Edit2, AlertCircle, ChevronDown, ChevronRight, ArrowDownCircle, ArrowUpCircle, Package } from 'lucide-react';
+import { Plus, Edit2, AlertCircle, ChevronDown, ChevronRight, Package } from 'lucide-react';
 import { supabase, StockItem, getStockStatus } from '../../lib/supabase';
 import { usePageTitle } from '../../lib/usePageTitle';
 import { useToast } from '../../lib/toast';
 import StatusBadge from '../../components/StatusBadge';
 import { PageHeader, Button, Toolbar, SearchInput, FilterSelect, StatStrip } from '../../components/ui';
-import QuickMovementModal from './QuickMovementModal';
 import ItemFormModal from './ItemFormModal';
 
 const CATEGORIES = ['All', 'Liners', 'Sharps', 'External Customer Containers', 'Anatomical (Specibins)', 'Pharmaceutical', 'Box Sets', 'Other'];
@@ -22,7 +21,6 @@ export default function StockMasterList() {
   const [filterStatus, setFilterStatus] = useState('All');
   const [editItem, setEditItem] = useState<StockItem | null>(null);
   const [showAdd, setShowAdd] = useState(false);
-  const [globalMovement, setGlobalMovement] = useState<'in' | 'out' | null>(null);
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
   const [existingCodes, setExistingCodes] = useState<string[]>([]);
   const [opError, setOpError] = useState('');
@@ -88,11 +86,7 @@ export default function StockMasterList() {
         subtitle={`${filtered.length} of ${items.length} items • ${totalQty.toLocaleString()} total units on hand`}
         accent="emerald"
         actions={
-          <>
-            <Button variant="primary" accent="emerald" icon={ArrowDownCircle} hideLabelOnMobile onClick={() => setGlobalMovement('in')}>Stock In</Button>
-            <Button variant="danger" icon={ArrowUpCircle} hideLabelOnMobile onClick={() => setGlobalMovement('out')}>Stock Out</Button>
-            <Button variant="secondary" icon={Plus} hideLabelOnMobile onClick={() => setShowAdd(true)}>Add Item</Button>
-          </>
+          <Button variant="primary" accent="emerald" icon={Plus} hideLabelOnMobile onClick={() => setShowAdd(true)}>Add Item</Button>
         }
       />
 
@@ -263,15 +257,6 @@ export default function StockMasterList() {
             setEditItem(null);
             load();
           }}
-        />
-      )}
-
-      {globalMovement && (
-        <QuickMovementModal
-          direction={globalMovement}
-          items={items}
-          onClose={() => setGlobalMovement(null)}
-          onSave={() => { setGlobalMovement(null); addToast('Movement recorded'); load(); }}
         />
       )}
     </div>

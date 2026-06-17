@@ -781,6 +781,36 @@ export function getQuantityDelta(movementType: MovementType, quantity: number): 
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Stock Received (inbound) — receipt header + line items
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type StockReceipt = {
+  id: string;
+  receipt_number: string;
+  supplier: string;
+  supplier_ref: string;
+  received_date: string;
+  notes: string;
+  movement_group_id: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type StockReceiptItem = {
+  id: string;
+  receipt_id: string;
+  stock_item_id: string | null;
+  stock_code: string;
+  stock_item: string;
+  description: string;
+  unit_of_measure: string;
+  qty_received: number;
+  line_no: number;
+  created_at: string;
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Commercial — Received Waste (Phase 1)
 // ─────────────────────────────────────────────────────────────────────────────
 

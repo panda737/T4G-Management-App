@@ -44,7 +44,7 @@ import AppointmentsRegister from './pages/EmployeeRegister/AppointmentsRegister'
 import WasteOnFloor from './pages/TreatmentWasteOnFloor';
 import OperatorShiftEntry from './pages/OperatorShiftEntry';
 import StockOrders from './pages/StockOrders';
-import StockClients from './pages/StockClients';
+import StockReceived from './pages/StockReceived';
 import StockDayEnd from './pages/StockDayEnd';
 import UploadReceivedWaste from './pages/Commercial/UploadReceivedWaste';
 import ImportHistory from './pages/Commercial/ImportHistory';
@@ -130,7 +130,7 @@ const ROUTE_LABELS: Record<string, string> = {
   '/shift-report': 'Shift Report',
   '/stock/master-list': 'Master List',
   '/stock/orders': 'Orders & Deliveries',
-  '/stock/clients': 'Clients',
+  '/stock/received': 'Stock Received',
   '/stock/movements': 'Movements',
   '/stock/stock-take': 'Stock Take',
   '/stock/day-end': 'Day-End Report',
@@ -251,7 +251,7 @@ function StaffShell({ session }: { session: Session }) {
             <Route path="/stock" element={<Navigate to="/stock/master-list" replace />} />
             <Route path="/stock/master-list" element={<StockMasterList />} />
             <Route path="/stock/orders" element={<StockOrders />} />
-            <Route path="/stock/clients" element={<StockClients />} />
+            <Route path="/stock/received" element={<StockReceived />} />
             <Route path="/stock/day-end" element={<StockDayEnd />} />
             <Route path="/stock/movements" element={<StockMovements />} />
             <Route path="/stock/stock-take" element={<StockTake />} />

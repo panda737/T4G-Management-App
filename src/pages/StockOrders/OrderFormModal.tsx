@@ -245,7 +245,7 @@ export default function OrderFormModal({ items, clients, order, orderItems, onCl
                 <div className="absolute z-30 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-xl max-h-56 overflow-y-auto">
                   {filteredClients.length === 0 ? (
                     <p className="text-xs text-gray-400 text-center py-6">
-                      No active clients found — add clients under Stock → Clients
+                      No active clients found — add clients under Commercial → Accounts
                     </p>
                   ) : filteredClients.map(c => (
                     <button

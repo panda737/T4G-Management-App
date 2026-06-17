@@ -12,6 +12,13 @@ export const INCREASE_TYPES = ['Opening Stock', 'Stock Received', 'Stock Returne
 export const DECREASE_TYPES = ['Stock Issued', 'Stock Damaged', 'Customer Delivery'];
 export const EITHER_TYPES = ['Stock Adjusted', 'Stock Transferred', 'Stock Take Correction'];
 
+// Types available in the admin-only "Adjust Stock" action. Excludes 'Stock Received'
+// (now its own page), 'Customer Delivery' (Orders & Deliveries only), and the
+// system-generated 'Opening Stock' / 'Stock Take Correction'.
+export const ADJUST_TYPES: MovementType[] = [
+  'Stock Adjusted', 'Stock Damaged', 'Stock Returned', 'Stock Transferred', 'Stock Issued',
+];
+
 export type MovementWithItem = StockMovement & {
   stock_items?: { stock_item: string; description: string; current_quantity: number } | null;
 };
