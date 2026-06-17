@@ -45,7 +45,6 @@ import WasteOnFloor from './pages/TreatmentWasteOnFloor';
 import OperatorShiftEntry from './pages/OperatorShiftEntry';
 import StockOrders from './pages/StockOrders';
 import StockReceived from './pages/StockReceived';
-import StockDayEnd from './pages/StockDayEnd';
 import UploadReceivedWaste from './pages/Commercial/UploadReceivedWaste';
 import ImportHistory from './pages/Commercial/ImportHistory';
 import ImportErrorReview from './pages/Commercial/ImportErrorReview';
@@ -252,7 +251,7 @@ function StaffShell({ session }: { session: Session }) {
             <Route path="/stock/master-list" element={<StockMasterList />} />
             <Route path="/stock/orders" element={<StockOrders />} />
             <Route path="/stock/received" element={<StockReceived />} />
-            <Route path="/stock/day-end" element={<StockDayEnd />} />
+            <Route path="/stock/day-end" element={<Navigate to="/stock/reports" replace />} />
             <Route path="/stock/movements" element={<StockMovements />} />
             <Route path="/stock/stock-take" element={<StockTake />} />
             <Route path="/stock/reports" element={<Reports />} />

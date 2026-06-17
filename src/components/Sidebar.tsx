@@ -57,7 +57,6 @@ const moduleGroups: ModuleGroup[] = [
       { path: '/stock/received', label: 'Stock Received' },
       { path: '/stock/movements', label: 'Movements' },
       { path: '/stock/stock-take', label: 'Stock Take' },
-      { path: '/stock/day-end', label: 'Day-End Report' },
       { path: '/stock/reports', label: 'Reports' },
       { path: '/stock/settings', label: 'Stock Categories' },
     ],

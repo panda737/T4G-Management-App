@@ -5,6 +5,7 @@ import { usePageTitle } from '../lib/usePageTitle';
 import { exportToXlsx } from '../lib/xlsxExport';
 import StatusBadge from '../components/StatusBadge';
 import { PageSpinner } from '../components/Spinner';
+import FinanceReport from './Reports/FinanceReport';
 
 function daysAgoStr(days: number) {
   const d = new Date();
@@ -17,7 +18,7 @@ export default function Reports() {
   const [items, setItems] = useState<StockItem[]>([]);
   const [movements, setMovements] = useState<StockMovement[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'overview' | 'movements' | 'variance'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'movements' | 'variance' | 'finance'>('overview');
   const [fromDate, setFromDate] = useState(daysAgoStr(30));
   const [toDate, setToDate] = useState(daysAgoStr(0));
 
@@ -120,6 +121,7 @@ export default function Reports() {
     { id: 'overview', label: 'Stock Overview' },
     { id: 'movements', label: 'Movement Summary' },
     { id: 'variance', label: 'Stock Alerts' },
+    { id: 'finance', label: 'Finance Report' },
   ] as const;
 
   return (
@@ -129,25 +131,29 @@ export default function Reports() {
           <h1 className="text-2xl font-bold text-gray-900">Reports</h1>
           <p className="text-sm text-gray-500 mt-1">Stock data overview and exports</p>
         </div>
-        <div className="flex flex-col sm:flex-row gap-2">
-          <button onClick={exportStockList} className="flex items-center justify-center sm:justify-start gap-2 border border-gray-200 hover:bg-gray-50 text-gray-700 px-3 py-2 rounded-lg text-xs font-medium transition-colors shadow-sm">
-            <Download size={13} /> <span className="hidden sm:inline">Export Stock List</span>
-          </button>
-          <button onClick={exportMovements} className="flex items-center justify-center sm:justify-start gap-2 border border-gray-200 hover:bg-gray-50 text-gray-700 px-3 py-2 rounded-lg text-xs font-medium transition-colors shadow-sm">
-            <Download size={13} /> <span className="hidden sm:inline">Export Movements</span>
-          </button>
-        </div>
+        {activeTab !== 'finance' && (
+          <div className="flex flex-col sm:flex-row gap-2">
+            <button onClick={exportStockList} className="flex items-center justify-center sm:justify-start gap-2 border border-gray-200 hover:bg-gray-50 text-gray-700 px-3 py-2 rounded-lg text-xs font-medium transition-colors shadow-sm">
+              <Download size={13} /> <span className="hidden sm:inline">Export Stock List</span>
+            </button>
+            <button onClick={exportMovements} className="flex items-center justify-center sm:justify-start gap-2 border border-gray-200 hover:bg-gray-50 text-gray-700 px-3 py-2 rounded-lg text-xs font-medium transition-colors shadow-sm">
+              <Download size={13} /> <span className="hidden sm:inline">Export Movements</span>
+            </button>
+          </div>
+        )}
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 p-3.5 shadow-sm flex flex-col sm:flex-row gap-3 sm:items-center">
-        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider flex-shrink-0">Movement period</p>
-        <div className="flex items-center gap-2">
-          <input type="date" value={fromDate} onChange={e => setFromDate(e.target.value)} className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white" />
-          <span className="text-xs text-gray-400">to</span>
-          <input type="date" value={toDate} onChange={e => setToDate(e.target.value)} className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white" />
+      {activeTab !== 'finance' && (
+        <div className="bg-white rounded-xl border border-gray-200 p-3.5 shadow-sm flex flex-col sm:flex-row gap-3 sm:items-center">
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider flex-shrink-0">Movement period</p>
+          <div className="flex items-center gap-2">
+            <input type="date" value={fromDate} onChange={e => setFromDate(e.target.value)} className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white" />
+            <span className="text-xs text-gray-400">to</span>
+            <input type="date" value={toDate} onChange={e => setToDate(e.target.value)} className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white" />
+          </div>
+          <p className="text-xs text-gray-400">{movements.length} movement{movements.length !== 1 ? 's' : ''} in range</p>
         </div>
-        <p className="text-xs text-gray-400">{movements.length} movement{movements.length !== 1 ? 's' : ''} in range</p>
-      </div>
+      )}
 
       {/* Tabs */}
       <div className="flex gap-1 border-b border-gray-200">
@@ -162,7 +168,9 @@ export default function Reports() {
         ))}
       </div>
 
-      {loading ? (
+      {activeTab === 'finance' ? (
+        <FinanceReport />
+      ) : loading ? (
         <PageSpinner />
       ) : activeTab === 'overview' ? (
         <div className="space-y-4">

@@ -26,8 +26,8 @@ async function waitForImages(root: HTMLElement) {
   );
 }
 
-/** Render the given page elements into a single multi-page PDF and download it. */
-async function pagesToPdf(pages: HTMLElement[], filename: string) {
+/** Render the given page elements into a single multi-page jsPDF document. */
+async function pagesToPdfDoc(pages: HTMLElement[]) {
   const [{ jsPDF }, { default: html2canvas }] = await Promise.all([
     import('jspdf'),
     import('html2canvas'),
@@ -49,15 +49,16 @@ async function pagesToPdf(pages: HTMLElement[], filename: string) {
     pdf.addImage(canvas.toDataURL('image/png'), 'PNG', MARGIN_X, MARGIN_Y, contentW, Math.min(imgH, maxH));
   }
 
-  pdf.save(filename.endsWith('.pdf') ? filename : `${filename}.pdf`);
+  return pdf;
 }
 
 /**
- * Clone each direct child of `source` (a print container, typically
- * `hidden print:block`) into an off-screen visible wrapper, then download
- * them as one A4 page per child.
+ * Clone each direct child of `source` (a print container, typically `hidden`)
+ * into an off-screen visible wrapper (one A4 page per child), render them with
+ * html2canvas, and hand the resulting jsPDF doc to `consume`. The wrapper is
+ * always cleaned up afterwards.
  */
-export async function downloadElementPagesAsPdf(source: HTMLElement, filename: string) {
+async function withRenderedPdf<T>(source: HTMLElement, consume: (pdf: Awaited<ReturnType<typeof pagesToPdfDoc>>) => T): Promise<T> {
   const wrapper = document.createElement('div');
   Object.assign(wrapper.style, {
     position: 'fixed',
@@ -84,8 +85,19 @@ export async function downloadElementPagesAsPdf(source: HTMLElement, filename: s
     await new Promise<void>(res => requestAnimationFrame(() => res()));
     if (document.fonts?.ready) await document.fonts.ready;
     await waitForImages(wrapper);
-    await pagesToPdf(pages, filename);
+    const pdf = await pagesToPdfDoc(pages);
+    return consume(pdf);
   } finally {
     document.body.removeChild(wrapper);
   }
+}
+
+/** Render the children of `source` to a PDF and download it. */
+export async function downloadElementPagesAsPdf(source: HTMLElement, filename: string) {
+  await withRenderedPdf(source, pdf => pdf.save(filename.endsWith('.pdf') ? filename : `${filename}.pdf`));
+}
+
+/** Render the children of `source` to a PDF and return it as a Blob (e.g. to add to a zip). */
+export async function elementPagesToPdfBlob(source: HTMLElement): Promise<Blob> {
+  return withRenderedPdf(source, pdf => pdf.output('blob') as Blob);
 }
