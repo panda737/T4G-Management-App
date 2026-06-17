@@ -1,26 +1,30 @@
 import { useEffect, useRef, useState, useMemo } from 'react';
-import { Plus, Edit2, AlertCircle, ChevronDown, ChevronRight, Package } from 'lucide-react';
+import { Plus, Edit2, AlertCircle, ChevronDown, ChevronRight, Package, Tags } from 'lucide-react';
 import { supabase, StockItem, getStockStatus } from '../../lib/supabase';
 import { usePageTitle } from '../../lib/usePageTitle';
 import { useToast } from '../../lib/toast';
-import { CATEGORY_ORDER, categoryMeta, compareCategories } from '../../lib/stockCategories';
+import { useUser } from '../../lib/UserContext';
+import { compareCategories, categoryMeta } from '../../lib/stockCategories';
 import StatusBadge from '../../components/StatusBadge';
 import { PageHeader, Button, Toolbar, SearchInput, FilterSelect, StatStrip } from '../../components/ui';
 import ItemFormModal from './ItemFormModal';
+import ManageCategoriesModal from './ManageCategoriesModal';
 
-const CATEGORIES = ['All', ...CATEGORY_ORDER];
 const STATUSES = ['All', 'In Stock', 'Low Stock', 'Out of Stock'];
 
 export default function StockMasterList() {
   usePageTitle('Stock — Master List');
   const { addToast } = useToast();
+  const { isAdmin } = useUser();
   const [items, setItems] = useState<StockItem[]>([]);
+  const [activeCategories, setActiveCategories] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filterCategory, setFilterCategory] = useState('All');
   const [filterStatus, setFilterStatus] = useState('All');
   const [editItem, setEditItem] = useState<StockItem | null>(null);
   const [showAdd, setShowAdd] = useState(false);
+  const [showCategories, setShowCategories] = useState(false);
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
   const [existingCodes, setExistingCodes] = useState<string[]>([]);
   const [opError, setOpError] = useState('');
@@ -30,16 +34,30 @@ export default function StockMasterList() {
 
   async function load() {
     setLoading(true);
-    const { data } = await supabase.from('stock_items').select('*').eq('active', true).order('category').order('stock_item');
-    setItems(data || []);
-    setExistingCodes((data || []).map(i => i.stock_code).filter(Boolean));
+    const [itemsRes, catRes] = await Promise.all([
+      supabase.from('stock_items').select('*').eq('active', true).order('category').order('stock_item'),
+      supabase.from('stock_categories').select('category_name').eq('active', true),
+    ]);
+    const data = itemsRes.data || [];
+    setItems(data);
+    setExistingCodes(data.map(i => i.stock_code).filter(Boolean));
+    setActiveCategories(Array.from(new Set((catRes.data || []).map((c: { category_name: string }) => c.category_name))));
     // On first load, collapse every category — user must click a header to expand it.
     if (!collapseInit.current) {
-      setCollapsedCategories(new Set((data || []).map(i => i.category).filter(Boolean)));
+      setCollapsedCategories(new Set(data.map(i => i.category).filter(Boolean)));
       collapseInit.current = true;
     }
     setLoading(false);
   }
+
+  // Filter / item-form options: active categories from the table merged with any
+  // category already used by items (so nothing becomes unselectable), in the
+  // canonical display order.
+  const categoryOptions = useMemo(() => {
+    const merged = new Set<string>([...activeCategories, ...items.map(i => i.category).filter(Boolean)]);
+    return Array.from(merged).sort(compareCategories);
+  }, [activeCategories, items]);
+  const filterCategories = ['All', ...categoryOptions];
 
   const filtered = useMemo(() => {
     return items.filter(item => {
@@ -79,7 +97,12 @@ export default function StockMasterList() {
         subtitle={`${filtered.length} of ${items.length} items • ${totalQty.toLocaleString()} total units on hand`}
         accent="emerald"
         actions={
-          <Button variant="primary" accent="emerald" icon={Plus} hideLabelOnMobile onClick={() => setShowAdd(true)}>Add Item</Button>
+          <>
+            {isAdmin && (
+              <Button variant="secondary" icon={Tags} hideLabelOnMobile onClick={() => setShowCategories(true)}>Manage Categories</Button>
+            )}
+            <Button variant="primary" accent="emerald" icon={Plus} hideLabelOnMobile onClick={() => setShowAdd(true)}>Add Item</Button>
+          </>
         }
       />
 
@@ -96,7 +119,7 @@ export default function StockMasterList() {
       <Toolbar>
         <SearchInput value={search} onChange={setSearch} placeholder="Search code, item, description…" />
         <FilterSelect value={filterCategory} onChange={setFilterCategory} accent="emerald">
-          {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+          {filterCategories.map(c => <option key={c} value={c}>{c}</option>)}
         </FilterSelect>
         <FilterSelect value={filterStatus} onChange={setFilterStatus} accent="emerald">
           {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
@@ -223,10 +246,19 @@ export default function StockMasterList() {
         </div>
       )}
 
+      {showCategories && (
+        <ManageCategoriesModal
+          items={items}
+          onClose={() => setShowCategories(false)}
+          onChanged={load}
+        />
+      )}
+
       {showAdd && (
         <ItemFormModal
           title="Add Stock Item"
           existingCodes={existingCodes}
+          categories={categoryOptions}
           onClose={() => setShowAdd(false)}
           onSave={async (data) => {
             const { error } = await supabase.from('stock_items').insert(data);
@@ -243,6 +275,7 @@ export default function StockMasterList() {
           title="Edit Stock Item"
           item={editItem}
           existingCodes={existingCodes.filter(c => c !== editItem.stock_code)}
+          categories={categoryOptions}
           onClose={() => setEditItem(null)}
           onSave={async (data) => {
             const { error } = await supabase.from('stock_items').update({ ...data, updated_at: new Date().toISOString() }).eq('id', editItem.id);

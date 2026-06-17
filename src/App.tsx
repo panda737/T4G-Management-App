@@ -255,7 +255,7 @@ function StaffShell({ session }: { session: Session }) {
             <Route path="/stock/movements" element={<StockMovements />} />
             <Route path="/stock/stock-take" element={<StockTake />} />
             <Route path="/stock/reports" element={<Reports />} />
-            <Route path="/stock/settings" element={<Settings />} />
+            <Route path="/stock/settings" element={<Navigate to="/stock/master-list" replace />} />
 
             {/* Commercial — Received Waste */}
             <Route path="/commercial" element={<Navigate to="/commercial/dashboard" replace />} />

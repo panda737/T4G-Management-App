@@ -1,21 +1,24 @@
 import { useState } from 'react';
 import { AlertCircle, AlertTriangle } from 'lucide-react';
 import { StockItem } from '../../lib/supabase';
+import { CATEGORY_ORDER } from '../../lib/stockCategories';
 import Modal from '../../components/Modal';
 
 interface Props {
   title: string;
   item?: StockItem;
   existingCodes: string[];
+  categories?: string[];
   onClose: () => void;
   onSave: (data: Partial<StockItem>) => Promise<void>;
 }
 
-export default function ItemFormModal({ title, item, existingCodes, onClose, onSave }: Props) {
+export default function ItemFormModal({ title, item, existingCodes, categories, onClose, onSave }: Props) {
+  const categoryOptions = categories && categories.length > 0 ? categories : [...CATEGORY_ORDER];
   const [form, setForm] = useState({
     stock_code: item?.stock_code || '',
     stock_item: item?.stock_item || '',
-    category: item?.category || 'Liners',
+    category: item?.category || categoryOptions[0],
     description: item?.description || '',
     unit_of_measure: item?.unit_of_measure || 'Each',
     current_quantity: item?.current_quantity ?? 0,
@@ -59,7 +62,7 @@ export default function ItemFormModal({ title, item, existingCodes, onClose, onS
         <div>
           <label className="block text-xs font-medium text-gray-700 mb-1">Category *</label>
           <select value={form.category} onChange={e => set('category', e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white">
-            {['Liners','Sharps','External Customer Containers','Anatomical (Specibins)','Pharmaceutical','Box Sets','Other'].map(c => <option key={c}>{c}</option>)}
+            {categoryOptions.map(c => <option key={c}>{c}</option>)}
           </select>
         </div>
         <div>
