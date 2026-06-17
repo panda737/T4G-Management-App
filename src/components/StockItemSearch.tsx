@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import { Search } from 'lucide-react';
 import { StockItem } from '../lib/supabase';
 import { useOnClickOutside } from '../lib/useOnClickOutside';
@@ -21,6 +21,8 @@ const ACCENT = {
   blue: { ring: 'focus:ring-blue-400', chip: 'border-blue-300 bg-blue-50' },
 };
 
+const DESIRED_MAX = 416; // 26rem — preferred dropdown height when there's room
+
 // Strip a trailing "(...)" qualifier so the picker shows a clean product name.
 function displayName(item: StockItem) {
   return (item.description || item.stock_item).replace(/\s*\([^)]*\)\s*$/, '').trim();
@@ -29,11 +31,32 @@ function displayName(item: StockItem) {
 export default function StockItemSearch({ items, value, onSelect, onClear, excludeIds = [], accent = 'emerald', invalid = false }: Props) {
   const [search, setSearch] = useState('');
   const [open, setOpen] = useState(false);
+  const [maxH, setMaxH] = useState(DESIRED_MAX);
   const containerRef = useRef<HTMLDivElement>(null);
   const a = ACCENT[accent];
 
   // Click-away closes the dropdown (only while it's actually open).
   useOnClickOutside(containerRef, () => setOpen(false), open);
+
+  // The dropdown always opens downward; we just cap its height to the space left
+  // below the field so it stays scrollable and never spills past (and gets clipped
+  // by) the modal body — important once a line sits low in a long order.
+  useLayoutEffect(() => {
+    if (!open) return;
+    function place() {
+      const el = containerRef.current;
+      if (!el) return;
+      const below = window.innerHeight - el.getBoundingClientRect().bottom;
+      setMaxH(Math.max(160, Math.min(DESIRED_MAX, below - 16)));
+    }
+    place();
+    window.addEventListener('scroll', place, true);
+    window.addEventListener('resize', place);
+    return () => {
+      window.removeEventListener('scroll', place, true);
+      window.removeEventListener('resize', place);
+    };
+  }, [open]);
 
   const selected = items.find(i => i.id === value);
 
@@ -46,7 +69,7 @@ export default function StockItemSearch({ items, value, onSelect, onClear, exclu
         const haystack = `${i.stock_code} ${i.stock_item} ${i.description} ${i.category}`.toLowerCase();
         return tokens.every(t => haystack.includes(t));
       })
-      .slice(0, 30);
+      .slice(0, 50);
   })();
 
   if (selected) {
@@ -84,7 +107,10 @@ export default function StockItemSearch({ items, value, onSelect, onClear, exclu
         <p className="text-[10px] text-red-600 mt-0.5 ml-1">Select an item for this line</p>
       )}
       {open && (
-        <div className="absolute z-30 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-xl max-h-72 overflow-y-auto">
+        <div
+          className="absolute z-30 left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-xl overflow-y-auto"
+          style={{ maxHeight: maxH }}
+        >
           {filtered.length === 0 ? (
             <p className="text-xs text-gray-400 text-center py-6">No items found</p>
           ) : filtered.map(item => (
@@ -93,14 +119,14 @@ export default function StockItemSearch({ items, value, onSelect, onClear, exclu
               type="button"
               onMouseDown={e => e.preventDefault()}
               onClick={() => { onSelect(item); setSearch(''); setOpen(false); }}
-              className="w-full text-left px-4 py-3 text-sm border-b border-gray-100 last:border-0 hover:bg-gray-50 transition-colors flex items-center justify-between gap-3"
+              className="w-full text-left px-3 py-1.5 text-sm border-b border-gray-100 last:border-0 hover:bg-gray-50 transition-colors flex items-center justify-between gap-3"
             >
-              <div className="min-w-0 flex-1">
-                <p className="font-semibold text-gray-900 truncate">{displayName(item)}</p>
-                <p className="text-[10px] text-gray-400 font-mono mt-0.5">{item.stock_code || '(no code)'} &bull; {item.category}</p>
+              <div className="min-w-0 flex-1 leading-tight">
+                <p className="font-medium text-gray-900 truncate">{displayName(item)}</p>
+                <p className="text-[10px] text-gray-400 font-mono">{item.stock_code || '(no code)'} &bull; {item.category}</p>
               </div>
-              <div className="text-right flex-shrink-0">
-                <p className="text-[10px] text-gray-400">on hand</p>
+              <div className="text-right flex-shrink-0 leading-tight">
+                <p className="text-[9px] text-gray-400 uppercase tracking-wide">on hand</p>
                 <p className={`text-sm font-bold ${item.current_quantity === 0 ? 'text-red-600' : item.current_quantity <= (item.minimum_stock_level || 0) ? 'text-amber-600' : 'text-gray-700'}`}>{item.current_quantity}</p>
               </div>
             </button>

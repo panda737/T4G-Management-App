@@ -1,15 +1,15 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Plus, Search, Trash2, ClipboardList } from 'lucide-react';
 import { supabase, StockItem, Client, ClientSite, StockOrder, StockOrderItem, OrderSource } from '../../lib/supabase';
 import { generateSequentialNumber } from '../../lib/numberGenerator';
+import { useOnClickOutside } from '../../lib/useOnClickOutside';
 import Modal from '../../components/Modal';
+import StockItemSearch from '../../components/StockItemSearch';
 import { ORDER_SOURCES } from './constants';
 
 interface OrderLine {
   id: number;
   itemId: string;
-  search: string;
-  showDropdown: boolean;
   quantity: number;
 }
 
@@ -33,12 +33,10 @@ export default function OrderFormModal({ items, clients, sites, order, orderItem
         .map((oi, idx) => ({
           id: idx + 1,
           itemId: oi.stock_item_id || '',
-          search: '',
-          showDropdown: false,
           quantity: oi.qty_ordered,
         }));
     }
-    return [{ id: 1, itemId: '', search: '', showDropdown: false, quantity: 1 }];
+    return [{ id: 1, itemId: '', quantity: 1 }];
   });
   const [clientId, setClientId] = useState(order?.client_id || '');
   const [clientSearch, setClientSearch] = useState('');
@@ -46,6 +44,10 @@ export default function OrderFormModal({ items, clients, sites, order, orderItem
   const [siteId, setSiteId] = useState(order?.site_id || '');
   const [siteSearch, setSiteSearch] = useState('');
   const [siteDropdown, setSiteDropdown] = useState(false);
+  const clientRef = useRef<HTMLDivElement>(null);
+  const siteRef = useRef<HTMLDivElement>(null);
+  useOnClickOutside(clientRef, () => setClientDropdown(false), clientDropdown);
+  useOnClickOutside(siteRef, () => setSiteDropdown(false), siteDropdown);
   const [source, setSource] = useState<OrderSource>(order?.source || 'OrderCo');
   const [customerRef, setCustomerRef] = useState(order?.customer_reference || '');
   const [orderDate, setOrderDate] = useState(order?.order_date || new Date().toISOString().slice(0, 10));
@@ -68,8 +70,9 @@ export default function OrderFormModal({ items, clients, sites, order, orderItem
   });
 
   // Sites are client-specific — clearing/changing the client invalidates the site.
-  function selectClient(id: string) { setClientId(id); setClientDropdown(false); setSiteId(''); setSiteSearch(''); }
-  function clearClient() { setClientId(''); setClientSearch(''); setSiteId(''); setSiteSearch(''); }
+  // Picking a client immediately opens the delivery-site picker below it.
+  function selectClient(id: string) { setClientId(id); setClientDropdown(false); setSiteId(''); setSiteSearch(''); setSiteDropdown(true); }
+  function clearClient() { setClientId(''); setClientSearch(''); setClientDropdown(false); setSiteId(''); setSiteSearch(''); setSiteDropdown(false); }
 
   function updateLine(id: number, patch: Partial<OrderLine>) {
     setLines(prev => prev.map(l => l.id === id ? { ...l, ...patch } : l));
@@ -82,23 +85,6 @@ export default function OrderFormModal({ items, clients, sites, order, orderItem
   function addLine() {
     const newId = lines.reduce((max, l) => Math.max(max, l.id), 0) + 1;
     setLines(prev => [...prev, { id: newId, itemId: '', search: '', showDropdown: false, quantity: 1 }]);
-  }
-
-  function displayName(item: StockItem) {
-    return (item.description || item.stock_item).replace(/\s*\([^)]*\)\s*$/, '').trim();
-  }
-
-  function getFilteredItems(search: string, currentLineId: number) {
-    const usedIds = lines.filter(l => l.id !== currentLineId && l.itemId).map(l => l.itemId);
-    const tokens = search.toLowerCase().split(/\s+/).filter(Boolean);
-    return items
-      .filter(i => !usedIds.includes(i.id))
-      .filter(i => {
-        if (tokens.length === 0) return true;
-        const haystack = `${i.stock_code} ${i.stock_item} ${i.description} ${i.category}`.toLowerCase();
-        return tokens.every(t => haystack.includes(t));
-      })
-      .slice(0, 30);
   }
 
   async function insertOrder(orderNumber: string) {
@@ -238,7 +224,7 @@ export default function OrderFormModal({ items, clients, sites, order, orderItem
 
       {/* Order header */}
       <div className="grid grid-cols-2 gap-3 mb-4">
-        <div className="col-span-2 relative">
+        <div ref={clientRef} className="col-span-2 relative">
           <label className="block text-[11px] font-semibold text-gray-600 mb-0.5">Client *</label>
           {selectedClient ? (
             <div className="flex items-center justify-between px-3 py-2 rounded-lg border-2 border-blue-300 bg-blue-50 text-sm">
@@ -251,18 +237,19 @@ export default function OrderFormModal({ items, clients, sites, order, orderItem
           ) : (
             <>
               <div className="relative">
-                <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
                 <input
                   type="text"
                   placeholder="Search client..."
                   value={clientSearch}
                   onChange={e => { setClientSearch(e.target.value); setClientDropdown(true); }}
+                  onClick={() => setClientDropdown(true)}
                   onFocus={() => setClientDropdown(true)}
-                  className="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white"
+                  className="w-full pl-9 pr-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white"
                 />
               </div>
               {clientDropdown && (
-                <div className="absolute z-30 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-xl max-h-56 overflow-y-auto">
+                <div className="absolute z-30 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-xl max-h-[26rem] overflow-y-auto">
                   {filteredClients.length === 0 ? (
                     <p className="text-xs text-gray-400 text-center py-6">
                       No active clients found — add clients under Commercial → Accounts
@@ -272,7 +259,7 @@ export default function OrderFormModal({ items, clients, sites, order, orderItem
                       key={c.id}
                       onMouseDown={e => e.preventDefault()}
                       onClick={() => selectClient(c.id)}
-                      className="w-full text-left px-4 py-2.5 text-sm border-b border-gray-100 last:border-0 hover:bg-gray-50 transition-colors"
+                      className="w-full text-left px-3 py-1.5 text-sm border-b border-gray-100 last:border-0 hover:bg-gray-50 transition-colors leading-tight"
                     >
                       <p className="font-semibold text-gray-900">{c.client_name}</p>
                       <p className="text-[10px] text-gray-400">{[c.client_code, c.contact_person].filter(Boolean).join(' · ') || ' '}</p>
@@ -284,7 +271,7 @@ export default function OrderFormModal({ items, clients, sites, order, orderItem
           )}
         </div>
         {clientId && (
-          <div className="col-span-2 relative">
+          <div ref={siteRef} className="col-span-2 relative">
             <label className="block text-[11px] font-semibold text-gray-600 mb-0.5">Delivery Site *</label>
             {selectedSite ? (
               <div className="flex items-center justify-between px-3 py-2 rounded-lg border-2 border-blue-300 bg-blue-50 text-sm">
@@ -297,18 +284,20 @@ export default function OrderFormModal({ items, clients, sites, order, orderItem
             ) : (
               <>
                 <div className="relative">
-                  <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
                   <input
                     type="text"
                     placeholder="Search site / facility..."
                     value={siteSearch}
                     onChange={e => { setSiteSearch(e.target.value); setSiteDropdown(true); }}
+                    onClick={() => setSiteDropdown(true)}
                     onFocus={() => setSiteDropdown(true)}
-                    className="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white"
+                    autoFocus
+                    className="w-full pl-9 pr-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white"
                   />
                 </div>
                 {siteDropdown && (
-                  <div className="absolute z-30 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-xl max-h-56 overflow-y-auto">
+                  <div className="absolute z-30 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-xl max-h-[26rem] overflow-y-auto">
                     {filteredSites.length === 0 ? (
                       <p className="text-xs text-gray-400 text-center py-6">
                         No sites for this client — add sites under Commercial → Sites
@@ -318,7 +307,7 @@ export default function OrderFormModal({ items, clients, sites, order, orderItem
                         key={s.id}
                         onMouseDown={e => e.preventDefault()}
                         onClick={() => { setSiteId(s.id); setSiteDropdown(false); }}
-                        className="w-full text-left px-4 py-2.5 text-sm border-b border-gray-100 last:border-0 hover:bg-gray-50 transition-colors"
+                        className="w-full text-left px-3 py-1.5 text-sm border-b border-gray-100 last:border-0 hover:bg-gray-50 transition-colors leading-tight"
                       >
                         <p className="font-semibold text-gray-900">{s.generator_facility}</p>
                         <p className="text-[10px] text-gray-400">{[s.site_code, s.province, s.generator_group].filter(Boolean).join(' · ') || ' '}</p>
@@ -361,7 +350,7 @@ export default function OrderFormModal({ items, clients, sites, order, orderItem
         <div className="divide-y divide-gray-100 bg-white">
           {lines.map((line, idx) => {
             const stockItem = items.find(i => i.id === line.itemId);
-            const filteredItems = getFilteredItems(line.search, line.id);
+            const otherIds = lines.filter(l => l.id !== line.id && l.itemId).map(l => l.itemId);
             const overStock = stockItem && line.quantity > stockItem.current_quantity;
 
             return (
@@ -369,65 +358,22 @@ export default function OrderFormModal({ items, clients, sites, order, orderItem
                 <div className="flex gap-2 items-center">
                   <span className="text-xs font-bold w-5 text-center flex-shrink-0 text-blue-600">{idx + 1}</span>
 
-                  <div className="flex-1 relative">
-                    {stockItem ? (
-                      <div className="flex items-center justify-between px-2.5 py-1.5 rounded-lg border-2 text-sm border-blue-300 bg-blue-50">
-                        <div className="min-w-0 flex-1">
-                          <p className="font-semibold text-gray-900 text-sm truncate leading-tight">{displayName(stockItem)}</p>
-                          <p className="text-[10px] text-gray-500 font-mono leading-tight">{stockItem.stock_code || '(no code)'} &bull; on hand: <strong>{stockItem.current_quantity}</strong></p>
-                        </div>
-                        <button
-                          onClick={() => updateLine(line.id, { itemId: '', search: '', showDropdown: false })}
-                          className="ml-2 text-gray-400 hover:text-gray-600 flex-shrink-0 text-xs underline"
-                        >
-                          change
-                        </button>
-                      </div>
-                    ) : (
-                      <>
-                        <div className="relative">
-                          <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-                          <input
-                            type="text"
-                            placeholder="Search and select item..."
-                            value={line.search}
-                            onChange={e => updateLine(line.id, { search: e.target.value, showDropdown: true })}
-                            onFocus={() => updateLine(line.id, { showDropdown: true })}
-                            className="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white"
-                            autoFocus={idx === lines.length - 1 && !stockItem && !isEdit}
-                          />
-                        </div>
-                        {line.showDropdown && (
-                          <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-xl max-h-56 overflow-y-auto">
-                            {filteredItems.length === 0 ? (
-                              <p className="text-xs text-gray-400 text-center py-6">No items found</p>
-                            ) : filteredItems.map(item => (
-                              <button
-                                key={item.id}
-                                onMouseDown={e => e.preventDefault()}
-                                onClick={() => updateLine(line.id, { itemId: item.id, search: displayName(item), showDropdown: false })}
-                                className="w-full text-left px-4 py-3 text-sm border-b border-gray-100 last:border-0 hover:bg-gray-50 transition-colors flex items-center justify-between gap-3"
-                              >
-                                <div className="min-w-0 flex-1">
-                                  <p className="font-semibold text-gray-900 truncate">{displayName(item)}</p>
-                                  <p className="text-[10px] text-gray-400 font-mono mt-0.5">{item.stock_code || '(no code)'} &bull; {item.category}</p>
-                                </div>
-                                <div className="text-right flex-shrink-0">
-                                  <p className="text-[10px] text-gray-400">on hand</p>
-                                  <p className={`text-sm font-bold ${item.current_quantity === 0 ? 'text-red-600' : item.current_quantity <= (item.minimum_stock_level || 0) ? 'text-amber-600' : 'text-gray-700'}`}>{item.current_quantity}</p>
-                                </div>
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                      </>
-                    )}
+                  <div className="flex-1">
+                    <StockItemSearch
+                      items={items}
+                      value={line.itemId}
+                      excludeIds={otherIds}
+                      accent="blue"
+                      onSelect={item => updateLine(line.id, { itemId: item.id })}
+                      onClear={() => updateLine(line.id, { itemId: '' })}
+                    />
                   </div>
 
-                  {overStock && (
-                    <span className="text-xs text-amber-600 font-semibold whitespace-nowrap flex-shrink-0">
-                      Only {stockItem.current_quantity} on hand
-                    </span>
+                  {stockItem && (
+                    <div className="text-center flex-shrink-0 w-16">
+                      <p className="text-[10px] text-gray-400 leading-tight">on hand</p>
+                      <p className={`text-sm font-bold leading-tight ${overStock ? 'text-amber-600' : 'text-gray-700'}`}>{stockItem.current_quantity}</p>
+                    </div>
                   )}
 
                   <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden bg-white flex-shrink-0">
