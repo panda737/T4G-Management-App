@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import {
   ArrowLeft, Download, Truck, Upload, CheckCircle2, XCircle, Pencil,
   FileText, ExternalLink, Check, ClipboardList,
@@ -6,9 +6,8 @@ import {
 import { supabase, StockOrder, StockOrderItem, Client, ClientSite, StockItem, ORDER_STATUS_COLORS } from '../../lib/supabase';
 import { useUser } from '../../lib/UserContext';
 import { useToast } from '../../lib/toast';
-import { downloadElementPagesAsPdf } from '../../lib/pdf';
+import { downloadDeliveryNotes } from '../../lib/deliveryNotePdf';
 import { buildSteps, canEdit, canPrint, canDispatch, canUpload, canConfirm, canCancel } from './constants';
-import DeliveryNotePrint from './DeliveryNotePrint';
 import OrderFormModal from './OrderFormModal';
 import UploadSignedNoteModal from './UploadSignedNoteModal';
 import ConfirmDeliveryModal from './ConfirmDeliveryModal';
@@ -33,7 +32,6 @@ export default function OrderDetailView({ order, items, client, site, stockItems
   const [modal, setModal] = useState<'edit' | 'upload' | 'confirm' | 'cancel' | null>(null);
   const [viewingNote, setViewingNote] = useState(false);
   const [downloading, setDownloading] = useState(false);
-  const printRef = useRef<HTMLDivElement>(null);
 
   const steps = buildSteps(order);
   const sorted = [...items].sort((a, b) => a.line_no - b.line_no);
@@ -41,11 +39,14 @@ export default function OrderDetailView({ order, items, client, site, stockItems
   const isCancelled = order.status === 'Cancelled';
 
   async function handleDownloadNote() {
-    const container = printRef.current?.firstElementChild as HTMLElement | null;
-    if (!container) return;
     setDownloading(true);
     try {
-      await downloadElementPagesAsPdf(container, `Delivery-Note-${order.order_number}.pdf`);
+      await downloadDeliveryNotes(
+        ['STORE COPY', 'CUSTOMER COPY', 'DRIVER COPY'].map(copyLabel => ({
+          order, items: sorted, copyLabel, showDelivered: false, client, site,
+        })),
+        `Delivery-Note-${order.order_number}.pdf`,
+      );
       addToast('Delivery note downloaded (3 copies)');
       if (!order.printed_at) {
         await supabase.from('stock_orders').update({ printed_at: new Date().toISOString() }).eq('id', order.id);
@@ -322,13 +323,6 @@ export default function OrderDetailView({ order, items, client, site, stockItems
           </table>
         </div>
       </div>
-
-      {/* Print/PDF source — delivery note, 3 copies (hidden on screen) */}
-      {canPrint(order.status) && (
-        <div ref={printRef}>
-          <DeliveryNotePrint order={order} items={sorted} client={client} site={site} />
-        </div>
-      )}
 
       {/* Modals */}
       {modal === 'edit' && (

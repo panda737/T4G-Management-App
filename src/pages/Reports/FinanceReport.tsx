@@ -1,12 +1,11 @@
-import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import { Download, FileBarChart, ArrowDownToLine, ArrowUpFromLine, Truck, FileDown } from 'lucide-react';
 import { supabase, StockOrder, StockOrderItem, Client } from '../../lib/supabase';
 import { useToast } from '../../lib/toast';
 import { exportToXlsx } from '../../lib/xlsxExport';
-import { elementPagesToPdfBlob } from '../../lib/pdf';
+import { deliveryNotesToBlob } from '../../lib/deliveryNotePdf';
 import { PageSpinner } from '../../components/Spinner';
 import { buildGroups, MovementWithItem, INCREASE_TYPES, directionColor, qtySign } from '../StockMovements/constants';
-import { DeliveryNoteSheet } from '../StockOrders/DeliveryNotePrint';
 
 function todayStr() {
   const d = new Date();
@@ -22,7 +21,6 @@ export default function FinanceReport() {
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [downloading, setDownloading] = useState(false);
-  const notesRef = useRef<HTMLDivElement>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -125,10 +123,15 @@ export default function FinanceReport() {
       const { default: JSZip } = await import('jszip');
       const zip = new JSZip();
 
-      if (notesRef.current && notesRef.current.children.length > 0) {
-        const pdfBlob = await elementPagesToPdfBlob(notesRef.current);
-        zip.file(`Delivery-Notes-${date}.pdf`, pdfBlob);
-      }
+      const pdfBlob = await deliveryNotesToBlob(completedOrders.map(o => ({
+        order: o,
+        items: orderItems[o.id] || [],
+        copyLabel: 'FINANCE COPY',
+        showDelivered: true,
+        client: clients.find(c => c.id === o.client_id) || null,
+        site: null,
+      })));
+      zip.file(`Delivery-Notes-${date}.pdf`, pdfBlob);
 
       let signed = 0;
       for (const o of completedOrders) {
@@ -316,19 +319,6 @@ export default function FinanceReport() {
         </>
       )}
 
-      {/* Off-screen PDF source: one finance-copy delivery note per confirmed order. */}
-      <div ref={notesRef} className="hidden">
-        {completedOrders.map(o => (
-          <DeliveryNoteSheet
-            key={o.id}
-            order={o}
-            items={orderItems[o.id] || []}
-            copyLabel="FINANCE COPY"
-            showDelivered
-            client={clients.find(c => c.id === o.client_id) || null}
-          />
-        ))}
-      </div>
     </div>
   );
 }
