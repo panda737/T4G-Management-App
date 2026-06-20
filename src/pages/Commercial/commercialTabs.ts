@@ -13,6 +13,7 @@ export const CLIENT_TABS: TabDef[] = [
 
 export const SUPPLIER_TABS: TabDef[] = [
   { to: '/commercial/suppliers', label: 'Overview', end: true },
+  { to: '/commercial/suppliers/price-list', label: 'Price List' },
   { to: '/commercial/suppliers/history', label: 'History' },
 ];
 
