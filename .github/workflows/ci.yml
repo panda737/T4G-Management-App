@@ -1,0 +1,42 @@
+name: CI
+
+# Mechanical safety net: every push to main and every PR must typecheck and
+# build cleanly before it can be merged. `npm run build` (vite) does NOT
+# typecheck, so typecheck is a separate, required step. Lint is advisory for
+# now (there is a backlog of eslint findings) — fix those over time, then make
+# it required.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck (must be 0 errors)
+        run: npm run typecheck
+
+      - name: Build
+        run: npm run build
+        # Placeholder env so the build never depends on real Supabase secrets.
+        # A standard Vite SPA build does not execute app code, so these are
+        # only a safety belt; swap for repo secrets if the build ever needs them.
+        env:
+          VITE_SUPABASE_URL: https://placeholder.supabase.co
+          VITE_SUPABASE_ANON_KEY: placeholder-anon-key
+
+      - name: Lint (advisory — does not fail the build yet)
+        run: npm run lint
+        continue-on-error: true
