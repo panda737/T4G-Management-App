@@ -39,6 +39,7 @@ const moduleGroups: ModuleGroup[] = [
     items: [
       { path: '/commercial/dashboard', label: 'Dashboard', match: ['/commercial/dashboard', '/commercial/upload', '/commercial/imports', '/commercial/import-errors'] },
       { path: '/commercial/clients', label: 'Clients', match: ['/commercial/clients', '/commercial/sites', '/commercial/contacts', '/commercial/activities', '/commercial/users'] },
+      { path: '/commercial/suppliers', label: 'Suppliers', match: ['/commercial/suppliers'] },
       { path: '/commercial/reports', label: 'Reports', match: ['/commercial/reports'] },
       { path: '/commercial/esg', label: 'ESG Engine', match: ['/commercial/esg'] },
       { path: '/commercial/audit', label: 'Portal Data Audit', match: ['/commercial/audit'] },

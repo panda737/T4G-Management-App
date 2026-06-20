@@ -19,6 +19,7 @@ export default function StockReceived() {
   const [receipts, setReceipts] = useState<StockReceipt[]>([]);
   const [itemCounts, setItemCounts] = useState<Record<string, number>>({});
   const [stockItems, setStockItems] = useState<StockItem[]>([]);
+  const [suppliers, setSuppliers] = useState<{ id: string; supplier_name: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [showForm, setShowForm] = useState(false);
@@ -28,10 +29,11 @@ export default function StockReceived() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [recRes, itemsRes, stockRes] = await Promise.all([
+    const [recRes, itemsRes, stockRes, supRes] = await Promise.all([
       supabase.from('stock_receipts').select('*').order('created_at', { ascending: false }),
       supabase.from('stock_receipt_items').select('receipt_id'),
       supabase.from('stock_items').select('*').eq('active', true).order('category').order('stock_item'),
+      supabase.from('suppliers').select('id, supplier_name').eq('active', true).order('supplier_name'),
     ]);
     setReceipts(recRes.data || []);
     const counts: Record<string, number> = {};
@@ -40,6 +42,7 @@ export default function StockReceived() {
     });
     setItemCounts(counts);
     setStockItems(stockRes.data || []);
+    setSuppliers((supRes.data as { id: string; supplier_name: string }[]) || []);
     setLoading(false);
   }, []);
 
@@ -172,6 +175,7 @@ export default function StockReceived() {
       {showForm && (
         <ReceiptFormModal
           items={stockItems}
+          suppliers={suppliers}
           onClose={() => setShowForm(false)}
           onSave={() => { setShowForm(false); addToast('Stock received — on-hand updated'); load(); }}
         />

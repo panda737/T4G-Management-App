@@ -800,10 +800,45 @@ export type StockReceipt = {
   receipt_number: string;
   supplier: string;
   supplier_ref: string;
+  supplier_id: string | null;
   received_date: string;
   notes: string;
   movement_group_id: string | null;
   created_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type SupplierStatus = 'prospect' | 'active' | 'inactive';
+
+export type Supplier = {
+  id: string;
+  supplier_code: string;
+  supplier_name: string;
+  contact_person: string;
+  email: string;
+  phone: string;
+  address_line_1: string;
+  address_line_2: string;
+  address_line_3: string;
+  postal_code: string;
+  website: string;
+  notes: string;
+  status: SupplierStatus;
+  payment_terms: string;
+  lead_time_days: number | null;
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type SupplierItem = {
+  id: string;
+  supplier_id: string;
+  stock_item_id: string;
+  unit_price: number;
+  supplier_sku: string;
+  notes: string;
   created_at: string;
   updated_at: string;
 };

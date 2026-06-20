@@ -14,14 +14,15 @@ interface ReceiptLine {
 
 interface Props {
   items: StockItem[];
+  suppliers: { id: string; supplier_name: string }[];
   onClose: () => void;
   onSave: () => void;
 }
 
-export default function ReceiptFormModal({ items, onClose, onSave }: Props) {
+export default function ReceiptFormModal({ items, suppliers, onClose, onSave }: Props) {
   const { profile } = useUser();
   const [lines, setLines] = useState<ReceiptLine[]>([{ id: 1, itemId: '', quantity: 1 }]);
-  const [supplier, setSupplier] = useState('');
+  const [supplierId, setSupplierId] = useState('');
   const [supplierRef, setSupplierRef] = useState('');
   const [receivedDate, setReceivedDate] = useState(new Date().toISOString().slice(0, 10));
   // Captured By is always the logged-in user — recorded, not editable.
@@ -57,14 +58,16 @@ export default function ReceiptFormModal({ items, onClose, onSave }: Props) {
         qty_received: line.quantity,
       };
     });
+    const selectedSupplier = suppliers.find(s => s.id === supplierId);
     return {
       p_receipt_number: receiptNumber,
-      p_supplier: supplier,
+      p_supplier: selectedSupplier?.supplier_name ?? '',
       p_supplier_ref: supplierRef,
       p_received_date: receivedDate,
       p_notes: notes,
       p_lines,
       p_captured_by: capturedBy,
+      p_supplier_id: supplierId || null,
     };
   }
 
@@ -107,7 +110,10 @@ export default function ReceiptFormModal({ items, onClose, onSave }: Props) {
       <div className="grid grid-cols-2 gap-2 mb-3">
         <div>
           <label className="block text-[11px] font-semibold text-gray-600 mb-0.5">Supplier</label>
-          <input value={supplier} onChange={e => setSupplier(e.target.value)} className={inputBase} placeholder="e.g. Pailpac, Mediwaste" />
+          <select value={supplierId} onChange={e => setSupplierId(e.target.value)} className={inputBase}>
+            <option value="">— Select supplier —</option>
+            {suppliers.map(s => <option key={s.id} value={s.id}>{s.supplier_name}</option>)}
+          </select>
         </div>
         <div>
           <label className="block text-[11px] font-semibold text-gray-600 mb-0.5">Supplier Ref / Delivery Note No.</label>

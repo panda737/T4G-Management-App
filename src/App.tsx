@@ -50,6 +50,8 @@ import ImportHistory from './pages/Commercial/ImportHistory';
 import ImportErrorReview from './pages/Commercial/ImportErrorReview';
 import ClientManagement from './pages/Commercial/ClientManagement';
 import ClientView from './pages/Commercial/ClientView';
+import SupplierManagement from './pages/Commercial/SupplierManagement';
+import SupplierView from './pages/Commercial/SupplierView';
 import SiteManagement from './pages/Commercial/SiteManagement';
 import SiteView from './pages/Commercial/SiteView';
 import EsgSetup from './pages/Commercial/EsgSetup';
@@ -142,6 +144,7 @@ const ROUTE_LABELS: Record<string, string> = {
   '/commercial/imports': 'Import History',
   '/commercial/import-errors': 'Import Errors',
   '/commercial/clients': 'Accounts',
+  '/commercial/suppliers': 'Suppliers',
   '/commercial/contacts': 'Contacts',
   '/commercial/activities': 'Activities',
   '/commercial/users': 'Users & Access',
@@ -188,6 +191,7 @@ function usePageLabel(): string {
   if (pathname.startsWith('/employees/')) return 'Employee Profile';
   if (pathname.startsWith('/training/modules/')) return 'Assessment';
   if (pathname.startsWith('/commercial/clients/')) return 'Account';
+  if (pathname.startsWith('/commercial/suppliers/')) return 'Supplier';
   if (pathname.startsWith('/commercial/contacts/')) return 'Contact';
   if (pathname.startsWith('/commercial/sites/')) return 'Site';
   return 'Tech4Green';
@@ -267,6 +271,8 @@ function StaffShell({ session }: { session: Session }) {
             <Route path="/commercial/import-errors" element={<ImportErrorReview />} />
             <Route path="/commercial/clients" element={<ClientManagement />} />
             <Route path="/commercial/clients/:clientId" element={<ClientView />} />
+            <Route path="/commercial/suppliers" element={<SupplierManagement />} />
+            <Route path="/commercial/suppliers/:supplierId" element={<SupplierView />} />
             <Route path="/commercial/sites" element={<SiteManagement />} />
             <Route path="/commercial/sites/:siteId" element={<SiteView />} />
             <Route path="/commercial/esg" element={<EsgSetup />} />
