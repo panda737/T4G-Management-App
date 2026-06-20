@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Trash2 } from 'lucide-react';
 import { supabase, type Client } from '../../lib/supabase';
 import { usePageTitle } from '../../lib/usePageTitle';
 import { useUser } from '../../lib/UserContext';
@@ -33,7 +32,7 @@ function StatusBadge({ status }: { status: Client['account_status'] }) {
 export default function ClientManagement() {
   usePageTitle('Commercial — Accounts');
   const navigate = useNavigate();
-  const { isAdmin, canWrite } = useUser();
+  const { canWrite } = useUser();
   const { addToast } = useToast();
   const canEdit = canWrite('commercial');
 
@@ -175,15 +174,6 @@ export default function ClientManagement() {
     addToast(modal === 'new' ? 'Account created' : 'Account updated');
   }
 
-  async function deleteAccounts(rows: Client[]) {
-    if (!window.confirm(`Delete ${rows.length} account${rows.length > 1 ? 's' : ''}? This cannot be undone.`)) return;
-    const ids = rows.map(r => r.id);
-    const { error } = await supabase.from('clients').delete().in('id', ids);
-    if (error) { addToast('Delete failed: ' + error.message, 'error'); return; }
-    setClients(prev => prev.filter(c => !ids.includes(c.id)));
-    addToast(`Deleted ${rows.length} account${rows.length > 1 ? 's' : ''}`);
-  }
-
   return (
     <div className="space-y-5">
       <SectionTabs tabs={CLIENT_TABS} />
@@ -204,9 +194,6 @@ export default function ClientManagement() {
         newLabel="New Account"
         exportName="accounts"
         savedViews
-        bulkActions={isAdmin ? [
-          { label: 'Delete', icon: Trash2, danger: true, onClick: deleteAccounts },
-        ] : []}
         emptyMessage="No accounts found."
       />
 

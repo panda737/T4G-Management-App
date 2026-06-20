@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Building2, MapPin, User, Scale, Boxes, CalendarDays, Pencil, Plus, Eye } from 'lucide-react';
+import { Building2, MapPin, User, Scale, Boxes, CalendarDays, Pencil, Plus, Eye, Trash2 } from 'lucide-react';
 import {
   supabase,
   type Client,
@@ -15,6 +15,7 @@ import { usePageTitle } from '../../lib/usePageTitle';
 import { useUser } from '../../lib/UserContext';
 import { useToast } from '../../lib/toast';
 import { PageSpinner } from '../../components/Spinner';
+import Modal from '../../components/Modal';
 import DonutChart from '../../components/DonutChart';
 import SectionTabs from '../../components/SectionTabs';
 import { CLIENT_TABS } from './commercialTabs';
@@ -64,7 +65,7 @@ export default function ClientView() {
   const { clientId } = useParams<{ clientId: string }>();
   const navigate = useNavigate();
   usePageTitle('Commercial — Account');
-  const { canWrite } = useUser();
+  const { canWrite, isAdmin } = useUser();
   const { addToast } = useToast();
   const canEdit = canWrite('commercial');
 
@@ -82,6 +83,9 @@ export default function ClientView() {
   const [newSite, setNewSite] = useState(false);
   const [editingPortalUser, setEditingPortalUser] = useState<UserProfile | null>(null);
   const [allClients, setAllClients] = useState<Client[]>([]);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [confirmText, setConfirmText] = useState('');
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => { if (clientId) load(); }, [clientId]);
 
@@ -187,6 +191,16 @@ export default function ClientView() {
     addToast('Account updated');
   }
 
+  async function handleDelete() {
+    if (!client || confirmText.trim() !== client.client_name.trim()) return;
+    setDeleting(true);
+    const { error } = await supabase.from('clients').delete().eq('id', clientId!);
+    setDeleting(false);
+    if (error) { addToast('Delete failed: ' + error.message, 'error'); return; }
+    addToast('Account deleted');
+    navigate('/commercial/clients');
+  }
+
   return (
     <div className="space-y-4">
       <SectionTabs tabs={CLIENT_TABS} />
@@ -215,6 +229,16 @@ export default function ClientView() {
                 className="flex items-center gap-1.5 text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white hover:bg-gray-50 text-gray-700"
               >
                 <Pencil size={14} /> Edit
+              </button>
+            )}
+            {isAdmin && (
+              <button
+                onClick={() => { setConfirmText(''); setDeleteOpen(true); }}
+                title="Delete account"
+                aria-label="Delete account"
+                className="flex items-center text-sm border border-red-200 rounded-lg px-3 py-2 bg-white hover:bg-red-50 text-red-600"
+              >
+                <Trash2 size={14} />
               </button>
             )}
           </>
@@ -554,6 +578,56 @@ export default function ClientView() {
             addToast('Portal access updated');
           }}
         />
+      )}
+
+      {deleteOpen && (
+        <Modal
+          title="Delete Account"
+          onClose={() => { setDeleteOpen(false); setConfirmText(''); }}
+          size="sm"
+          accent="red"
+          footer={
+            <>
+              <button
+                onClick={() => { setDeleteOpen(false); setConfirmText(''); }}
+                className="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={deleting || confirmText.trim() !== client.client_name.trim()}
+                className="px-4 py-2 text-sm bg-red-600 hover:bg-red-700 text-white rounded-lg disabled:opacity-50 font-medium shadow-sm"
+              >
+                {deleting ? 'Deleting…' : 'Delete Account'}
+              </button>
+            </>
+          }
+        >
+          <div className="space-y-3">
+            <p className="text-sm text-gray-600">
+              This permanently deletes <strong className="text-gray-900">{client.client_name}</strong>
+              {sites.length > 0 && <> and its {sites.length} site{sites.length !== 1 ? 's' : ''}</>}. This cannot be undone.
+            </p>
+            {records.length > 0 && (
+              <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                This account has {records.length} waste record{records.length !== 1 ? 's' : ''} — deletion may be blocked while records exist.
+              </p>
+            )}
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">
+                Type <span className="font-semibold text-gray-900">{client.client_name}</span> to confirm
+              </label>
+              <input
+                value={confirmText}
+                onChange={e => setConfirmText(e.target.value)}
+                autoFocus
+                placeholder={client.client_name}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 bg-white"
+              />
+            </div>
+          </div>
+        </Modal>
       )}
     </div>
   );
