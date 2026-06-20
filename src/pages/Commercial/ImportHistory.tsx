@@ -4,7 +4,7 @@ import { supabase, type DataImport } from '../../lib/supabase';
 import { usePageTitle } from '../../lib/usePageTitle';
 import { PageSpinner } from '../../components/Spinner';
 import SectionTabs from '../../components/SectionTabs';
-import { RECEIVED_TABS } from './commercialTabs';
+import { ANALYTICS_TABS, RECEIVED_TABS } from './commercialTabs';
 
 function fmt(d: string) {
   return new Date(d).toLocaleString('en-ZA', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
@@ -33,7 +33,10 @@ export default function ImportHistory() {
 
   return (
     <div className="space-y-5">
-      <SectionTabs tabs={RECEIVED_TABS} />
+      <div className="space-y-2">
+        <SectionTabs tabs={ANALYTICS_TABS} />
+        <SectionTabs tabs={RECEIVED_TABS} />
+      </div>
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Import History</h1>
         <p className="text-sm text-gray-500 mt-1">Received-waste data uploads</p>

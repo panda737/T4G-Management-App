@@ -20,6 +20,9 @@ export const RECEIVED_TABS: TabDef[] = [
 export const ANALYTICS_TABS: TabDef[] = [
   { to: '/commercial/dashboard', label: 'Dashboard' },
   { to: '/commercial/reports', label: 'Reports' },
+  // Imports groups the received-waste import pages (Upload / History / Errors)
+  // under one parent tab; `match` keeps it active across all three routes.
+  { to: '/commercial/upload', label: 'Imports', match: ['/commercial/upload', '/commercial/imports', '/commercial/import-errors'] },
 ];
 
 export const ESG_TABS: TabDef[] = [

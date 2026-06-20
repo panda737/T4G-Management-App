@@ -5,7 +5,7 @@ import { supabase, type DataImport, type ImportErrorRow } from '../../lib/supaba
 import { usePageTitle } from '../../lib/usePageTitle';
 import { PageSpinner } from '../../components/Spinner';
 import SectionTabs from '../../components/SectionTabs';
-import { RECEIVED_TABS } from './commercialTabs';
+import { ANALYTICS_TABS, RECEIVED_TABS } from './commercialTabs';
 
 export default function ImportErrorReview() {
   usePageTitle('Commercial — Import Errors');
@@ -42,7 +42,10 @@ export default function ImportErrorReview() {
 
   return (
     <div className="space-y-5">
-      <SectionTabs tabs={RECEIVED_TABS} />
+      <div className="space-y-2">
+        <SectionTabs tabs={ANALYTICS_TABS} />
+        <SectionTabs tabs={RECEIVED_TABS} />
+      </div>
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Import Error Review</h1>

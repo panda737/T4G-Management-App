@@ -9,7 +9,7 @@ import {
   type ParseResult, type ImportSummary,
 } from './importReceivedWaste';
 import SectionTabs from '../../components/SectionTabs';
-import { RECEIVED_TABS } from './commercialTabs';
+import { ANALYTICS_TABS, RECEIVED_TABS } from './commercialTabs';
 
 const PREVIEW_COLS: { key: string; label: string }[] = [
   { key: 'client', label: 'Client' },
@@ -68,7 +68,10 @@ export default function UploadReceivedWaste() {
 
   return (
     <div className="space-y-5">
-      <SectionTabs tabs={RECEIVED_TABS} />
+      <div className="space-y-2">
+        <SectionTabs tabs={ANALYTICS_TABS} />
+        <SectionTabs tabs={RECEIVED_TABS} />
+      </div>
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Upload Received Waste Data</h1>
         <p className="text-sm text-gray-500 mt-1">Import the received-waste export (CSV). Transfer-out / treatment data is not imported here.</p>
