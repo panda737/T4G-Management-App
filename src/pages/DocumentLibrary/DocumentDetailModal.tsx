@@ -83,7 +83,7 @@ export default function DocumentDetailModal({ doc, uploaderName, canEdit, onClos
   const es = expiryStatus(doc.expiry_date);
   const rs = expiryStatus(doc.review_date);
 
-  function DateRow({ label, value, status }: { label: string; value: string | null | undefined; status: 'expired' | 'soon' | 'ok' | 'none' }) {
+  function DateRow({ value, status }: { label: string; value: string | null | undefined; status: 'expired' | 'soon' | 'ok' | 'none' }) {
     if (!value) return <span className="text-gray-400 text-sm">—</span>;
     return (
       <div>

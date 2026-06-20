@@ -1,4 +1,4 @@
-import { TrainingSchedule, TrainingCourse } from '../../lib/supabase';
+import { TrainingCourse } from '../../lib/supabase';
 import Modal from '../../components/Modal';
 import EmployeeSelect from '../../components/EmployeeSelect';
 import EmployeeMultiSelect from '../../components/EmployeeMultiSelect';

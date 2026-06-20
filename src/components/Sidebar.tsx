@@ -215,7 +215,6 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
   }
 
   const isAdmin = role === 'admin';
-  const isManagement = role === 'management';
   const isOperator = role === 'operator';
 
   useEffect(() => {

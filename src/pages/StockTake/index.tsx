@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Plus, ChevronRight, CheckCheck } from 'lucide-react';
-import { supabase, StockItem, StockTakeSession, StockTakeLineItem } from '../../lib/supabase';
+import { supabase, StockItem, StockTakeSession } from '../../lib/supabase';
 import { usePageTitle } from '../../lib/usePageTitle';
 import Modal from '../../components/Modal';
 import { PageSpinner } from '../../components/Spinner';

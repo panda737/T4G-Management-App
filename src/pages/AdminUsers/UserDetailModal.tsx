@@ -39,7 +39,7 @@ export default function UserDetailModal({ user, emailMap, isMe, onClose, onEdit,
   useEffect(() => {
     async function load() {
       setLoading(true);
-      const fetches: Promise<void>[] = [];
+      const fetches: PromiseLike<void>[] = [];
 
       if (user.employee_id) {
         fetches.push(

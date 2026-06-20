@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Search, Users, AlertTriangle, XCircle, CheckCircle } from 'lucide-react';
+import { Search, Users, AlertTriangle, XCircle } from 'lucide-react';
 import { TrainingRecord, TrainingAssessment, TrainingModule, Employee } from '../../lib/supabase';
 
 interface Props {

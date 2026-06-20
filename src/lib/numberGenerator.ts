@@ -11,7 +11,8 @@ export async function generateSequentialNumber(
     .select(numberColumn)
     .like(numberColumn, `${prefix}-${year}-%`);
 
-  const maxNum = (data || []).reduce((max, row) => {
+  const rows = (data || []) as unknown as Record<string, string | null>[];
+  const maxNum = rows.reduce((max, row) => {
     const match = row[numberColumn]?.match(/\d+$/);
     return Math.max(max, match ? parseInt(match[0]) : 0);
   }, 0);

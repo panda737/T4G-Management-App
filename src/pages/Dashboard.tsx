@@ -29,7 +29,7 @@ export default function Dashboard() {
       supabase.from('stock_take_sessions').select('id, stock_take_name, stock_take_date, conducted_by, status').order('created_at', { ascending: false }).limit(5),
     ]);
 
-    const items: StockItem[] = itemsRes.data || [];
+    const items = (itemsRes.data || []) as StockItem[];
     const outOfStock = items.filter(i => getStockStatus(i) === 'Out of Stock').length;
     const lowStock = items.filter(i => getStockStatus(i) === 'Low Stock').length;
     const belowMin = items.filter(i => i.minimum_stock_level > 0 && i.current_quantity < i.minimum_stock_level).length;
@@ -40,7 +40,7 @@ export default function Dashboard() {
 
     setStats({ totalItems: items.length, outOfStock, lowStock, movementsThisMonth: monthMovements.length, belowMin });
     setRecentMovements(movementsRes.data || []);
-    setRecentSessions(sessionsRes.data || []);
+    setRecentSessions((sessionsRes.data || []) as StockTakeSession[]);
     setLoading(false);
   }
 

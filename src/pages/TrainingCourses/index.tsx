@@ -9,13 +9,6 @@ import CourseViewModal from './CourseViewModal';
 
 const CATEGORIES = ['Safety', 'Operational', 'Regulatory', 'Soft Skills'];
 
-const CATEGORY_COLORS: Record<string, string> = {
-  Safety: 'amber',
-  Operational: 'sky',
-  Regulatory: 'teal',
-  'Soft Skills': 'rose',
-};
-
 const CATEGORY_DOT_COLORS: Record<string, string> = {
   Safety: 'bg-amber-400',
   Operational: 'bg-sky-400',

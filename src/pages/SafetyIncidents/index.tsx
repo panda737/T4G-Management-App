@@ -55,7 +55,7 @@ export default function SafetyIncidents() {
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState('All');
   const [severityFilter, setSeverityFilter] = useState('All');
-  const [statusFilter, setStatusFilter] = useState('All');
+  const [statusFilter] = useState('All');
   const [statusTab, setStatusTab] = useState('All');
   const [monthFilter, setMonthFilter] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);

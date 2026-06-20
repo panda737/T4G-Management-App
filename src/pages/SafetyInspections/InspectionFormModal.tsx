@@ -1,4 +1,3 @@
-import React from 'react';
 import { SafetyInspection } from '../../lib/supabase';
 import Modal from '../../components/Modal';
 import EmployeeSelect from '../../components/EmployeeSelect';
