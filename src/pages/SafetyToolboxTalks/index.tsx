@@ -626,6 +626,8 @@ export default function SafetyToolboxTalks() {
             lastUsedByTopic={lastUsedByTopic}
             onSelect={selectTopicFromLibrary}
             suggestedProgress={suggestedProgress}
+            canManage={canManage}
+            onSuggest={toggleSuggest}
           />
         </Modal>
       )}

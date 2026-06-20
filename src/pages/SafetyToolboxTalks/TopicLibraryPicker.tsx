@@ -1,4 +1,4 @@
-import { Search } from 'lucide-react';
+import { Search, Lightbulb } from 'lucide-react';
 import type { ToolboxTalkTopic } from '../../lib/supabase';
 
 function fmtDate(d: string) {
@@ -9,6 +9,7 @@ export default function TopicLibraryPicker({
   categories, selectedCategory, setSelectedCategory,
   selectedSubcategory, setSelectedSubcategory,
   searchTerm, setSearchTerm, filteredTopics, lastUsedByTopic, onSelect, suggestedProgress,
+  canManage, onSuggest,
 }: {
   categories: Map<string, Set<string>>;
   selectedCategory: string;
@@ -21,6 +22,8 @@ export default function TopicLibraryPicker({
   lastUsedByTopic: Map<string, string>;
   onSelect: (topic: ToolboxTalkTopic) => void;
   suggestedProgress?: { id: string; done: number; required: number } | null;
+  canManage?: boolean;
+  onSuggest?: (topic: ToolboxTalkTopic) => void;
 }) {
   const subcategories = selectedCategory ? Array.from(categories.get(selectedCategory) || []) : [];
 
@@ -57,15 +60,29 @@ export default function TopicLibraryPicker({
                   )}
                   {topic.title}
                 </p>
-                {lastUsed ? (
-                  <span className="text-[10px] text-amber-600 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5 flex-shrink-0 whitespace-nowrap">
-                    Last: {fmtDate(lastUsed)}
-                  </span>
-                ) : (
-                  <span className="text-[10px] text-emerald-700 bg-emerald-50 border border-emerald-200 rounded px-1.5 py-0.5 flex-shrink-0 whitespace-nowrap">
-                    Never used
-                  </span>
-                )}
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                  {lastUsed ? (
+                    <span className="text-[10px] text-amber-600 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5 whitespace-nowrap">
+                      Last: {fmtDate(lastUsed)}
+                    </span>
+                  ) : (
+                    <span className="text-[10px] text-emerald-700 bg-emerald-50 border border-emerald-200 rounded px-1.5 py-0.5 whitespace-nowrap">
+                      Never used
+                    </span>
+                  )}
+                  {canManage && onSuggest && (
+                    <span
+                      role="button"
+                      tabIndex={0}
+                      onClick={e => { e.stopPropagation(); onSuggest(topic); }}
+                      onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); onSuggest(topic); } }}
+                      title={topic.is_suggested ? 'Remove suggestion' : 'Suggest to operators'}
+                      className={`inline-flex items-center justify-center p-1 rounded-lg transition cursor-pointer ${topic.is_suggested ? 'text-emerald-700 bg-emerald-100 hover:bg-emerald-200' : 'text-gray-400 hover:text-emerald-600 hover:bg-emerald-50'}`}
+                    >
+                      <Lightbulb size={14} />
+                    </span>
+                  )}
+                </div>
               </div>
               <div className="flex gap-2 mt-1">
                 <span className="px-1.5 py-0.5 text-[10px] font-medium rounded bg-sky-100 text-sky-700">{topic.category}</span>

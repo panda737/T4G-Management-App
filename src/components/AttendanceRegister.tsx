@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Users, CheckCircle, XCircle, Clock, PenTool, Loader } from 'lucide-react';
+import { Users, CheckCircle, Clock, PenTool, Loader } from 'lucide-react';
 import { supabase, Employee, TrainingAttendance } from '../lib/supabase';
 import Modal from './Modal';
 import SignaturePad from './SignaturePad';
@@ -64,7 +64,9 @@ export default function AttendanceRegister({ referenceType, referenceId, onUpdat
     setAttendees(prev =>
       prev.map(a => {
         if (a.employee.id !== empId) return a;
-        const cycle: AttendanceStatus[] = ['Present', 'Absent', 'Late'];
+        // Off-shift (Absent) → Present → Late → Off-shift. We work shifts, so
+        // "off shift" just means not recorded — it isn't tracked as an absence.
+        const cycle: AttendanceStatus[] = ['Absent', 'Present', 'Late'];
         const nextIdx = (cycle.indexOf(a.status) + 1) % cycle.length;
         return { ...a, status: cycle[nextIdx], saved: false };
       })
@@ -121,7 +123,6 @@ export default function AttendanceRegister({ referenceType, referenceId, onUpdat
 
   const presentCount = attendees.filter(a => a.status === 'Present').length;
   const lateCount = attendees.filter(a => a.status === 'Late').length;
-  const absentCount = attendees.filter(a => a.status === 'Absent').length;
   const signedCount = attendees.filter(a => a.signature_data).length;
 
   const filtered = attendees
@@ -141,7 +142,7 @@ export default function AttendanceRegister({ referenceType, referenceId, onUpdat
 
   return (
     <div className="space-y-3">
-      <div className="grid grid-cols-4 gap-2">
+      <div className="grid grid-cols-3 gap-2">
         <div className="bg-emerald-50 rounded-lg p-2 text-center">
           <p className="text-xl font-bold text-emerald-700">{presentCount}</p>
           <p className="text-[10px] text-emerald-600">Present</p>
@@ -149,10 +150,6 @@ export default function AttendanceRegister({ referenceType, referenceId, onUpdat
         <div className="bg-amber-50 rounded-lg p-2 text-center">
           <p className="text-xl font-bold text-amber-700">{lateCount}</p>
           <p className="text-[10px] text-amber-600">Late</p>
-        </div>
-        <div className="bg-red-50 rounded-lg p-2 text-center">
-          <p className="text-xl font-bold text-red-700">{absentCount}</p>
-          <p className="text-[10px] text-red-600">Absent</p>
         </div>
         <div className="bg-sky-50 rounded-lg p-2 text-center">
           <p className="text-xl font-bold text-sky-700">{signedCount}</p>
@@ -203,18 +200,18 @@ export default function AttendanceRegister({ referenceType, referenceId, onUpdat
                 <td className="px-2 sm:px-4 py-1.5 text-center">
                   <button
                     onClick={() => toggleStatus(att.employee.id)}
+                    title="Tap to mark present / late"
                     className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold transition ${
                       att.status === 'Present'
                         ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
                         : att.status === 'Late'
                         ? 'bg-amber-100 text-amber-700 hover:bg-amber-200'
-                        : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                        : 'bg-white text-gray-400 border border-gray-200 hover:bg-gray-50'
                     }`}
                   >
                     {att.status === 'Present' && <CheckCircle size={12} />}
                     {att.status === 'Late' && <Clock size={12} />}
-                    {att.status === 'Absent' && <XCircle size={12} />}
-                    {att.status}
+                    {att.status === 'Absent' ? 'Off shift' : att.status}
                   </button>
                 </td>
                 <td className="px-2 sm:px-4 py-1.5 text-center">
@@ -247,7 +244,7 @@ export default function AttendanceRegister({ referenceType, referenceId, onUpdat
 
       <div className="flex items-center justify-between pt-2">
         <p className="text-xs text-gray-400">
-          {presentCount + lateCount} of {attendees.length} employees marked present/late
+          {presentCount + lateCount} marked present/late · others are off shift
         </p>
         <button
           onClick={saveAttendance}
