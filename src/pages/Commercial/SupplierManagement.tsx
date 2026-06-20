@@ -4,6 +4,8 @@ import { supabase, type Supplier } from '../../lib/supabase';
 import { usePageTitle } from '../../lib/usePageTitle';
 import { useUser } from '../../lib/UserContext';
 import { useToast } from '../../lib/toast';
+import SectionTabs from '../../components/SectionTabs';
+import { SUPPLIER_TABS } from './commercialTabs';
 import { ListView, type Column, type FilterDef } from '../../components/crm';
 import { fmtNum, fmtDate } from '../../components/crm/crmUtils';
 import SupplierFormModal from './SupplierFormModal';
@@ -150,6 +152,8 @@ export default function SupplierManagement() {
 
   return (
     <div className="space-y-5">
+      <SectionTabs tabs={SUPPLIER_TABS} />
+
       <ListView<Supplier>
         objectKey="suppliers"
         title="Suppliers"

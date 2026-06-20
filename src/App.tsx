@@ -52,6 +52,7 @@ import ClientManagement from './pages/Commercial/ClientManagement';
 import ClientView from './pages/Commercial/ClientView';
 import SupplierManagement from './pages/Commercial/SupplierManagement';
 import SupplierView from './pages/Commercial/SupplierView';
+import SupplierOrderHistory from './pages/Commercial/SupplierOrderHistory';
 import SiteManagement from './pages/Commercial/SiteManagement';
 import SiteView from './pages/Commercial/SiteView';
 import EsgSetup from './pages/Commercial/EsgSetup';
@@ -145,6 +146,7 @@ const ROUTE_LABELS: Record<string, string> = {
   '/commercial/import-errors': 'Import Errors',
   '/commercial/clients': 'Accounts',
   '/commercial/suppliers': 'Suppliers',
+  '/commercial/suppliers/history': 'Order History',
   '/commercial/contacts': 'Contacts',
   '/commercial/activities': 'Activities',
   '/commercial/users': 'Users & Access',
@@ -272,6 +274,7 @@ function StaffShell({ session }: { session: Session }) {
             <Route path="/commercial/clients" element={<ClientManagement />} />
             <Route path="/commercial/clients/:clientId" element={<ClientView />} />
             <Route path="/commercial/suppliers" element={<SupplierManagement />} />
+            <Route path="/commercial/suppliers/history" element={<SupplierOrderHistory />} />
             <Route path="/commercial/suppliers/:supplierId" element={<SupplierView />} />
             <Route path="/commercial/sites" element={<SiteManagement />} />
             <Route path="/commercial/sites/:siteId" element={<SiteView />} />

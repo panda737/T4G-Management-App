@@ -11,6 +11,11 @@ export const CLIENT_TABS: TabDef[] = [
   { to: '/commercial/users', label: 'Users & Access' },
 ];
 
+export const SUPPLIER_TABS: TabDef[] = [
+  { to: '/commercial/suppliers', label: 'Overview', end: true },
+  { to: '/commercial/suppliers/history', label: 'History' },
+];
+
 export const RECEIVED_TABS: TabDef[] = [
   { to: '/commercial/upload', label: 'Upload' },
   { to: '/commercial/imports', label: 'Import History' },
