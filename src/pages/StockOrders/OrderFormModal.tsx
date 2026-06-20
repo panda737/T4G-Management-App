@@ -7,6 +7,13 @@ import Modal from '../../components/Modal';
 import StockItemSearch from '../../components/StockItemSearch';
 import { ORDER_SOURCES } from './constants';
 
+/** One-line site sub-label: code · province · group, with the address appended. */
+function siteSubLabel(s: ClientSite): string {
+  const details = [s.site_code, s.province, s.generator_group].filter(Boolean).join(' · ');
+  const addr = [s.address_line_1, s.address_line_2, s.address_line_3, s.postal_code].filter(Boolean).join(', ');
+  return [details, addr].filter(Boolean).join('  ·  ');
+}
+
 interface OrderLine {
   id: number;
   itemId: string;
@@ -277,7 +284,7 @@ export default function OrderFormModal({ items, clients, sites, order, orderItem
               <div className="flex items-center justify-between px-3 py-2 rounded-lg border-2 border-blue-300 bg-blue-50 text-sm">
                 <div className="min-w-0">
                   <p className="font-semibold text-gray-900 truncate">{selectedSite.generator_facility}</p>
-                  <p className="text-[10px] text-gray-500">{[selectedSite.site_code, selectedSite.province, selectedSite.generator_group].filter(Boolean).join(' · ') || 'no details'}</p>
+                  <p className="text-[10px] text-gray-500 truncate">{siteSubLabel(selectedSite) || 'no details'}</p>
                 </div>
                 <button onClick={() => { setSiteId(''); setSiteSearch(''); }} className="ml-2 text-gray-400 hover:text-gray-600 flex-shrink-0 text-xs underline">change</button>
               </div>
@@ -310,7 +317,7 @@ export default function OrderFormModal({ items, clients, sites, order, orderItem
                         className="w-full text-left px-3 py-1.5 text-sm border-b border-gray-100 last:border-0 hover:bg-gray-50 transition-colors leading-tight"
                       >
                         <p className="font-semibold text-gray-900">{s.generator_facility}</p>
-                        <p className="text-[10px] text-gray-400">{[s.site_code, s.province, s.generator_group].filter(Boolean).join(' · ') || ' '}</p>
+                        <p className="text-[10px] text-gray-400 truncate">{siteSubLabel(s) || ' '}</p>
                       </button>
                     ))}
                   </div>
