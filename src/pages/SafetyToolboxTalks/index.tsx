@@ -18,11 +18,13 @@ import { generateSequentialNumber } from '../../lib/numberGenerator';
 import { PRESENTER_POSITIONS, EMPTY_FORM, type FormData, type Tab } from './constants';
 import TopicLibraryView from './TopicLibraryView';
 import TopicLibraryPicker from './TopicLibraryPicker';
+import TopicFormModal from './TopicFormModal';
 
 export default function SafetyToolboxTalks() {
   usePageTitle('Safety — Toolbox Talks');
   const { isAdmin, isManagement } = useUser();
   const canDelete = isAdmin || isManagement;
+  const canManage = isAdmin || isManagement;
   const [talks, setTalks] = useState<SafetyToolboxTalk[]>([]);
   const [filteredTalks, setFilteredTalks] = useState<SafetyToolboxTalk[]>([]);
   const [topics, setTopics] = useState<ToolboxTalkTopic[]>([]);
@@ -44,6 +46,8 @@ export default function SafetyToolboxTalks() {
   const [opError, setOpError] = useState('');
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; label: string } | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [showTopicForm, setShowTopicForm] = useState(false);
+  const [editTopic, setEditTopic] = useState<ToolboxTalkTopic | null>(null);
 
   useEffect(() => { loadData(); }, []);
   useEffect(() => { filterTalks(); }, [talks, searchTerm, monthFilter, sortConfig]);
@@ -83,6 +87,8 @@ export default function SafetyToolboxTalks() {
   }
 
   async function handleSave() {
+    if (!formData.topic?.trim()) { setOpError('Please choose a topic from the library.'); return; }
+    setOpError('');
     const talk_number = await generateSequentialNumber('safety_toolbox_talks', 'talk_number', 'TBT');
 
     let attachment_path = '';
@@ -152,6 +158,20 @@ export default function SafetyToolboxTalks() {
       }
     }
 
+    // If this talk is the currently-suggested topic, advance the 3-shift goal and
+    // clear the suggestion once 3 shifts have recorded it.
+    const sugg = topics.find(t => t.is_suggested && t.title === formData.topic);
+    if (sugg) {
+      const { count } = await supabase
+        .from('safety_toolbox_talks')
+        .select('id', { count: 'exact', head: true })
+        .eq('topic', sugg.title)
+        .gte('created_at', sugg.suggested_at || '1970-01-01');
+      if ((count ?? 0) >= 3) {
+        await supabase.from('toolbox_talk_topics').update({ is_suggested: false, suggested_at: null }).eq('id', sugg.id);
+      }
+    }
+
     addToast('Toolbox talk saved');
     setShowAddModal(false);
     loadData();
@@ -186,6 +206,40 @@ export default function SafetyToolboxTalks() {
   function openAddModal() {
     resetForm();
     setShowAddModal(true);
+  }
+
+  // Suggest: only one topic may be "suggested" at a time. A suggestion stays
+  // active until the topic has been recorded 3 times (once per shift).
+  async function toggleSuggest(topic: ToolboxTalkTopic) {
+    if (topic.is_suggested) {
+      await supabase.from('toolbox_talk_topics').update({ is_suggested: false, suggested_at: null }).eq('id', topic.id);
+    } else {
+      await supabase.from('toolbox_talk_topics').update({ is_suggested: false, suggested_at: null }).eq('is_suggested', true);
+      await supabase.from('toolbox_talk_topics').update({ is_suggested: true, suggested_at: new Date().toISOString() }).eq('id', topic.id);
+    }
+    addToast(topic.is_suggested ? 'Suggestion removed' : `Suggested "${topic.title}" (needs 3 shifts)`);
+    loadData();
+  }
+
+  const SHIFTS_REQUIRED = 3;
+  // The active suggestion + how many shifts have recorded it since it was suggested.
+  const suggestedProgress = useMemo(() => {
+    const sugg = topics.find(t => t.is_suggested);
+    if (!sugg) return null;
+    const since = sugg.suggested_at || '';
+    const done = talks.filter(t => t.topic === sugg.title && (!since || t.created_at >= since)).length;
+    return { id: sugg.id, done: Math.min(done, SHIFTS_REQUIRED), required: SHIFTS_REQUIRED };
+  }, [topics, talks]);
+
+  function openAddTopic() { setEditTopic(null); setShowTopicForm(true); }
+  function openEditTopic(topic: ToolboxTalkTopic) { setEditTopic(topic); setShowTopicForm(true); }
+
+  async function deleteTopic(topic: ToolboxTalkTopic) {
+    if (!window.confirm(`Delete the topic "${topic.title}" from the library? This cannot be undone.`)) return;
+    const { error } = await supabase.from('toolbox_talk_topics').delete().eq('id', topic.id);
+    if (error) { setOpError(error.message); return; }
+    addToast('Topic deleted');
+    loadData();
   }
 
   function selectTopicFromLibrary(topic: ToolboxTalkTopic) {
@@ -230,6 +284,7 @@ export default function SafetyToolboxTalks() {
 
   const sortedFilteredTopics = useMemo(() => {
     return [...filteredTopics].sort((a, b) => {
+      if (a.is_suggested !== b.is_suggested) return a.is_suggested ? -1 : 1;
       const aDate = lastUsedByTopic.get(a.title) ?? null;
       const bDate = lastUsedByTopic.get(b.title) ?? null;
       if (!aDate && !bDate) return 0;
@@ -265,6 +320,7 @@ export default function SafetyToolboxTalks() {
         actions={
           <>
             <Button variant="secondary" accent="amber" icon={Library} onClick={() => { setSelectedCategory(''); setSelectedSubcategory(''); setLibrarySearch(''); setShowLibraryModal(true); }}>Topic Library</Button>
+            {canManage && <Button variant="secondary" accent="amber" icon={Plus} onClick={openAddTopic}>Add Talk</Button>}
             <Button variant="primary" accent="amber" icon={Plus} onClick={openAddModal}>Record Talk</Button>
           </>
         }
@@ -334,7 +390,7 @@ export default function SafetyToolboxTalks() {
                       </thead>
                       <tbody>
                         {filteredTalks.map(talk => (
-                          <tr key={talk.id} className="border-b border-gray-200 hover:bg-gray-50 transition">
+                          <tr key={talk.id} onClick={() => { setSelectedTalk(talk); setShowViewModal(true); }} className="border-b border-gray-200 hover:bg-gray-50 transition cursor-pointer">
                             <td className="px-4 py-2.5 text-sm font-medium text-gray-900 whitespace-nowrap">{talk.talk_number}</td>
                             <td className="px-4 py-2.5 text-sm text-gray-600 whitespace-nowrap">{new Date(talk.talk_date).toLocaleDateString()}</td>
                             <td className="px-4 py-2.5 text-sm font-medium text-gray-900 max-w-[200px] truncate">{talk.topic}</td>
@@ -347,7 +403,7 @@ export default function SafetyToolboxTalks() {
                                 <div className="flex items-center gap-1"><AlertCircle className="w-4 h-4 text-orange-600" /><span className="text-orange-600">Required</span></div>
                               ) : <span className="text-gray-400">-</span>}
                             </td>
-                            <td className="px-4 py-3 text-sm flex gap-2">
+                            <td className="px-4 py-3 text-sm flex gap-2" onClick={e => e.stopPropagation()}>
                               <button onClick={() => { setSelectedTalk(talk); setShowViewModal(true); }} className="text-gray-600 hover:text-gray-900 transition"><Eye className="w-4 h-4" /></button>
                               <button onClick={() => { setSelectedTalk(talk); setShowAttendanceModal(true); }} className="text-sky-600 hover:text-sky-800 transition" title="Attendance Register"><ClipboardList className="w-4 h-4" /></button>
                               {canDelete && <button onClick={() => handleDelete(talk.id, talk.talk_number || 'this talk')} className="text-red-600 hover:text-red-700 transition"><Trash2 className="w-4 h-4" /></button>}
@@ -360,7 +416,7 @@ export default function SafetyToolboxTalks() {
 
                   <div className="md:hidden divide-y divide-gray-100">
                     {filteredTalks.map(talk => (
-                      <div key={talk.id} className="px-4 py-3 flex items-start gap-2">
+                      <div key={talk.id} onClick={() => { setSelectedTalk(talk); setShowViewModal(true); }} className="px-4 py-3 flex items-start gap-2 cursor-pointer hover:bg-gray-50 transition">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-1.5">
                             <p className="text-sm font-semibold text-gray-900 truncate">{talk.topic}</p>
@@ -370,8 +426,7 @@ export default function SafetyToolboxTalks() {
                             {new Date(talk.talk_date).toLocaleDateString()} · {talk.presented_by} · {talk.duration_minutes} min · {talk.attendee_count} attendees{talk.location ? ` · ${talk.location}` : ''}
                           </p>
                         </div>
-                        <div className="flex items-center gap-0.5 flex-shrink-0">
-                          <button onClick={() => { setSelectedTalk(talk); setShowViewModal(true); }} className="p-2 text-gray-500 hover:bg-gray-50 rounded"><Eye size={15} /></button>
+                        <div className="flex items-center gap-0.5 flex-shrink-0" onClick={e => e.stopPropagation()}>
                           <button onClick={() => { setSelectedTalk(talk); setShowAttendanceModal(true); }} className="p-2 text-sky-600 hover:bg-sky-50 rounded"><ClipboardList size={15} /></button>
                           {canDelete && <button onClick={() => handleDelete(talk.id, talk.talk_number || 'this talk')} className="p-2 text-red-500 hover:bg-red-50 rounded"><Trash2 size={15} /></button>}
                         </div>
@@ -385,7 +440,17 @@ export default function SafetyToolboxTalks() {
         )}
 
         {activeTab === 'library' && (
-          <TopicLibraryView topics={topics} categories={categories} lastUsedByTopic={lastUsedByTopic} onSelect={selectTopicFromLibrary} />
+          <TopicLibraryView
+            topics={topics}
+            categories={categories}
+            lastUsedByTopic={lastUsedByTopic}
+            onSelect={selectTopicFromLibrary}
+            canManage={canManage}
+            onSuggest={toggleSuggest}
+            onEdit={openEditTopic}
+            onDelete={deleteTopic}
+            suggestedProgress={suggestedProgress}
+          />
         )}
 
       {showAddModal && (
@@ -405,13 +470,19 @@ export default function SafetyToolboxTalks() {
               <input type="text" value={formData.location} onChange={e => setFormData({ ...formData, location: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500" />
             </div>
             <div className="col-span-2">
-              <div className="flex items-center justify-between mb-1">
-                <label className="block text-sm font-medium text-gray-700">Topic *</label>
-                <button onClick={() => { setSelectedCategory(''); setSelectedSubcategory(''); setLibrarySearch(''); setShowLibraryModal(true); }} className="text-xs text-sky-600 hover:underline flex items-center gap-1">
-                  <Library size={12} /> Pick from Library
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Topic * <span className="text-gray-400 font-normal text-xs">(choose from the library)</span>
+              </label>
+              {formData.topic ? (
+                <div className="flex items-center justify-between gap-2 px-3 py-2.5 border border-gray-300 rounded-lg bg-gray-50">
+                  <span className="text-sm font-medium text-gray-900 truncate">{formData.topic}</span>
+                  <button type="button" onClick={() => { setSelectedCategory(''); setSelectedSubcategory(''); setLibrarySearch(''); setShowLibraryModal(true); }} className="text-xs text-sky-600 hover:underline flex-shrink-0">Change</button>
+                </div>
+              ) : (
+                <button type="button" onClick={() => { setSelectedCategory(''); setSelectedSubcategory(''); setLibrarySearch(''); setShowLibraryModal(true); }} className="w-full flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg text-sm text-gray-500 hover:border-amber-400 hover:text-amber-600 transition">
+                  <Library size={14} /> Choose a topic from the library
                 </button>
-              </div>
-              <input type="text" value={formData.topic} onChange={e => setFormData({ ...formData, topic: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500" />
+              )}
             </div>
             <div className="col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-1">Description / Talking Points</label>
@@ -501,6 +572,18 @@ export default function SafetyToolboxTalks() {
             <p className="text-xs font-semibold text-gray-600 uppercase mb-1">Description / Talking Points</p>
             <p className="text-sm text-gray-700 whitespace-pre-wrap">{selectedTalk.description || 'N/A'}</p>
           </div>
+          <div className="mt-4 pt-4 border-t border-gray-200">
+            <p className="text-xs font-semibold text-gray-600 uppercase mb-1">Attendees ({selectedTalk.attendee_count})</p>
+            {selectedTalk.attendees?.trim() ? (
+              <div className="flex flex-wrap gap-1.5">
+                {selectedTalk.attendees.split(',').map(n => n.trim()).filter(Boolean).map((name, i) => (
+                  <span key={i} className="text-xs bg-gray-100 text-gray-700 rounded-full px-2 py-0.5">{name}</span>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-gray-400">No attendees recorded.</p>
+            )}
+          </div>
           {selectedTalk.attachment_path && (
             <div className="mt-4 pt-4 border-t border-gray-200">
               <p className="text-xs font-semibold text-gray-600 uppercase mb-1">Attached Document</p>
@@ -542,6 +625,7 @@ export default function SafetyToolboxTalks() {
             filteredTopics={sortedFilteredTopics}
             lastUsedByTopic={lastUsedByTopic}
             onSelect={selectTopicFromLibrary}
+            suggestedProgress={suggestedProgress}
           />
         </Modal>
       )}
@@ -552,6 +636,15 @@ export default function SafetyToolboxTalks() {
           onConfirm={handleDeleteConfirm}
           onClose={() => setDeleteTarget(null)}
           deleting={deleting}
+        />
+      )}
+
+      {showTopicForm && (
+        <TopicFormModal
+          topic={editTopic}
+          categories={Array.from(categories.keys())}
+          onClose={() => { setShowTopicForm(false); setEditTopic(null); }}
+          onSaved={() => { setShowTopicForm(false); setEditTopic(null); loadData(); }}
         />
       )}
     </div>

@@ -8,7 +8,7 @@ function fmtDate(d: string) {
 export default function TopicLibraryPicker({
   categories, selectedCategory, setSelectedCategory,
   selectedSubcategory, setSelectedSubcategory,
-  searchTerm, setSearchTerm, filteredTopics, lastUsedByTopic, onSelect,
+  searchTerm, setSearchTerm, filteredTopics, lastUsedByTopic, onSelect, suggestedProgress,
 }: {
   categories: Map<string, Set<string>>;
   selectedCategory: string;
@@ -20,6 +20,7 @@ export default function TopicLibraryPicker({
   filteredTopics: ToolboxTalkTopic[];
   lastUsedByTopic: Map<string, string>;
   onSelect: (topic: ToolboxTalkTopic) => void;
+  suggestedProgress?: { id: string; done: number; required: number } | null;
 }) {
   const subcategories = selectedCategory ? Array.from(categories.get(selectedCategory) || []) : [];
 
@@ -46,9 +47,16 @@ export default function TopicLibraryPicker({
         {filteredTopics.map(topic => {
           const lastUsed = lastUsedByTopic.get(topic.title);
           return (
-            <button key={topic.id} onClick={() => onSelect(topic)} className="w-full text-left px-4 py-3 bg-white border border-gray-200 rounded-lg hover:bg-sky-50 hover:border-sky-200 transition">
+            <button key={topic.id} onClick={() => onSelect(topic)} className={`w-full text-left px-4 py-3 border rounded-lg transition ${topic.is_suggested ? 'bg-emerald-50 border-emerald-300 ring-1 ring-emerald-200 hover:bg-emerald-100' : 'bg-white border-gray-200 hover:bg-sky-50 hover:border-sky-200'}`}>
               <div className="flex items-start justify-between gap-2">
-                <p className="text-sm font-semibold text-gray-900 flex-1">{topic.title}</p>
+                <p className="text-sm font-semibold text-gray-900 flex-1">
+                  {topic.is_suggested && (
+                    <span className="mr-1.5 align-middle text-[10px] font-bold text-white bg-emerald-600 rounded px-1.5 py-0.5">
+                      SUGGESTED{suggestedProgress?.id === topic.id ? ` ${suggestedProgress.done}/${suggestedProgress.required}` : ''}
+                    </span>
+                  )}
+                  {topic.title}
+                </p>
                 {lastUsed ? (
                   <span className="text-[10px] text-amber-600 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5 flex-shrink-0 whitespace-nowrap">
                     Last: {fmtDate(lastUsed)}

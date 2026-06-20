@@ -476,6 +476,9 @@ export type ToolboxTalkTopic = {
   key_questions: string;
   has_quiz: boolean;
   linked_module_id: string | null;
+  is_suggested: boolean;
+  is_custom: boolean;
+  suggested_at: string | null;
   created_at: string;
 };
 
