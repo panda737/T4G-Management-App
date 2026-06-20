@@ -39,8 +39,11 @@ CI (`.github/workflows/ci.yml`) runs typecheck + build on every push/PR. Keep th
   (it bypasses RLS).
 
 ### Git
-- Work on a branch; merge to `main` via fast-forward. **Push only when the user asks.**
-- Before merging: `npm run typecheck` (0) and `npm run build` (clean).
+- `main` is **branch-protected**: no direct pushes. Every change goes
+  **branch → PR → CI `verify` check passes → merge** (PR required, force-push &
+  deletion blocked). **Push/open PRs only when the user asks.**
+- Before opening a PR: `npm run typecheck` (0) and `npm run build` (clean) — these
+  are what CI's `verify` job enforces.
 
 ## Permission model (enforce in BOTH the DB and the UI)
 RLS helper functions (defined in migrations) — these are the source of truth for writes:
