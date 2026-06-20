@@ -25,6 +25,10 @@ export default function TopicFormModal({ topic, categories, onClose, onSaved }: 
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  // "New category" mode: true when the chosen category isn't an existing one.
+  const [newCatMode, setNewCatMode] = useState(
+    categories.length === 0 || (!!topic && !categories.includes(topic.category)),
+  );
 
   const set = (k: keyof typeof form, v: string) => setForm(prev => ({ ...prev, [k]: v }));
 
@@ -75,10 +79,24 @@ export default function TopicFormModal({ topic, categories, onClose, onSaved }: 
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Category *</label>
-          <input list="tbt-categories" value={form.category} onChange={e => set('category', e.target.value)} className={inputCls} placeholder="Pick or type a category" />
-          <datalist id="tbt-categories">
-            {categories.map(c => <option key={c} value={c} />)}
-          </datalist>
+          {newCatMode ? (
+            <div className="flex items-center gap-2">
+              <input value={form.category} onChange={e => set('category', e.target.value)} className={inputCls} placeholder="New category name" autoFocus />
+              {categories.length > 0 && (
+                <button type="button" onClick={() => { setNewCatMode(false); set('category', ''); }} className="text-xs text-sky-600 hover:underline whitespace-nowrap flex-shrink-0">Use existing</button>
+              )}
+            </div>
+          ) : (
+            <select
+              value={form.category}
+              onChange={e => { const v = e.target.value; if (v === '__new__') { setNewCatMode(true); set('category', ''); } else set('category', v); }}
+              className={inputCls}
+            >
+              <option value="">Select a category…</option>
+              {categories.map(c => <option key={c} value={c}>{c}</option>)}
+              <option value="__new__">+ New category…</option>
+            </select>
+          )}
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Subcategory</label>
