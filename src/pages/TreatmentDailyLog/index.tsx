@@ -11,6 +11,14 @@ function monthLabel(m: string) {
   return `${MONTH_NAMES[mo - 1]} ${y}`;
 }
 
+function dtMin(arr?: { minutes: number }[]): number {
+  return (arr || []).reduce((s, e) => s + (Number(e.minutes) || 0), 0);
+}
+function fmtHM(min: number): string {
+  const h = Math.floor(min / 60), m = min % 60;
+  return h > 0 ? (m > 0 ? `${h}h ${m}m` : `${h}h`) : `${m}m`;
+}
+
 export default function TreatmentDailyLog() {
   usePageTitle('Treatment — Daily Log');
   const { addToast } = useToast();
@@ -202,13 +210,13 @@ export default function TreatmentDailyLog() {
                                   {new Date(l.date).toLocaleDateString('en-ZA', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
                                 </td>
                                 <td className="px-3 py-2.5 text-center">
-                                  <CycleKg cycles={l.day_shift_cycles} kg={l.day_shift_treated_kg} supervisorName={empName(l.day_shift_supervisor_id)} />
+                                  <CycleKg cycles={l.day_shift_cycles} kg={l.day_shift_treated_kg} supervisorName={empName(l.day_shift_supervisor_id)} downtimeMin={dtMin(l.day_shift_downtimes)} />
                                 </td>
                                 <td className="px-3 py-2.5 text-center">
-                                  <CycleKg cycles={l.afternoon_shift_cycles} kg={l.afternoon_shift_treated_kg} supervisorName={empName(l.afternoon_shift_supervisor_id)} />
+                                  <CycleKg cycles={l.afternoon_shift_cycles} kg={l.afternoon_shift_treated_kg} supervisorName={empName(l.afternoon_shift_supervisor_id)} downtimeMin={dtMin(l.afternoon_shift_downtimes)} />
                                 </td>
                                 <td className="px-3 py-2.5 text-center">
-                                  <CycleKg cycles={l.night_shift_cycles} kg={l.night_shift_treated_kg} supervisorName={empName(l.night_shift_supervisor_id)} />
+                                  <CycleKg cycles={l.night_shift_cycles} kg={l.night_shift_treated_kg} supervisorName={empName(l.night_shift_supervisor_id)} downtimeMin={dtMin(l.night_shift_downtimes)} />
                                 </td>
                                 <td className="px-3 py-2.5 text-center font-bold text-gray-900 bg-gray-50/60">{l.total_cycles}</td>
                                 <td className="px-3 py-2.5 text-center font-bold text-gray-900 bg-gray-50/60">
@@ -268,9 +276,9 @@ export default function TreatmentDailyLog() {
                               </button>
                             </div>
                             <div className="grid grid-cols-3 gap-1">
-                              <ShiftMini label="Day" cycles={l.day_shift_cycles} kg={l.day_shift_treated_kg} supervisorName={empName(l.day_shift_supervisor_id)} />
-                              <ShiftMini label="Aft" cycles={l.afternoon_shift_cycles} kg={l.afternoon_shift_treated_kg} supervisorName={empName(l.afternoon_shift_supervisor_id)} />
-                              <ShiftMini label="Night" cycles={l.night_shift_cycles} kg={l.night_shift_treated_kg} supervisorName={empName(l.night_shift_supervisor_id)} />
+                              <ShiftMini label="Day" cycles={l.day_shift_cycles} kg={l.day_shift_treated_kg} supervisorName={empName(l.day_shift_supervisor_id)} downtimeMin={dtMin(l.day_shift_downtimes)} />
+                              <ShiftMini label="Aft" cycles={l.afternoon_shift_cycles} kg={l.afternoon_shift_treated_kg} supervisorName={empName(l.afternoon_shift_supervisor_id)} downtimeMin={dtMin(l.afternoon_shift_downtimes)} />
+                              <ShiftMini label="Night" cycles={l.night_shift_cycles} kg={l.night_shift_treated_kg} supervisorName={empName(l.night_shift_supervisor_id)} downtimeMin={dtMin(l.night_shift_downtimes)} />
                             </div>
                             {hasDowntime && (
                               <div className="flex items-center gap-1 text-[10px] text-amber-700 mt-1.5">
@@ -301,8 +309,13 @@ export default function TreatmentDailyLog() {
   );
 }
 
-function CycleKg({ cycles, kg, supervisorName }: { cycles: number; kg: number; supervisorName?: string | null }) {
-  if (!cycles || cycles === 0) return <span className="text-gray-300">--</span>;
+function CycleKg({ cycles, kg, supervisorName, downtimeMin = 0 }: { cycles: number; kg: number; supervisorName?: string | null; downtimeMin?: number }) {
+  const dt = downtimeMin > 0
+    ? <span className="text-[10px] text-amber-600 font-medium block">↓ {fmtHM(downtimeMin)} down</span>
+    : null;
+  if (!cycles || cycles === 0) {
+    return dt ? <div><span className="text-gray-300">--</span>{dt}</div> : <span className="text-gray-300">--</span>;
+  }
   return (
     <div>
       <span className={`font-semibold ${cycles >= 12 ? 'text-emerald-600' : 'text-gray-800'}`}>{cycles}</span>
@@ -310,15 +323,20 @@ function CycleKg({ cycles, kg, supervisorName }: { cycles: number; kg: number; s
       {supervisorName && (
         <span className="text-[10px] text-gray-400 block truncate max-w-[90px]" title={supervisorName}>{supervisorName}</span>
       )}
+      {dt}
     </div>
   );
 }
 
-function ShiftMini({ label, cycles, kg, supervisorName }: { label: string; cycles: number; kg: number; supervisorName?: string | null }) {
+function ShiftMini({ label, cycles, kg, supervisorName, downtimeMin = 0 }: { label: string; cycles: number; kg: number; supervisorName?: string | null; downtimeMin?: number }) {
+  const dt = downtimeMin > 0
+    ? <p className="text-[8px] text-amber-600 font-medium leading-tight">↓ {fmtHM(downtimeMin)}</p>
+    : null;
   if (!cycles || cycles === 0) return (
     <div className="bg-gray-50 rounded px-1.5 py-1 text-center">
       <p className="text-[9px] text-gray-400 uppercase font-medium leading-tight">{label}</p>
       <p className="text-gray-300 text-xs leading-tight">--</p>
+      {dt}
     </div>
   );
   return (
@@ -327,6 +345,7 @@ function ShiftMini({ label, cycles, kg, supervisorName }: { label: string; cycle
       <p className={`text-sm font-bold leading-tight ${cycles >= 12 ? 'text-emerald-600' : 'text-gray-800'}`}>{cycles}</p>
       <p className="text-[9px] text-gray-400 leading-tight">{Number(kg).toLocaleString('en-ZA', { maximumFractionDigits: 0 })} kg</p>
       {supervisorName && <p className="text-[8px] text-gray-400 truncate leading-tight" title={supervisorName}>{supervisorName}</p>}
+      {dt}
     </div>
   );
 }

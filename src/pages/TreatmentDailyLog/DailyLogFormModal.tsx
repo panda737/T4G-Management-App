@@ -15,6 +15,28 @@ const SHIFTS = [
   { key: 'night', label: 'Night Shift' },
 ] as const;
 
+type ShiftKey = (typeof SHIFTS)[number]['key'];
+type DtEntry = { hours: string; minutes: string; reason: string };
+
+function splitMinutes(min: number): { hours: string; minutes: string } {
+  const h = Math.floor(min / 60), m = min % 60;
+  return { hours: h ? String(h) : '', minutes: m ? String(m) : '' };
+}
+function initDowntimes(arr?: { minutes: number; reason: string }[]): DtEntry[] {
+  if (!arr || arr.length === 0) return [{ hours: '', minutes: '', reason: '' }];
+  return arr.map(d => ({ ...splitMinutes(Number(d.minutes) || 0), reason: d.reason || '' }));
+}
+const entryMinutes = (e: DtEntry) => (Number(e.hours) || 0) * 60 + (Number(e.minutes) || 0);
+function toShiftDowntimes(entries: DtEntry[]): { minutes: number; reason: string }[] {
+  return entries
+    .map(e => ({ minutes: entryMinutes(e), reason: e.reason.trim() }))
+    .filter(e => e.minutes > 0 || e.reason !== '');
+}
+function fmtHM(min: number): string {
+  const h = Math.floor(min / 60), m = min % 60;
+  return h > 0 ? (m > 0 ? `${h}h ${m}m` : `${h}h`) : `${m}m`;
+}
+
 export default function DailyLogFormModal({ log, onClose, onSave }: Props) {
   const [supervisors, setSupervisors] = useState<Pick<Employee, 'id' | 'first_name' | 'surname' | 'position'>[]>([]);
 
@@ -38,8 +60,13 @@ export default function DailyLogFormModal({ log, onClose, onSave }: Props) {
     night_shift_lids_washed: log?.night_shift_lids_washed ?? 0,
     night_shift_wheelie_bins: log?.night_shift_wheelie_bins ?? 0,
     night_shift_supervisor_id: log?.night_shift_supervisor_id ?? '',
-    downtime_entries: [{ minutes: log?.downtime_minutes ?? 0, reason: log?.downtime_reason ?? '' }],
     notes: log?.notes ?? '',
+  });
+
+  const [downtimes, setDowntimes] = useState<Record<ShiftKey, DtEntry[]>>({
+    day: initDowntimes(log?.day_shift_downtimes),
+    afternoon: initDowntimes(log?.afternoon_shift_downtimes),
+    night: initDowntimes(log?.night_shift_downtimes),
   });
 
   const [saving, setSaving] = useState(false);
@@ -67,20 +94,18 @@ export default function DailyLogFormModal({ log, onClose, onSave }: Props) {
     setForm(prev => ({ ...prev, [field]: value }));
   }
 
-  function addDowntimeEntry() {
-    setForm(prev => ({ ...prev, downtime_entries: [...prev.downtime_entries, { minutes: 0, reason: '' }] }));
+  function addDt(k: ShiftKey) {
+    setDowntimes(prev => ({ ...prev, [k]: [...prev[k], { hours: '', minutes: '', reason: '' }] }));
+  }
+  function removeDt(k: ShiftKey, index: number) {
+    setDowntimes(prev => ({ ...prev, [k]: prev[k].filter((_, i) => i !== index) }));
+  }
+  function updateDt(k: ShiftKey, index: number, field: keyof DtEntry, value: string) {
+    setDowntimes(prev => ({ ...prev, [k]: prev[k].map((e, i) => i === index ? { ...e, [field]: value } : e) }));
   }
 
-  function removeDowntimeEntry(index: number) {
-    setForm(prev => ({ ...prev, downtime_entries: prev.downtime_entries.filter((_, i) => i !== index) }));
-  }
-
-  function updateDowntimeEntry(index: number, field: 'minutes' | 'reason', value: number | string) {
-    setForm(prev => ({
-      ...prev,
-      downtime_entries: prev.downtime_entries.map((e, i) => i === index ? { ...e, [field]: value } : e),
-    }));
-  }
+  const totalDowntimeMin = (Object.keys(downtimes) as ShiftKey[])
+    .reduce((s, k) => s + downtimes[k].reduce((ss, e) => ss + entryMinutes(e), 0), 0);
 
   async function handleSave() {
     if (!form.date) {
@@ -89,6 +114,11 @@ export default function DailyLogFormModal({ log, onClose, onSave }: Props) {
     }
     setSaving(true);
     setError('');
+
+    const dtDay = toShiftDowntimes(downtimes.day);
+    const dtAft = toShiftDowntimes(downtimes.afternoon);
+    const dtNight = toShiftDowntimes(downtimes.night);
+    const allDt = [...dtDay, ...dtAft, ...dtNight];
 
     const payload = {
       date: form.date,
@@ -113,13 +143,13 @@ export default function DailyLogFormModal({ log, onClose, onSave }: Props) {
       total_cycles: totalCycles,
       total_treated_kg: totalKg,
       chemical_litres: chemicalLitres,
-      downtime_minutes: form.downtime_entries.reduce((s, e) => s + (Number(e.minutes) || 0), 0),
-      downtime_reason: form.downtime_entries.length === 1
-        ? form.downtime_entries[0].reason
-        : form.downtime_entries
-            .filter(e => e.reason.trim() || Number(e.minutes) > 0)
-            .map(e => e.reason && Number(e.minutes) > 0 ? `${e.reason} (${e.minutes} min)` : e.reason || `${e.minutes} min`)
-            .join(' | '),
+      day_shift_downtimes: dtDay,
+      afternoon_shift_downtimes: dtAft,
+      night_shift_downtimes: dtNight,
+      downtime_minutes: allDt.reduce((s, e) => s + e.minutes, 0),
+      downtime_reason: allDt
+        .map(e => e.reason && e.minutes > 0 ? `${e.reason} (${fmtHM(e.minutes)})` : e.reason || fmtHM(e.minutes))
+        .join(' | '),
       notes: form.notes,
       updated_at: new Date().toISOString(),
     };
@@ -197,78 +227,77 @@ export default function DailyLogFormModal({ log, onClose, onSave }: Props) {
                     <ShiftInput label="Lids Washed" value={fv(`${s.key}_shift_lids_washed`)} onChange={v => update(`${s.key}_shift_lids_washed`, v)} />
                     <ShiftInput label="Wheelie Bins" value={fv(`${s.key}_shift_wheelie_bins`)} onChange={v => update(`${s.key}_shift_wheelie_bins`, v)} />
                   </div>
+
+                  {/* Downtime (per shift) */}
+                  <div className="pt-2 mt-1 border-t border-gray-200 space-y-1.5">
+                    <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-1">
+                      <AlertTriangle size={10} /> Downtime
+                    </p>
+                    {downtimes[s.key].map((entry, i) => (
+                      <div key={i} className="space-y-1">
+                        <div className="flex items-end gap-1">
+                          <div className="flex-1">
+                            <label className="block text-[10px] font-medium text-gray-500 mb-0.5">Hours</label>
+                            <input
+                              type="number" min="0"
+                              value={entry.hours}
+                              onChange={e => updateDt(s.key, i, 'hours', e.target.value)}
+                              placeholder="0"
+                              className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm text-center focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                            />
+                          </div>
+                          <div className="flex-1">
+                            <label className="block text-[10px] font-medium text-gray-500 mb-0.5">Mins</label>
+                            <input
+                              type="number" min="0" max="59"
+                              value={entry.minutes}
+                              onChange={e => updateDt(s.key, i, 'minutes', e.target.value)}
+                              placeholder="0"
+                              className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm text-center focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                            />
+                          </div>
+                          {downtimes[s.key].length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => removeDt(s.key, i)}
+                              className="mb-1 p-1 text-gray-400 hover:text-red-500 transition-colors flex-shrink-0"
+                            >
+                              <X size={12} />
+                            </button>
+                          )}
+                        </div>
+                        <input
+                          type="text"
+                          value={entry.reason}
+                          onChange={e => updateDt(s.key, i, 'reason', e.target.value)}
+                          placeholder="Reason"
+                          className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                        />
+                      </div>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => addDt(s.key)}
+                      className="flex items-center gap-1 text-[10px] font-medium text-cyan-600 hover:text-cyan-700 transition-colors"
+                    >
+                      <Plus size={11} /> add downtime
+                    </button>
+                  </div>
+
                   <SupervisorSelect value={sv(`${s.key}_shift_supervisor_id`)} supervisors={supervisors} onChange={v => update(`${s.key}_shift_supervisor_id`, v)} />
                 </div>
               ))}
             </div>
 
-            <div className="mt-4 pt-3 border-t border-gray-200 grid grid-cols-2 sm:grid-cols-5 gap-2 sm:gap-3 text-center">
+            <div className="mt-4 pt-3 border-t border-gray-200 grid grid-cols-3 sm:grid-cols-6 gap-2 sm:gap-3 text-center">
               <Stat label="Total Cycles" value={totalCycles} />
               <Stat label="Total Kg" value={totalKg} />
               <Stat label="Chemical (L)" value={chemicalLitres} sub="@ 27L/cycle" />
               <Stat label="RUC Washed" value={totalRuc} />
               <Stat label="Wheelie Bins" value={totalWheelie} />
+              <Stat label="Downtime" value={totalDowntimeMin > 0 ? fmtHM(totalDowntimeMin) : '0'} />
             </div>
           </div>
-        </div>
-
-        {/* Downtime */}
-        <div>
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-2">
-              <AlertTriangle size={14} /> Downtime
-            </h3>
-            <button
-              type="button"
-              onClick={addDowntimeEntry}
-              className="flex items-center gap-1 text-xs font-medium text-cyan-600 hover:text-cyan-700 transition-colors"
-            >
-              <Plus size={13} /> Add downtime
-            </button>
-          </div>
-          <div className="space-y-2">
-            {form.downtime_entries.map((entry, i) => (
-              <div key={i} className="grid grid-cols-1 sm:grid-cols-4 gap-2 sm:gap-3 items-end">
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Minutes</label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={entry.minutes || ''}
-                    onChange={e => updateDowntimeEntry(i, 'minutes', Number(e.target.value) || 0)}
-                    placeholder="0"
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                  />
-                </div>
-                <div className="sm:col-span-3 flex gap-2">
-                  <div className="flex-1">
-                    <label className="block text-xs font-medium text-gray-700 mb-1">Reason</label>
-                    <input
-                      type="text"
-                      value={entry.reason}
-                      onChange={e => updateDowntimeEntry(i, 'reason', e.target.value)}
-                      placeholder="e.g. Shredder clogged, No power, Waiting for RORO..."
-                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                    />
-                  </div>
-                  {form.downtime_entries.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => removeDowntimeEntry(i)}
-                      className="mb-px p-2 text-gray-400 hover:text-red-500 transition-colors flex-shrink-0 self-end"
-                    >
-                      <X size={14} />
-                    </button>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-          {form.downtime_entries.length > 1 && (
-            <p className="mt-2 text-xs text-gray-500">
-              Total downtime: <strong>{form.downtime_entries.reduce((s, e) => s + (Number(e.minutes) || 0), 0)} min</strong>
-            </p>
-          )}
         </div>
 
         {/* Notes */}
@@ -293,10 +322,10 @@ export default function DailyLogFormModal({ log, onClose, onSave }: Props) {
   );
 }
 
-function Stat({ label, value, sub }: { label: string; value: number; sub?: string }) {
+function Stat({ label, value, sub }: { label: string; value: number | string; sub?: string }) {
   return (
     <div>
-      <p className="text-base sm:text-lg font-bold text-gray-900">{value.toLocaleString('en-ZA', { maximumFractionDigits: 0 })}</p>
+      <p className="text-base sm:text-lg font-bold text-gray-900">{typeof value === 'number' ? value.toLocaleString('en-ZA', { maximumFractionDigits: 0 }) : value}</p>
       <p className="text-[11px] text-gray-500 leading-tight">{label}</p>
       {sub && <p className="text-[10px] text-gray-400 leading-tight">{sub}</p>}
     </div>

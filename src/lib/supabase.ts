@@ -153,6 +153,8 @@ export type InspectionInspector = {
   created_at: string;
 };
 
+export type ShiftDowntime = { minutes: number; reason: string };
+
 export type TreatmentDailyLog = {
   id: string;
   date: string;
@@ -176,6 +178,9 @@ export type TreatmentDailyLog = {
   chemical_litres: number;
   downtime_minutes: number;
   downtime_reason: string;
+  day_shift_downtimes: ShiftDowntime[];
+  afternoon_shift_downtimes: ShiftDowntime[];
+  night_shift_downtimes: ShiftDowntime[];
   supervisor_id: string | null;
   day_shift_supervisor_id: string | null;
   afternoon_shift_supervisor_id: string | null;
