@@ -10,6 +10,7 @@ import { PageHeader, Button, Toolbar, SearchInput, FilterTabs } from '../../comp
 import { ORDER_STATUSES } from './constants';
 import OrderFormModal from './OrderFormModal';
 import OrderDetailView from './OrderDetailView';
+import BulkDispatchBar from './BulkDispatchBar';
 
 type Tab = StockOrderStatus | 'All';
 const TABS: Tab[] = ['Open', 'Dispatched', 'Awaiting Confirmation', 'Completed', 'Cancelled', 'All'];
@@ -87,6 +88,8 @@ export default function StockOrders() {
     });
   }, [orders, tab, search]);
 
+  const openOrders = useMemo(() => orders.filter(o => o.status === 'Open'), [orders]);
+
   const selectedOrder = orders.find(o => o.id === selectedId) || null;
 
   if (selectedOrder) {
@@ -122,7 +125,11 @@ export default function StockOrders() {
         tabs={TABS.map(t => ({ value: t, label: t, count: counts[t] ?? 0 }))}
       />
 
-      <Toolbar>
+      <Toolbar
+        actions={tab === 'Open' && canWriteStock && openOrders.length > 0
+          ? <BulkDispatchBar openOrders={openOrders} clients={clients} sites={sites} onDispatched={load} />
+          : undefined}
+      >
         <SearchInput value={search} onChange={setSearch} placeholder="Search delivery note no, client, customer ref…" />
       </Toolbar>
 
