@@ -195,9 +195,12 @@ export default function OrderDetailView({ order, items, client, site, stockItems
               <p className="font-semibold text-gray-900 text-sm">{site?.generator_facility || order.site_name}</p>
               <div className="text-xs text-gray-500 mt-1 space-y-0.5">
                 <p>{order.client_name}</p>
-                {site && [site.site_code, site.province, site.generator_group].filter(Boolean).length > 0 && (
-                  <p>{[site.site_code, site.province, site.generator_group].filter(Boolean).join(' · ')}</p>
-                )}
+                {[
+                  site?.address_line_1,
+                  site?.address_line_2,
+                  site ? [site.address_line_3, site.postal_code].filter(Boolean).join(', ') : '',
+                  site ? [site.site_code, site.province].filter(Boolean).join(' · ') : '',
+                ].filter(l => l && l.trim() !== '').map((l, i) => <p key={i}>{l}</p>)}
               </div>
             </>
           ) : (

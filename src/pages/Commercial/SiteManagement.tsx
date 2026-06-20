@@ -11,6 +11,7 @@ import { ListView, type Column, type FilterDef } from '../../components/crm';
 import { fmtNum } from '../../components/crm/crmUtils';
 import SiteFormModal from './SiteFormModal';
 import SiteMergeModal from './SiteMergeModal';
+import SiteAddressQuickEdit, { type AddressPatch } from './SiteAddressQuickEdit';
 
 type SiteRow = ClientSite & { client_name: string; records: number; kg: number };
 
@@ -30,6 +31,7 @@ export default function SiteManagement() {
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState<'new' | ClientSite | null>(null);
   const [mergeRows, setMergeRows] = useState<ClientSite[] | null>(null);
+  const [addrEdit, setAddrEdit] = useState<SiteRow | null>(null);
 
   useEffect(() => { load(); }, []);
 
@@ -111,6 +113,26 @@ export default function SiteManagement() {
       exportValue: s => s.site_code,
     },
     {
+      key: 'address',
+      header: 'Address',
+      cell: s => {
+        const summary = [s.address_line_1, s.address_line_3, s.postal_code].filter(Boolean).join(', ');
+        if (!canEdit) return summary || <span className="text-gray-300">—</span>;
+        return (
+          <button
+            onClick={e => { e.stopPropagation(); setAddrEdit(s); }}
+            className={summary
+              ? 'text-left text-gray-700 hover:text-indigo-600 hover:underline'
+              : 'text-left text-xs font-medium text-indigo-500 hover:text-indigo-700'}
+          >
+            {summary || '+ Add address'}
+          </button>
+        );
+      },
+      sortValue: s => s.address_line_1,
+      exportValue: s => [s.address_line_1, s.address_line_2, s.address_line_3, s.postal_code].filter(Boolean).join(', '),
+    },
+    {
       key: 'records',
       header: 'Records',
       cell: s => fmtNum(s.records),
@@ -136,7 +158,7 @@ export default function SiteManagement() {
       exportValue: s => (s.active ? 'Active' : 'Inactive'),
       defaultHidden: true,
     },
-  ], []);
+  ], [canEdit]);
 
   // ── filters ───────────────────────────────────────────────────────────────
   const accountOptions = useMemo(
@@ -182,6 +204,12 @@ export default function SiteManagement() {
     setMergeRows(rows);
   }
 
+  function handleAddrSaved(patch: AddressPatch) {
+    if (!addrEdit) return;
+    setSites(prev => prev.map(s => (s.id === addrEdit.id ? { ...s, ...patch } : s)));
+    setAddrEdit(null);
+  }
+
   return (
     <div className="space-y-5">
       <SectionTabs tabs={CLIENT_TABS} />
@@ -224,6 +252,14 @@ export default function SiteManagement() {
           stats={statsById}
           onClose={() => setMergeRows(null)}
           onMerged={() => { setMergeRows(null); load(); }}
+        />
+      )}
+
+      {addrEdit && (
+        <SiteAddressQuickEdit
+          site={addrEdit}
+          onClose={() => setAddrEdit(null)}
+          onSaved={handleAddrSaved}
         />
       )}
     </div>

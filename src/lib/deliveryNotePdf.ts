@@ -83,8 +83,10 @@ function deliverToLines(p: DeliveryNotePage): string[] {
   const siteLines = [
     site?.generator_facility || order.site_name,
     order.client_name,
+    site?.address_line_1,
+    site?.address_line_2,
+    site ? [site.address_line_3, site.postal_code].filter(Boolean).join(', ') : '',
     site ? [site.site_code, site.province].filter(Boolean).join(', ') : '',
-    site?.generator_group,
   ];
   const clientLines = [
     order.client_name,

@@ -148,6 +148,11 @@ export default function SiteView() {
             { key: 'generator_group', label: 'Generator Group', value: site.generator_group },
             { key: 'site_code', label: 'Site Code', value: site.site_code },
             { key: 'active', label: 'Active', value: site.active, type: 'checkbox' },
+            { key: 'address_line_1', label: 'Address Line 1', value: site.address_line_1, full: true },
+            { key: 'address_line_2', label: 'Address Line 2', value: site.address_line_2, full: true },
+            { key: 'address_line_3', label: 'City / Town', value: site.address_line_3 },
+            { key: 'postal_code', label: 'Postal Code', value: site.postal_code },
+            { key: 'province', label: 'Province', value: site.province },
           ]}
           onSave={handleDetailSave}
         />

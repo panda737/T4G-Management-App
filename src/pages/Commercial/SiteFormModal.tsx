@@ -21,20 +21,41 @@ export default function SiteFormModal({ site, lockedClientId, onClose, onSave }:
     generator_group: site?.generator_group ?? '',
     site_code: site?.site_code ?? '',
     province: site?.province ?? '',
+    address_line_1: site?.address_line_1 ?? '',
+    address_line_2: site?.address_line_2 ?? '',
+    address_line_3: site?.address_line_3 ?? '',
+    postal_code: site?.postal_code ?? '',
     active: site?.active ?? true,
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (!lockedClientId) {
-      supabase.from('clients').select('id, client_name').order('client_name')
-        .then(({ data }) => setClients((data ?? []) as Client[]));
-    }
-  }, [lockedClientId]);
+    supabase.from('clients')
+      .select('id, client_name, address_line_1, address_line_2, address_line_3, postal_code')
+      .order('client_name')
+      .then(({ data }) => setClients((data ?? []) as Client[]));
+  }, []);
 
   function set<K extends keyof typeof form>(field: K, value: (typeof form)[K]) {
     setForm(prev => ({ ...prev, [field]: value }));
+  }
+
+  const selectedClient = clients.find(c => c.id === form.client_id);
+  const clientHasAddress = !!selectedClient && [
+    selectedClient.address_line_1, selectedClient.address_line_2,
+    selectedClient.address_line_3, selectedClient.postal_code,
+  ].some(v => v && v.trim() !== '');
+
+  function copyFromAccount() {
+    if (!selectedClient) return;
+    setForm(prev => ({
+      ...prev,
+      address_line_1: selectedClient.address_line_1 ?? '',
+      address_line_2: selectedClient.address_line_2 ?? '',
+      address_line_3: selectedClient.address_line_3 ?? '',
+      postal_code: selectedClient.postal_code ?? '',
+    }));
   }
 
   async function handleSave() {
@@ -110,6 +131,40 @@ export default function SiteFormModal({ site, lockedClientId, onClose, onSave }:
             <div>
               <label className="block text-xs font-medium text-gray-700 mb-1">Province</label>
               <input value={form.province} onChange={e => set('province', e.target.value)} className={inputCls} placeholder="e.g. Gauteng" />
+            </div>
+          </div>
+        </div>
+
+        {/* Address */}
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Address</h4>
+            {clientHasAddress && (
+              <button
+                type="button"
+                onClick={copyFromAccount}
+                className="text-xs font-medium text-indigo-600 hover:text-indigo-700"
+              >
+                Copy from account
+              </button>
+            )}
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="col-span-2">
+              <label className="block text-xs font-medium text-gray-700 mb-1">Address line 1</label>
+              <input value={form.address_line_1} onChange={e => set('address_line_1', e.target.value)} className={inputCls} placeholder="Street address" />
+            </div>
+            <div className="col-span-2">
+              <label className="block text-xs font-medium text-gray-700 mb-1">Address line 2</label>
+              <input value={form.address_line_2} onChange={e => set('address_line_2', e.target.value)} className={inputCls} placeholder="Suburb / area (optional)" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Address line 3</label>
+              <input value={form.address_line_3} onChange={e => set('address_line_3', e.target.value)} className={inputCls} placeholder="City / town" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Postal code</label>
+              <input value={form.postal_code} onChange={e => set('postal_code', e.target.value)} className={inputCls} placeholder="e.g. 2191" />
             </div>
           </div>
         </div>

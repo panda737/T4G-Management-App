@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { Download, FileBarChart, ArrowDownToLine, ArrowUpFromLine, Truck, FileDown } from 'lucide-react';
-import { supabase, StockOrder, StockOrderItem, Client } from '../../lib/supabase';
+import { supabase, StockOrder, StockOrderItem, Client, type ClientSite } from '../../lib/supabase';
 import { useToast } from '../../lib/toast';
 import { exportToXlsx } from '../../lib/xlsxExport';
 import { deliveryNotesToBlob } from '../../lib/deliveryNotePdf';
@@ -19,6 +19,7 @@ export default function FinanceReport() {
   const [completedOrders, setCompletedOrders] = useState<StockOrder[]>([]);
   const [orderItems, setOrderItems] = useState<Record<string, StockOrderItem[]>>({});
   const [clients, setClients] = useState<Client[]>([]);
+  const [sites, setSites] = useState<ClientSite[]>([]);
   const [loading, setLoading] = useState(true);
   const [downloading, setDownloading] = useState(false);
 
@@ -27,7 +28,7 @@ export default function FinanceReport() {
     const dayStart = new Date(`${date}T00:00:00`).toISOString();
     const dayEnd = new Date(new Date(`${date}T00:00:00`).getTime() + 24 * 60 * 60 * 1000).toISOString();
 
-    const [movRes, ordersRes, clientsRes] = await Promise.all([
+    const [movRes, ordersRes, clientsRes, sitesRes] = await Promise.all([
       supabase.from('stock_movements')
         .select('*, stock_items(stock_item, description, current_quantity)')
         .gte('movement_date', dayStart)
@@ -40,12 +41,14 @@ export default function FinanceReport() {
         .lt('confirmed_at', dayEnd)
         .order('confirmed_at'),
       supabase.from('clients').select('*'),
+      supabase.from('client_sites').select('*'),
     ]);
 
     const orders: StockOrder[] = ordersRes.data || [];
     setMovements(movRes.data || []);
     setCompletedOrders(orders);
     setClients(clientsRes.data || []);
+    setSites((sitesRes.data || []) as ClientSite[]);
 
     if (orders.length > 0) {
       const { data: itemsData } = await supabase
@@ -129,7 +132,7 @@ export default function FinanceReport() {
         copyLabel: 'FINANCE COPY',
         showDelivered: true,
         client: clients.find(c => c.id === o.client_id) || null,
-        site: null,
+        site: (o.site_id && sites.find(s => s.id === o.site_id)) || null,
       })));
       zip.file(`Delivery-Notes-${date}.pdf`, pdfBlob);
 

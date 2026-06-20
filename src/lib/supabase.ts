@@ -842,6 +842,10 @@ export type ClientSite = {
   generator_facility: string;
   site_code: string;
   province: string;
+  address_line_1: string;
+  address_line_2: string;
+  address_line_3: string;
+  postal_code: string;
   active: boolean;
   created_at: string;
   updated_at: string;
