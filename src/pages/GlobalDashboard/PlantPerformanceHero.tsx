@@ -1,20 +1,26 @@
 import { useNavigate } from 'react-router-dom';
 import { Factory, CheckCircle, AlertCircle, ArrowRight } from 'lucide-react';
+import type { Washing } from './constants';
 
 export interface YesterdayLog {
   kg: number; cycles: number; chemicalLitres: number; downtimeMinutes: number;
   dayShiftCycles: number; dayShiftKg: number;
   afternoonShiftCycles: number; afternoonShiftKg: number;
   nightShiftCycles: number; nightShiftKg: number;
+  washing: Washing;
 }
 
 interface PlantPerformanceHeroProps {
   yesterdayLog: YesterdayLog | null;
   treatmentToday: { kg: number; cycles: number };
   yesterdayLabel: string;
+  monthWashing: Washing;
 }
 
-export default function PlantPerformanceHero({ yesterdayLog, treatmentToday, yesterdayLabel }: PlantPerformanceHeroProps) {
+const fmtWash = (w: Washing) => `RUC ${w.ruc.toLocaleString()} · Lids ${w.lids.toLocaleString()} · Bins ${w.bins.toLocaleString()}`;
+const hasWash = (w: Washing) => w.ruc > 0 || w.lids > 0 || w.bins > 0;
+
+export default function PlantPerformanceHero({ yesterdayLog, treatmentToday, yesterdayLabel, monthWashing }: PlantPerformanceHeroProps) {
   const navigate = useNavigate();
   const todaySubmitted = treatmentToday.cycles > 0 || treatmentToday.kg > 0;
   const hasYesterdayData = yesterdayLog && (yesterdayLog.kg > 0 || yesterdayLog.cycles > 0);
@@ -59,9 +65,18 @@ export default function PlantPerformanceHero({ yesterdayLog, treatmentToday, yes
                   <span className="text-emerald-600 font-medium">No downtime</span>
                 )}
               </div>
+              {hasWash(yesterdayLog!.washing) && (
+                <p className="text-xs text-gray-500 mt-1.5">Washed: <strong className="text-gray-700">{fmtWash(yesterdayLog!.washing)}</strong></p>
+              )}
             </>
           ) : (
             <p className="text-sm text-gray-400">No log recorded for yesterday.</p>
+          )}
+
+          {hasWash(monthWashing) && (
+            <p className="text-xs text-gray-400 mt-3 pt-3 border-t border-gray-100">
+              This month washed: <strong className="text-gray-600">{fmtWash(monthWashing)}</strong>
+            </p>
           )}
         </div>
 

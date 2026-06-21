@@ -3,8 +3,9 @@ import { Package, Factory, ShieldCheck, ShieldAlert, Users, RefreshCw } from 'lu
 import { PageSpinner } from '../../components/Spinner';
 import DashboardError from '../../components/DashboardError';
 import { supabase } from '../../lib/supabase';
+import type { LogisticsVehicle } from '../../lib/supabase';
 import { usePageTitle } from '../../lib/usePageTitle';
-import type { MonthlyTreatment, RecentMovement, UpcomingEvent } from './constants';
+import type { MonthlyTreatment, RecentMovement, UpcomingEvent, Washing, ComplianceItem } from './constants';
 import { KpiCard } from './DashboardStatCards';
 import TreatmentPanel from './TreatmentPanel';
 import { SafetyPanel, TrainingPanel } from './SafetyTrainingPanels';
@@ -13,6 +14,7 @@ import AlertBanner from './AlertBanner';
 import PlantPerformanceHero, { type YesterdayLog } from './PlantPerformanceHero';
 import StockAlertsWidget, { type StockAlertItem } from './StockAlertsWidget';
 import UpcomingEventsWidget from './UpcomingEventsWidget';
+import ComplianceExpiriesWidget from './ComplianceExpiriesWidget';
 
 export default function GlobalDashboard() {
   usePageTitle('Dashboard');
@@ -34,18 +36,23 @@ export default function GlobalDashboard() {
   const [outOfStockItems, setOutOfStockItems] = useState<StockAlertItem[]>([]);
   const [belowMinItems, setBelowMinItems] = useState<StockAlertItem[]>([]);
   const [upcomingEvents, setUpcomingEvents] = useState<UpcomingEvent[]>([]);
+  const [monthWashing, setMonthWashing] = useState<Washing>({ ruc: 0, lids: 0, bins: 0 });
+  const [complianceItems, setComplianceItems] = useState<ComplianceItem[]>([]);
+  const [complianceExpiring7d, setComplianceExpiring7d] = useState(0);
   const [lastFetched, setLastFetched] = useState<Date | null>(null);
 
   useEffect(() => { loadData(); }, []);
 
   useEffect(() => {
-    const t = setInterval(() => setLastFetched(d => d ? new Date(d) : d), 60000);
-    return () => clearInterval(t);
+    // Keep the "updated X mins ago" label fresh between refreshes.
+    const label = setInterval(() => setLastFetched(d => d ? new Date(d) : d), 60000);
+    // Silently refetch the dashboard data every 5 minutes (no spinner flash).
+    const refresh = setInterval(() => loadData(true), 5 * 60000);
+    return () => { clearInterval(label); clearInterval(refresh); };
   }, []);
 
-  async function loadData() {
-    setLoading(true);
-    setError('');
+  async function loadData(silent = false) {
+    if (!silent) { setLoading(true); setError(''); }
     try {
     const now = new Date();
     const todayStr = now.toISOString().split('T')[0];
@@ -60,12 +67,12 @@ export default function GlobalDashboard() {
     const [
       itemsRes, recentMovRes, empRes, treatAllRes,
       incidentsRes, actionsRes, drillsRes, inspectionsRes,
-      coursesRes, certsRes, scheduleRes,
+      coursesRes, certsRes, scheduleRes, vehiclesRes, driversRes,
     ] = await Promise.all([
       supabase.from('stock_items').select('id, stock_code, stock_item, category, current_quantity, minimum_stock_level').eq('active', true),
       supabase.from('stock_movements').select('id, movement_type, quantity, movement_date, stock_items(stock_item)').order('created_at', { ascending: false }).limit(6),
       supabase.from('employees').select('id', { count: 'exact' }).eq('status', 'active'),
-      supabase.from('treatment_daily_log').select('date, total_cycles, total_treated_kg, chemical_litres, downtime_minutes, day_shift_cycles, day_shift_treated_kg, afternoon_shift_cycles, afternoon_shift_treated_kg, night_shift_cycles, night_shift_treated_kg').gte('date', twelveMonthsAgo),
+      supabase.from('treatment_daily_log').select('date, total_cycles, total_treated_kg, chemical_litres, downtime_minutes, day_shift_cycles, day_shift_treated_kg, afternoon_shift_cycles, afternoon_shift_treated_kg, night_shift_cycles, night_shift_treated_kg, day_shift_ruc_washed, day_shift_lids_washed, day_shift_wheelie_bins, afternoon_shift_ruc_washed, afternoon_shift_lids_washed, afternoon_shift_wheelie_bins, night_shift_ruc_washed, night_shift_lids_washed, night_shift_wheelie_bins').gte('date', twelveMonthsAgo),
       supabase.from('safety_incidents').select('id, status, incident_type, severity'),
       supabase.from('safety_corrective_actions').select('id, status, due_date'),
       supabase.from('safety_emergency_drills').select('id, status, drill_date, drill_type'),
@@ -73,12 +80,14 @@ export default function GlobalDashboard() {
       supabase.from('training_courses').select('id').eq('status', 'Active'),
       supabase.from('training_certificates').select('id, status, expiry_date, employee_name, course_name'),
       supabase.from('training_schedule').select('id, status, scheduled_date, course_name'),
+      supabase.from('logistics_vehicles').select('id, registration, fleet_number, status, licence_disc_expiry, roadworthy_expiry, transport_permit_expiry, insurance_expiry'),
+      supabase.from('logistics_driver_compliance').select('id, licence_expiry, prdp_expiry, medical_expiry, dg_training_expiry, employees(first_name, surname)'),
     ]);
 
     const firstErr = [
       itemsRes, recentMovRes, empRes, treatAllRes,
       incidentsRes, actionsRes, drillsRes, inspectionsRes,
-      coursesRes, certsRes, scheduleRes,
+      coursesRes, certsRes, scheduleRes, vehiclesRes, driversRes,
     ].find(r => r.error)?.error;
     if (firstErr) throw new Error(firstErr.message);
 
@@ -105,12 +114,18 @@ export default function GlobalDashboard() {
       day_shift_cycles: number; day_shift_treated_kg: number;
       afternoon_shift_cycles: number; afternoon_shift_treated_kg: number;
       night_shift_cycles: number; night_shift_treated_kg: number;
+      day_shift_ruc_washed: number; day_shift_lids_washed: number; day_shift_wheelie_bins: number;
+      afternoon_shift_ruc_washed: number; afternoon_shift_lids_washed: number; afternoon_shift_wheelie_bins: number;
+      night_shift_ruc_washed: number; night_shift_lids_washed: number; night_shift_wheelie_bins: number;
     };
     const treatLogs = (treatAllRes.data || []) as TreatLog[];
-    const monthMap = new Map<string, { kg: number; cycles: number; activeDays: number; chemicalLitres: number; downtimeMinutes: number }>();
+    const rucOf = (l: TreatLog) => Number(l.day_shift_ruc_washed) + Number(l.afternoon_shift_ruc_washed) + Number(l.night_shift_ruc_washed);
+    const lidsOf = (l: TreatLog) => Number(l.day_shift_lids_washed) + Number(l.afternoon_shift_lids_washed) + Number(l.night_shift_lids_washed);
+    const binsOf = (l: TreatLog) => Number(l.day_shift_wheelie_bins) + Number(l.afternoon_shift_wheelie_bins) + Number(l.night_shift_wheelie_bins);
+    const monthMap = new Map<string, { kg: number; cycles: number; activeDays: number; chemicalLitres: number; downtimeMinutes: number; rucWashed: number; lidsWashed: number; binsWashed: number }>();
     treatLogs.forEach(l => {
       const m = l.date.substring(0, 7);
-      const ex = monthMap.get(m) || { kg: 0, cycles: 0, activeDays: 0, chemicalLitres: 0, downtimeMinutes: 0 };
+      const ex = monthMap.get(m) || { kg: 0, cycles: 0, activeDays: 0, chemicalLitres: 0, downtimeMinutes: 0, rucWashed: 0, lidsWashed: 0, binsWashed: 0 };
       const kg = Number(l.total_treated_kg);
       const cycles = Number(l.total_cycles);
       monthMap.set(m, {
@@ -119,12 +134,21 @@ export default function GlobalDashboard() {
         activeDays: ex.activeDays + (cycles > 0 ? 1 : 0),
         chemicalLitres: ex.chemicalLitres + Number(l.chemical_litres),
         downtimeMinutes: ex.downtimeMinutes + Number(l.downtime_minutes),
+        rucWashed: ex.rucWashed + rucOf(l),
+        lidsWashed: ex.lidsWashed + lidsOf(l),
+        binsWashed: ex.binsWashed + binsOf(l),
       });
     });
     const months: MonthlyTreatment[] = Array.from(monthMap.entries())
       .map(([month, v]) => ({ month, label: new Date(month + '-01').toLocaleString('en-ZA', { month: 'short' }), ...v }))
       .sort((a, b) => a.month.localeCompare(b.month));
     setTreatmentMonths(months);
+
+    const curMonthKey = todayStr.substring(0, 7);
+    const curMonth = monthMap.get(curMonthKey);
+    setMonthWashing(curMonth
+      ? { ruc: curMonth.rucWashed, lids: curMonth.lidsWashed, bins: curMonth.binsWashed }
+      : { ruc: 0, lids: 0, bins: 0 });
 
     const todayLog = treatLogs.find(l => l.date === todayStr);
     setTreatmentToday({ kg: todayLog ? Number(todayLog.total_treated_kg) : 0, cycles: todayLog ? Number(todayLog.total_cycles) : 0 });
@@ -141,6 +165,7 @@ export default function GlobalDashboard() {
       afternoonShiftKg: Number(yLog.afternoon_shift_treated_kg),
       nightShiftCycles: Number(yLog.night_shift_cycles),
       nightShiftKg: Number(yLog.night_shift_treated_kg),
+      washing: { ruc: rucOf(yLog), lids: lidsOf(yLog), bins: binsOf(yLog) },
     } : null);
 
     // Safety
@@ -218,11 +243,47 @@ export default function GlobalDashboard() {
     events.sort((a, b) => a.date.localeCompare(b.date));
     setUpcomingEvents(events);
 
+    // Logistics compliance — vehicle papers + driver docs expired or expiring within 30 days.
+    type VehicleRow = Pick<LogisticsVehicle, 'id' | 'registration' | 'fleet_number' | 'status' | 'licence_disc_expiry' | 'roadworthy_expiry' | 'transport_permit_expiry' | 'insurance_expiry'>;
+    type DriverEmp = { first_name: string; surname: string };
+    type DriverRow = {
+      id: string;
+      licence_expiry: string | null; prdp_expiry: string | null;
+      medical_expiry: string | null; dg_training_expiry: string | null;
+      employees: DriverEmp | DriverEmp[] | null;
+    };
+    const vehicles = (vehiclesRes.data || []) as VehicleRow[];
+    const driverRows = (driversRes.data || []) as unknown as DriverRow[];
+    const compItems: ComplianceItem[] = [];
+    const addExpiry = (kind: 'vehicle' | 'driver', id: string, subject: string, docType: string, expiry: string | null) => {
+      if (!expiry) return;
+      const daysLeft = Math.floor((new Date(expiry + 'T00:00:00').getTime() - new Date(todayStr + 'T00:00:00').getTime()) / 86400000);
+      if (daysLeft <= 30) compItems.push({ id: `${id}-${docType}`, kind, subject, docType, expiryDate: expiry, daysLeft });
+    };
+    vehicles.filter(v => v.status !== 'Decommissioned').forEach(v => {
+      const subj = v.registration || v.fleet_number || 'Vehicle';
+      addExpiry('vehicle', v.id, subj, 'Licence disc', v.licence_disc_expiry);
+      addExpiry('vehicle', v.id, subj, 'Roadworthy', v.roadworthy_expiry);
+      addExpiry('vehicle', v.id, subj, 'Transport permit', v.transport_permit_expiry);
+      addExpiry('vehicle', v.id, subj, 'Insurance', v.insurance_expiry);
+    });
+    driverRows.forEach(d => {
+      const emp = Array.isArray(d.employees) ? d.employees[0] : d.employees;
+      const subj = emp ? `${emp.first_name} ${emp.surname}` : 'Driver';
+      addExpiry('driver', d.id, subj, 'Licence', d.licence_expiry);
+      addExpiry('driver', d.id, subj, 'PrDP', d.prdp_expiry);
+      addExpiry('driver', d.id, subj, 'Medical', d.medical_expiry);
+      addExpiry('driver', d.id, subj, 'DG training', d.dg_training_expiry);
+    });
+    compItems.sort((a, b) => a.daysLeft - b.daysLeft);
+    setComplianceItems(compItems);
+    setComplianceExpiring7d(compItems.filter(i => i.daysLeft <= 7).length);
+
     setLastFetched(new Date());
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to load dashboard');
+      if (!silent) setError(e instanceof Error ? e.message : 'Failed to load dashboard');
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }
 
@@ -272,7 +333,7 @@ export default function GlobalDashboard() {
           {lastFetched && (
             <span className="text-xs text-gray-400 flex items-center gap-1.5">
               · Updated {timeSince(lastFetched)}
-              <button onClick={loadData} title="Refresh" className="text-gray-400 hover:text-gray-600 transition-colors">
+              <button onClick={() => loadData()} title="Refresh" className="text-gray-400 hover:text-gray-600 transition-colors">
                 <RefreshCw size={12} />
               </button>
             </span>
@@ -286,6 +347,7 @@ export default function GlobalDashboard() {
         overdueActions={safetyStats.overdueActions}
         outOfStockCount={outOfStockItems.length}
         expiringCertsCount={expiringCerts7dCount}
+        complianceExpiringCount={complianceExpiring7d}
       />
 
       {/* Plant Performance Hero */}
@@ -293,6 +355,7 @@ export default function GlobalDashboard() {
         yesterdayLog={yesterdayLog}
         treatmentToday={treatmentToday}
         yesterdayLabel={yesterdayLabel}
+        monthWashing={monthWashing}
       />
 
       {/* KPI Strip */}
@@ -360,11 +423,14 @@ export default function GlobalDashboard() {
         />
       </div>
 
-      {/* Activity */}
+      {/* Activity + Fleet compliance */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <RecentMovementsPanel recentMovements={recentMovements} />
-        <QuickActionsPanel />
+        <ComplianceExpiriesWidget items={complianceItems} />
       </div>
+
+      {/* Quick actions footer */}
+      <QuickActionsPanel />
     </div>
   );
 }
