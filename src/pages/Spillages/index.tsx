@@ -107,7 +107,7 @@ export default function Spillages() {
       <Toolbar>
         <SearchInput value={searchTerm} onChange={setSearchTerm} placeholder="Search spillages…" />
         <FilterSelect value={partyFilter} onChange={setPartyFilter} accent="amber">
-          <option value="All">All Teams</option>
+          <option value="All">All Clients</option>
           {SPILLAGE_PARTIES.map(p => <option key={p} value={p}>{p}</option>)}
         </FilterSelect>
         <FilterSelect value={typeFilter} onChange={setTypeFilter} accent="amber">
@@ -140,7 +140,7 @@ export default function Spillages() {
               <table className="w-full">
                 <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>
-                    {['Spillage #', 'Date', 'Team', 'Type', 'Location', 'Reported By', 'Photo', 'Actions'].map(h => (
+                    {['Spillage #', 'Date', 'Client', 'Type', 'Location', 'Reported By', 'Photo', 'Actions'].map(h => (
                       <th key={h} className="px-4 py-3 text-left text-sm font-semibold text-gray-700">{h}</th>
                     ))}
                   </tr>

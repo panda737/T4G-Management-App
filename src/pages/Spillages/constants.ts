@@ -1,4 +1,5 @@
-// Whose waste the spillage belongs to. Fixed list — the team picks one.
+// The third-party client whose waste the spillage belongs to. Fixed list —
+// our team reports the spill against one of these clients.
 export const SPILLAGE_PARTIES = [
   'Tshenolo',
   'Phuting',

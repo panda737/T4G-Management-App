@@ -51,8 +51,8 @@ export default function TopicLibraryPicker({
           const lastUsed = lastUsedByTopic.get(topic.title);
           return (
             <button key={topic.id} onClick={() => onSelect(topic)} className={`w-full text-left px-4 py-3 border rounded-lg transition ${topic.is_suggested ? 'bg-emerald-50 border-emerald-300 ring-1 ring-emerald-200 hover:bg-emerald-100' : 'bg-white border-gray-200 hover:bg-sky-50 hover:border-sky-200'}`}>
-              <div className="flex items-start justify-between gap-2">
-                <p className="text-sm font-semibold text-gray-900 flex-1">
+              <div className="flex flex-wrap items-start justify-between gap-x-2 gap-y-1.5">
+                <p className="text-sm font-semibold text-gray-900 flex-1 min-w-0">
                   {topic.is_suggested && (
                     <span className="mr-1.5 align-middle text-[10px] font-bold text-white bg-emerald-600 rounded px-1.5 py-0.5">
                       SUGGESTED{suggestedProgress?.id === topic.id ? ` ${suggestedProgress.done}/${suggestedProgress.required}` : ''}
@@ -84,7 +84,7 @@ export default function TopicLibraryPicker({
                   )}
                 </div>
               </div>
-              <div className="flex gap-2 mt-1">
+              <div className="flex flex-wrap gap-2 mt-1">
                 <span className="px-1.5 py-0.5 text-[10px] font-medium rounded bg-sky-100 text-sky-700">{topic.category}</span>
                 <span className="px-1.5 py-0.5 text-[10px] font-medium rounded bg-gray-100 text-gray-600">{topic.subcategory}</span>
               </div>

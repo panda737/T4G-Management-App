@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
   Users, Plus, Eye, Trash2, Calendar, AlertCircle,
-  ClipboardList, Library, Paperclip, X as XIcon,
+  ClipboardList, Library, Paperclip, X as XIcon, PenLine, RotateCcw,
 } from 'lucide-react';
 import { useToast } from '../../lib/toast';
 import { usePageTitle } from '../../lib/usePageTitle';
@@ -12,17 +12,17 @@ import { Spinner } from '../../components/Spinner';
 import { supabase, SafetyToolboxTalk, ToolboxTalkTopic } from '../../lib/supabase';
 import Modal from '../../components/Modal';
 import AttendanceRegister from '../../components/AttendanceRegister';
-import EmployeeSelect from '../../components/EmployeeSelect';
 import EmployeeMultiSelect from '../../components/EmployeeMultiSelect';
+import SignaturePad from '../../components/SignaturePad';
 import { generateSequentialNumber } from '../../lib/numberGenerator';
-import { PRESENTER_POSITIONS, EMPTY_FORM, type FormData, type Tab } from './constants';
+import { EMPTY_FORM, type FormData, type Tab } from './constants';
 import TopicLibraryView from './TopicLibraryView';
 import TopicLibraryPicker from './TopicLibraryPicker';
 import TopicFormModal from './TopicFormModal';
 
 export default function SafetyToolboxTalks() {
   usePageTitle('Safety — Toolbox Talks');
-  const { isAdmin, isManagement } = useUser();
+  const { isAdmin, isManagement, profile } = useUser();
   const canDelete = isAdmin || isManagement;
   const canManage = isAdmin || isManagement;
   const [talks, setTalks] = useState<SafetyToolboxTalk[]>([]);
@@ -48,6 +48,8 @@ export default function SafetyToolboxTalks() {
   const [deleting, setDeleting] = useState(false);
   const [showTopicForm, setShowTopicForm] = useState(false);
   const [editTopic, setEditTopic] = useState<ToolboxTalkTopic | null>(null);
+  const [talkSignature, setTalkSignature] = useState<string | null>(null);
+  const [showSignaturePad, setShowSignaturePad] = useState(false);
 
   useEffect(() => { loadData(); }, []);
   useEffect(() => { filterTalks(); }, [talks, searchTerm, monthFilter, sortConfig]);
@@ -88,6 +90,7 @@ export default function SafetyToolboxTalks() {
 
   async function handleSave() {
     if (!formData.topic?.trim()) { setOpError('Please choose a topic from the library.'); return; }
+    if (!talkSignature) { setOpError('Please sign the talk before saving.'); return; }
     setOpError('');
     const talk_number = await generateSequentialNumber('safety_toolbox_talks', 'talk_number', 'TBT');
 
@@ -120,6 +123,12 @@ export default function SafetyToolboxTalks() {
       .insert([{
         ...rest,
         talk_number,
+        // The presenter is always the logged-in person recording the talk, and
+        // they sign it off here — making it a signed, locked record.
+        presented_by: profile?.display_name ?? '',
+        presented_by_id: profile?.employee_id ?? null,
+        signature_data: talkSignature,
+        signed_at: new Date().toISOString(),
         attendee_count: selected_attendee_ids.length,
         attendees: attendeeNames,
         attachment_path,
@@ -196,6 +205,8 @@ export default function SafetyToolboxTalks() {
 
   function resetForm() {
     setFormData({ ...EMPTY_FORM, talk_date: new Date().toISOString().split('T')[0] });
+    setTalkSignature(null);
+    setShowSignaturePad(false);
   }
 
   async function downloadAttachment(talk: SafetyToolboxTalk) {
@@ -319,7 +330,6 @@ export default function SafetyToolboxTalks() {
         accent="amber"
         actions={
           <>
-            <Button variant="secondary" accent="amber" icon={Library} onClick={() => { setSelectedCategory(''); setSelectedSubcategory(''); setLibrarySearch(''); setShowLibraryModal(true); }}>Topic Library</Button>
             {canManage && <Button variant="secondary" accent="amber" icon={Plus} onClick={openAddTopic}>Add Talk</Button>}
             <Button variant="primary" accent="amber" icon={Plus} onClick={openAddModal}>Record Talk</Button>
           </>
@@ -339,9 +349,9 @@ export default function SafetyToolboxTalks() {
           <>
             <Toolbar>
               <SearchInput value={searchTerm} onChange={setSearchTerm} placeholder="Search by topic, presenter…" />
-              <div className="relative">
+              <div className="relative w-full sm:w-auto">
                 <Calendar size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                <input type="month" value={monthFilter} onChange={e => setMonthFilter(e.target.value)} className={`pl-10 pr-3 py-2 text-sm border rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 ${monthFilter ? 'border-amber-300 text-amber-700' : 'border-gray-200 text-gray-600'}`} />
+                <input type="month" value={monthFilter} onChange={e => setMonthFilter(e.target.value)} className={`w-full sm:w-auto pl-10 pr-3 py-2 text-sm border rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 ${monthFilter ? 'border-amber-300 text-amber-700' : 'border-gray-200 text-gray-600'}`} />
               </div>
             </Toolbar>
 
@@ -485,17 +495,21 @@ export default function SafetyToolboxTalks() {
               )}
             </div>
             <div className="col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Description / Talking Points</label>
-              <textarea value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} rows={5} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500" />
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Description / Talking Points <span className="text-gray-400 font-normal text-xs">(loaded from the topic)</span>
+              </label>
+              {formData.description ? (
+                <div className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-sm text-gray-700 whitespace-pre-wrap max-h-48 overflow-y-auto">{formData.description}</div>
+              ) : (
+                <p className="px-3 py-3 border border-dashed border-gray-200 rounded-lg text-sm text-gray-400">Choose a topic above to load its talking points.</p>
+              )}
             </div>
             <div>
-              <EmployeeSelect
-                label="Presented By"
-                value={formData.presented_by_id}
-                displayValue={formData.presented_by}
-                onChange={(id, name) => setFormData({ ...formData, presented_by_id: id, presented_by: name })}
-                positionFilter={PRESENTER_POSITIONS}
-              />
+              <label className="block text-sm font-medium text-gray-700 mb-1">Presented By</label>
+              <div className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-sm text-gray-700">
+                {profile?.display_name || 'You'}
+              </div>
+              <p className="text-xs text-gray-400 mt-1">Recorded as you.</p>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Duration (minutes)</label>
@@ -545,8 +559,42 @@ export default function SafetyToolboxTalks() {
                 <textarea value={formData.follow_up_notes} onChange={e => setFormData({ ...formData, follow_up_notes: e.target.value })} rows={2} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500" />
               </div>
             )}
+
+            <div className="col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Presenter Signature <span className="text-red-400 font-normal text-xs">(required — {profile?.display_name || 'you'})</span>
+              </label>
+              {talkSignature ? (
+                <div className="space-y-2">
+                  <div className="border border-gray-200 rounded-lg overflow-hidden bg-white">
+                    <img src={talkSignature} alt="Signature" className="w-full h-24 object-contain" />
+                  </div>
+                  <button type="button" onClick={() => setShowSignaturePad(true)} className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-700 transition">
+                    <RotateCcw size={11} /> Re-sign
+                  </button>
+                </div>
+              ) : (
+                <button type="button" onClick={() => setShowSignaturePad(true)} className="w-full flex items-center justify-center gap-2 border-2 border-dashed border-gray-300 hover:border-emerald-400 rounded-xl py-6 text-sm text-gray-400 hover:text-emerald-600 transition">
+                  <PenLine size={16} /> Tap to sign as presenter
+                </button>
+              )}
+            </div>
           </div>
         </Modal>
+      )}
+
+      {showAddModal && showSignaturePad && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-5">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setShowSignaturePad(false)} />
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm p-5 space-y-3">
+            <h3 className="text-base font-semibold text-gray-900 text-center">Presenter signature</h3>
+            <SignaturePad
+              onSave={url => { setTalkSignature(url); setShowSignaturePad(false); }}
+              onCancel={() => setShowSignaturePad(false)}
+              existingSignature={talkSignature}
+            />
+          </div>
+        </div>
       )}
 
       {selectedTalk && showViewModal && (
@@ -572,6 +620,15 @@ export default function SafetyToolboxTalks() {
             <p className="text-xs font-semibold text-gray-600 uppercase mb-1">Description / Talking Points</p>
             <p className="text-sm text-gray-700 whitespace-pre-wrap">{selectedTalk.description || 'N/A'}</p>
           </div>
+          {selectedTalk.signature_data && (
+            <div className="mt-4 pt-4 border-t border-gray-200">
+              <p className="text-xs font-semibold text-gray-600 uppercase mb-1">Presenter Signature</p>
+              <div className="inline-block border border-gray-200 rounded-lg overflow-hidden bg-white">
+                <img src={selectedTalk.signature_data} alt="Presenter signature" className="h-20 object-contain" />
+              </div>
+              {selectedTalk.signed_at && <p className="text-[11px] text-gray-400 mt-1">Signed {new Date(selectedTalk.signed_at).toLocaleString()}</p>}
+            </div>
+          )}
           <div className="mt-4 pt-4 border-t border-gray-200">
             <p className="text-xs font-semibold text-gray-600 uppercase mb-1">Attendees ({selectedTalk.attendee_count})</p>
             {selectedTalk.attendees?.trim() ? (
