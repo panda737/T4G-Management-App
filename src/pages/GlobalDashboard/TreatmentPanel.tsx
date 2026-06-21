@@ -4,7 +4,18 @@ import { TreatStat, EmptyChart } from './DashboardStatCards';
 
 export default function TreatmentPanel({ treatmentMonths }: { treatmentMonths: MonthlyTreatment[] }) {
   const chartMonths = treatmentMonths.slice(-6);
-  const maxMonthKg = Math.max(...chartMonths.map(m => m.kg), 1);
+  // Scale bars between the lowest and highest *active* month rather than from
+  // zero, so months with similar-but-different totals are visually
+  // distinguishable. Empty months (kg = 0) stay a small stub.
+  const activeKgs = chartMonths.map(m => m.kg).filter(kg => kg > 0);
+  const maxMonthKg = activeKgs.length ? Math.max(...activeKgs) : 1;
+  const minMonthKg = activeKgs.length ? Math.min(...activeKgs) : 0;
+  const MIN_BAR_PCT = 40; // shortest active month
+  const MAX_BAR_PCT = 100; // tallest active month
+  const barHeightPct = (kg: number) =>
+    kg <= 0 ? 6
+    : maxMonthKg === minMonthKg ? MAX_BAR_PCT
+    : MIN_BAR_PCT + ((kg - minMonthKg) / (maxMonthKg - minMonthKg)) * (MAX_BAR_PCT - MIN_BAR_PCT);
   const currentMonth = chartMonths[chartMonths.length - 1];
   const prevMonth = chartMonths.length > 1 ? chartMonths[chartMonths.length - 2] : null;
   const trendPct = prevMonth && prevMonth.kg > 0
@@ -44,7 +55,7 @@ export default function TreatmentPanel({ treatmentMonths }: { treatmentMonths: M
         <div className="relative overflow-x-auto" style={{ height: 240 }}>
           <div className="absolute inset-0 flex items-end gap-2 pb-6 min-w-min">
             {chartMonths.map((m) => {
-              const heightPct = Math.max((m.kg / maxMonthKg) * 100, 10);
+              const heightPct = barHeightPct(m.kg);
               const isCurrentMonth = m === currentMonth;
               const avgPerCycle = m.cycles > 0 ? Math.round(m.kg / m.cycles) : 0;
               const chemDisplay = m.chemicalLitres >= 1000
