@@ -805,6 +805,11 @@ export type StockReceipt = {
   notes: string;
   movement_group_id: string | null;
   created_by: string | null;
+  delivery_note_path: string | null;
+  delivery_note_name: string | null;
+  delivery_note_size_bytes: number | null;
+  delivery_note_uploaded_by: string | null;
+  delivery_note_uploaded_at: string | null;
   created_at: string;
   updated_at: string;
 };

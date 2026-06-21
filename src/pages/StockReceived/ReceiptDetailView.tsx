@@ -1,5 +1,6 @@
-import { ArrowLeft, ArrowDownCircle, Package, Building2 } from 'lucide-react';
-import { StockReceipt, StockReceiptItem } from '../../lib/supabase';
+import { useState } from 'react';
+import { ArrowLeft, ArrowDownCircle, Package, Building2, FileText, ExternalLink } from 'lucide-react';
+import { supabase, StockReceipt, StockReceiptItem } from '../../lib/supabase';
 
 interface Props {
   receipt: StockReceipt;
@@ -10,6 +11,15 @@ interface Props {
 export default function ReceiptDetailView({ receipt, items, onBack }: Props) {
   const sorted = [...items].sort((a, b) => a.line_no - b.line_no);
   const totalUnits = sorted.reduce((s, i) => s + i.qty_received, 0);
+  const [opening, setOpening] = useState(false);
+
+  async function viewNote() {
+    if (!receipt.delivery_note_path) return;
+    setOpening(true);
+    const { data } = await supabase.storage.from('delivery-notes').createSignedUrl(receipt.delivery_note_path, 3600);
+    setOpening(false);
+    if (data?.signedUrl) window.open(data.signedUrl, '_blank', 'noopener');
+  }
 
   return (
     <div className="space-y-5">
@@ -68,6 +78,33 @@ export default function ReceiptDetailView({ receipt, items, onBack }: Props) {
             </p>
           </div>
         )}
+      </div>
+
+      {/* Supplier delivery note */}
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+        <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-100 flex items-center gap-2">
+          <FileText size={14} className="text-gray-500" />
+          <span className="text-xs font-bold text-gray-700 uppercase tracking-wider">Supplier delivery note</span>
+        </div>
+        <div className="p-4">
+          {receipt.delivery_note_path ? (
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-emerald-50 rounded-lg flex-shrink-0"><FileText size={18} className="text-emerald-600" /></div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium text-gray-900 truncate">{receipt.delivery_note_name || 'Delivery note'}</p>
+                <p className="text-xs text-gray-400">
+                  {receipt.delivery_note_size_bytes ? `${(receipt.delivery_note_size_bytes / 1024 / 1024).toFixed(2)} MB` : ''}
+                  {receipt.delivery_note_uploaded_at ? ` · uploaded ${new Date(receipt.delivery_note_uploaded_at).toLocaleDateString()}` : ''}
+                </p>
+              </div>
+              <button onClick={viewNote} disabled={opening} className="inline-flex items-center gap-1.5 text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white hover:bg-gray-50 text-gray-700 disabled:opacity-50 flex-shrink-0">
+                <ExternalLink size={14} /> {opening ? 'Opening…' : 'View'}
+              </button>
+            </div>
+          ) : (
+            <p className="text-sm text-gray-400">No delivery note attached to this receipt.</p>
+          )}
+        </div>
       </div>
 
       {/* Items table */}
