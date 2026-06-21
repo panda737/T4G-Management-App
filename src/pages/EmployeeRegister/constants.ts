@@ -9,7 +9,7 @@ export const DEPARTMENTS = ['Production', 'Logistics', 'Maintenance', 'Admin'] a
 
 // Positions that map to specific departments; everything else is Production.
 const LOGISTICS_POSITIONS = ['Truck Driver', 'Handler', 'Logistics Manager', 'Stock Controller'];
-const ADMIN_POSITIONS = ['Admin Manager', 'Admin Staff', 'Health & Safety Officer', 'Operations Manager', 'Managing Director', 'Commercial Director'];
+const ADMIN_POSITIONS = ['Admin Manager', 'Admin Staff', 'Health & Safety Officer', 'Operations Manager', 'Managing Director', 'Commercial Director', 'Receiving Officer'];
 const MAINTENANCE_POSITIONS = ['Maintenance'];
 
 /**
