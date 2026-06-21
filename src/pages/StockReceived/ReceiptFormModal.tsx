@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Plus, Trash2, ArrowDownCircle } from 'lucide-react';
+import { useRef, useState } from 'react';
+import { Plus, Trash2, ArrowDownCircle, Upload, FileText, X } from 'lucide-react';
 import { supabase, StockItem } from '../../lib/supabase';
 import { generateSequentialNumber } from '../../lib/numberGenerator';
 import { useUser } from '../../lib/UserContext';
@@ -11,6 +11,9 @@ interface ReceiptLine {
   itemId: string;
   quantity: number;
 }
+
+const ACCEPTED_NOTE_TYPES = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
+const MAX_NOTE_BYTES = 20 * 1024 * 1024;
 
 interface Props {
   items: StockItem[];
@@ -31,6 +34,9 @@ export default function ReceiptFormModal({ items, suppliers, onClose, onSave }: 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [attempted, setAttempted] = useState(false);
+  const [deliveryNote, setDeliveryNote] = useState<File | null>(null);
+  const [noteError, setNoteError] = useState('');
+  const fileRef = useRef<HTMLInputElement>(null);
 
   function updateLine(id: number, patch: Partial<ReceiptLine>) {
     setLines(prev => prev.map(l => l.id === id ? { ...l, ...patch } : l));
@@ -43,6 +49,35 @@ export default function ReceiptFormModal({ items, suppliers, onClose, onSave }: 
   function addLine() {
     const newId = lines.reduce((max, l) => Math.max(max, l.id), 0) + 1;
     setLines(prev => [...prev, { id: newId, itemId: '', quantity: 1 }]);
+  }
+
+  function pickNote(f: File | null) {
+    setNoteError('');
+    if (!f) return;
+    if (!ACCEPTED_NOTE_TYPES.includes(f.type)) { setNoteError('Only PDF, JPG, PNG or WEBP files are allowed.'); return; }
+    if (f.size > MAX_NOTE_BYTES) { setNoteError('File is too large — maximum 20 MB.'); return; }
+    setDeliveryNote(f);
+  }
+
+  // Uploads the supplier delivery note to the private delivery-notes bucket and
+  // links it to the receipt. Returns an error message, or null on success.
+  async function uploadDeliveryNote(receiptId: string, file: File): Promise<string | null> {
+    const ext = file.name.split('.').pop()?.toLowerCase() || 'pdf';
+    const path = `receipts/${receiptId}/${crypto.randomUUID()}.${ext}`;
+    const { error: upErr } = await supabase.storage
+      .from('delivery-notes')
+      .upload(path, file, { contentType: file.type });
+    if (upErr) return upErr.message;
+    const { data: userData } = await supabase.auth.getUser();
+    const { error: dbErr } = await supabase.from('stock_receipts').update({
+      delivery_note_path: path,
+      delivery_note_name: file.name,
+      delivery_note_size_bytes: file.size,
+      delivery_note_uploaded_by: userData.user?.id ?? null,
+      delivery_note_uploaded_at: new Date().toISOString(),
+    }).eq('id', receiptId);
+    if (dbErr) { await supabase.storage.from('delivery-notes').remove([path]); return dbErr.message; }
+    return null;
   }
 
   function buildPayload(receiptNumber: string) {
@@ -83,14 +118,26 @@ export default function ReceiptFormModal({ items, suppliers, onClose, onSave }: 
     setSaving(true);
 
     let receiptNumber = await generateSequentialNumber('stock_receipts', 'receipt_number', 'GRN');
-    let { error: rpcErr } = await supabase.rpc('record_stock_receipt', buildPayload(receiptNumber));
+    let { data, error: rpcErr } = await supabase.rpc('record_stock_receipt', buildPayload(receiptNumber));
     if (rpcErr && (rpcErr.code === '23505' || /duplicate key/i.test(rpcErr.message))) {
       // Number collision (concurrent insert) — regenerate once and retry.
       receiptNumber = await generateSequentialNumber('stock_receipts', 'receipt_number', 'GRN');
-      ({ error: rpcErr } = await supabase.rpc('record_stock_receipt', buildPayload(receiptNumber)));
+      ({ data, error: rpcErr } = await supabase.rpc('record_stock_receipt', buildPayload(receiptNumber)));
     }
 
     if (rpcErr) { setError(rpcErr.message); setSaving(false); return; }
+
+    // Attach the supplier delivery note (if one was picked) to the new receipt.
+    const receiptId = (data as { receipt_id?: string } | null)?.receipt_id;
+    if (deliveryNote && receiptId) {
+      const upMsg = await uploadDeliveryNote(receiptId, deliveryNote);
+      if (upMsg) {
+        setError(`Stock received, but the delivery note didn't upload (${upMsg}). You can re-upload it from the receipt.`);
+        setSaving(false);
+        onSave();
+        return;
+      }
+    }
 
     setSaving(false);
     onSave();
@@ -134,6 +181,25 @@ export default function ReceiptFormModal({ items, suppliers, onClose, onSave }: 
             placeholder="—"
           />
         </div>
+      </div>
+
+      {/* Supplier delivery note upload */}
+      <div className="mb-3">
+        <label className="block text-[11px] font-semibold text-gray-600 mb-0.5">Supplier Delivery Note</label>
+        <input ref={fileRef} type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" className="hidden" onChange={e => pickNote(e.target.files?.[0] ?? null)} />
+        {deliveryNote ? (
+          <div className="flex items-center gap-2 border border-emerald-200 bg-emerald-50 rounded-lg px-3 py-2 text-sm">
+            <FileText size={16} className="text-emerald-600 flex-shrink-0" />
+            <span className="min-w-0 flex-1 truncate text-gray-800">{deliveryNote.name}</span>
+            <span className="text-xs text-gray-500 flex-shrink-0">{(deliveryNote.size / 1024 / 1024).toFixed(2)} MB</span>
+            <button type="button" onClick={() => setDeliveryNote(null)} className="text-gray-400 hover:text-gray-600 flex-shrink-0" title="Remove file"><X size={15} /></button>
+          </div>
+        ) : (
+          <button type="button" onClick={() => fileRef.current?.click()} className="w-full flex items-center justify-center gap-2 border-2 border-dashed border-gray-300 rounded-lg px-3 py-2.5 text-sm text-gray-500 hover:border-emerald-300 hover:bg-gray-50 transition-colors">
+            <Upload size={15} /> Upload delivery note <span className="text-gray-400">· PDF/JPG/PNG · max 20 MB</span>
+          </button>
+        )}
+        {noteError && <p className="text-xs text-red-600 mt-1">{noteError}</p>}
       </div>
 
       {/* Line items */}
