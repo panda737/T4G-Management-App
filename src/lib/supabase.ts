@@ -331,6 +331,8 @@ export type SafetyToolboxTalk = {
   follow_up_notes: string;
   attachment_path: string;
   attachment_name: string;
+  signature_data?: string | null;
+  signed_at?: string | null;
   created_at: string;
   updated_at: string;
 };

@@ -67,7 +67,7 @@ export default function SpillageFormModal({ onClose, onSaved }: Props) {
 
   async function handleSubmit() {
     if (!file || !party || !type) {
-      setError('Choose the team, the type of spill, and attach a photo.');
+      setError('Choose the client, the type of spill, and attach a photo.');
       return;
     }
     setSaving(true);
@@ -172,9 +172,9 @@ export default function SpillageFormModal({ onClose, onSaved }: Props) {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Whose waste? *</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Client *</label>
           <select value={party} onChange={e => setParty(e.target.value)} className={inputClass}>
-            <option value="">Select team…</option>
+            <option value="">Select client…</option>
             {SPILLAGE_PARTIES.map(p => <option key={p} value={p}>{p}</option>)}
           </select>
         </div>

@@ -70,7 +70,7 @@ export default function TopicLibraryView({ topics, categories, lastUsedByTopic, 
           const lastUsed = lastUsedByTopic.get(topic.title);
           return (
             <div key={topic.id} className={`rounded-xl shadow-sm border overflow-hidden ${topic.is_suggested ? 'border-emerald-300 ring-1 ring-emerald-200 bg-emerald-50/40' : 'bg-white border-gray-200'}`}>
-              <button onClick={() => setExpandedTopic(expandedTopic === topic.id ? null : topic.id)} className="w-full flex items-center gap-3 px-5 py-4 text-left hover:bg-gray-50 transition">
+              <button onClick={() => setExpandedTopic(expandedTopic === topic.id ? null : topic.id)} className="w-full flex flex-wrap items-center gap-x-3 gap-y-2 px-3 sm:px-5 py-3 sm:py-4 text-left hover:bg-gray-50 transition">
                 <ChevronRight className={`w-4 h-4 text-gray-400 flex-shrink-0 transition-transform ${expandedTopic === topic.id ? 'rotate-90' : ''}`} />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-start justify-between gap-2">
@@ -92,13 +92,13 @@ export default function TopicLibraryView({ topics, categories, lastUsedByTopic, 
                       </span>
                     )}
                   </div>
-                  <div className="flex gap-2 mt-1">
+                  <div className="flex flex-wrap gap-2 mt-1">
                     <span className="px-1.5 py-0.5 text-[10px] font-medium rounded bg-sky-100 text-sky-700">{topic.category}</span>
                     <span className="px-1.5 py-0.5 text-[10px] font-medium rounded bg-gray-100 text-gray-600">{topic.subcategory}</span>
                     {topic.is_custom && <span className="px-1.5 py-0.5 text-[10px] font-medium rounded bg-amber-100 text-amber-700">Custom</span>}
                   </div>
                 </div>
-                <div className="flex items-center gap-1 flex-shrink-0" onClick={e => e.stopPropagation()}>
+                <div className="flex items-center gap-1 flex-shrink-0 w-full sm:w-auto justify-end" onClick={e => e.stopPropagation()}>
                   {canManage && (
                     <button
                       onClick={() => onSuggest(topic)}
@@ -118,7 +118,7 @@ export default function TopicLibraryView({ topics, categories, lastUsedByTopic, 
                 </div>
               </button>
               {expandedTopic === topic.id && (
-                <div className="px-12 pb-5 space-y-3">
+                <div className="px-3 sm:px-12 pb-5 space-y-3">
                   <div>
                     <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Talking Points</p>
                     <p className="text-sm text-gray-700 whitespace-pre-wrap">{topic.talking_points}</p>

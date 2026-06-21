@@ -5,7 +5,7 @@ import { usePageTitle } from '../../lib/usePageTitle';
 import type { ShiftType } from '../../lib/supabase';
 import { useUser } from '../../lib/UserContext';
 import { useToast } from '../../lib/toast';
-import EmployeeMultiSelect from '../../components/EmployeeMultiSelect';
+import EmployeeTogglePicker from '../../components/EmployeeTogglePicker';
 import SignaturePad from '../../components/SignaturePad';
 
 type Step = 'select' | 'form' | 'summary';
@@ -576,10 +576,9 @@ export default function OperatorShiftEntry() {
         {/* Team Members */}
         <div>
           <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Team Members</h2>
-          <EmployeeMultiSelect
+          <EmployeeTogglePicker
             value={form.team_ids}
             onChange={(ids, names) => setForm(f => ({ ...f, team_ids: ids, team_names: names }))}
-            placeholder="Select team members…"
             excludeIds={excludeIds}
           />
         </div>

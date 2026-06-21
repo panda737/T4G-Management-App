@@ -76,7 +76,7 @@ export default function SpillageViewModal({ spillage, canManage, onDelete, onClo
         )}
 
         <div className="grid grid-cols-2 gap-4">
-          <Field label="Team" value={spillage.party} />
+          <Field label="Client" value={spillage.party} />
           <Field label="Type" value={spillage.spillage_type} />
           <Field label="When" value={when} />
           <Field label="Location" value={spillage.location} />
