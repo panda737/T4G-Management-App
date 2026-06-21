@@ -5,6 +5,7 @@ import { ArrowLeft, User, Phone, Mail, MapPin, AlertTriangle, ClipboardCheck, Us
 import { supabase } from '../../lib/supabase';
 import type { Employee, LegalAppointment, EmployeeMedicalRecord } from '../../lib/supabase';
 import { HS_ROLE_LABELS, HS_ROLE_COLORS } from '../../lib/supabase';
+import { departmentForPosition } from './constants';
 import { useUser } from '../../lib/UserContext';
 import { useToast } from '../../lib/toast';
 import EmployeeFormModal from './EmployeeFormModal';
@@ -296,7 +297,7 @@ export default function EmployeeProfile() {
                   <h1 className="text-2xl font-bold text-gray-900">
                     {employee.first_name} {employee.surname}
                   </h1>
-                  <p className="text-sm text-gray-500 mt-0.5">{employee.position} · {employee.department}</p>
+                  <p className="text-sm text-gray-500 mt-0.5">{employee.position} · {departmentForPosition(employee.position)}</p>
                   <div className="flex flex-wrap items-center gap-2 mt-2">
                     <span className={`text-xs px-2.5 py-1 rounded-full font-semibold ${HS_ROLE_COLORS[hsRole]}`}>
                       {HS_ROLE_LABELS[hsRole]}
@@ -306,11 +307,6 @@ export default function EmployeeProfile() {
                     }`}>
                       {employee.status === 'active' ? 'Active' : 'Inactive'}
                     </span>
-                    {employee.is_truck_handler && (
-                      <span className="text-xs px-2.5 py-1 rounded-full font-semibold bg-blue-100 text-blue-700">
-                        Truck Handler
-                      </span>
-                    )}
                   </div>
                 </div>
                 {canEdit && (

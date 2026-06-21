@@ -4,7 +4,7 @@ import { supabase } from '../../lib/supabase';
 import type { Employee } from '../../lib/supabase';
 import Modal from '../../components/Modal';
 import { Field, SelectField } from './FormFields';
-import { POSITIONS } from './constants';
+import { POSITIONS, departmentForPosition } from './constants';
 
 export default function EmployeeFormModal({
   employee,
@@ -25,9 +25,7 @@ export default function EmployeeFormModal({
     contact_number: employee?.contact_number || '',
     email: employee?.email || '',
     position: employee?.position || 'General Worker',
-    department: employee?.department || 'Operations',
     hs_role: employee?.hs_role || 'employee',
-    is_truck_handler: employee?.is_truck_handler || false,
     status: employee?.status || 'active',
     address_line_1: employee?.address_line_1 || '',
     address_line_2: employee?.address_line_2 || '',
@@ -57,6 +55,7 @@ export default function EmployeeFormModal({
 
     const basePayload = {
       ...form,
+      department: departmentForPosition(form.position),
       date_of_birth: form.date_of_birth || null,
       updated_at: new Date().toISOString(),
     };
@@ -86,7 +85,13 @@ export default function EmployeeFormModal({
         <Field label="Contact Number" value={form.contact_number} onChange={v => update('contact_number', v)} />
         <Field label="Email" value={form.email} onChange={v => update('email', v)} />
         <SelectField label="Position" value={form.position} options={POSITIONS} onChange={v => update('position', v)} />
-        <Field label="Department" value={form.department} onChange={v => update('department', v)} />
+        <div>
+          <label className="block text-xs font-medium text-gray-700 mb-1">Department</label>
+          <div className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-600">
+            {departmentForPosition(form.position)}
+          </div>
+          <p className="text-[11px] text-gray-400 mt-1">Set automatically from position.</p>
+        </div>
         <div>
           <label className="block text-xs font-medium text-gray-700 mb-1">H&S Role</label>
           <select
@@ -100,18 +105,6 @@ export default function EmployeeFormModal({
           </select>
         </div>
         <SelectField label="Status" value={form.status} options={['active', 'inactive']} onChange={v => update('status', v)} />
-
-        <div className="sm:col-span-2 lg:col-span-3">
-          <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={form.is_truck_handler}
-              onChange={e => update('is_truck_handler', e.target.checked)}
-              className="rounded border-gray-300"
-            />
-            Truck Handler (rotates between plant and truck duties)
-          </label>
-        </div>
 
         <div className="sm:col-span-2 lg:col-span-3 border-t border-gray-100 pt-4">
           <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Address</p>
