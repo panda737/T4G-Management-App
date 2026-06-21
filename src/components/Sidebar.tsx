@@ -138,12 +138,13 @@ const moduleGroups: ModuleGroup[] = [
   },
   {
     id: 'employees',
-    label: 'Employee Register',
+    label: 'Staff',
     icon: Users,
     color: 'text-rose-400',
     items: [
       { path: '/employees', label: 'Employee Register' },
       { path: '/employees/appointments', label: 'Legal Appointments' },
+      { path: '/employees/organogram', label: 'Organogram' },
     ],
   },
 ];
@@ -206,10 +207,11 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
   function isItemActive(item: ModuleGroup['items'][number]) {
     if (location.pathname === item.path) return true;
     // Employee Register stays highlighted on employee profile pages (/employees/:id),
-    // but NOT on /employees/appointments (Legal Appointments is its own sidebar item).
+    // but NOT on sibling Staff sub-routes that have their own sidebar items.
     if (item.path === '/employees'
       && location.pathname.startsWith('/employees/')
-      && !location.pathname.startsWith('/employees/appointments')) return true;
+      && !location.pathname.startsWith('/employees/appointments')
+      && !location.pathname.startsWith('/employees/organogram')) return true;
     if (item.match) return item.match.some(m => location.pathname === m || location.pathname.startsWith(m + '/'));
     return false;
   }
