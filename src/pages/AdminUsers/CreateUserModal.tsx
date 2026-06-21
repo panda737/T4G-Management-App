@@ -3,12 +3,13 @@ import { Eye, EyeOff, Loader } from 'lucide-react';
 import { supabase, AppRole, ROLE_LABELS } from '../../lib/supabase';
 import Modal from '../../components/Modal';
 
-const ROLES: AppRole[] = ['admin', 'management', 'stock_controller', 'production', 'operator', 'viewer', 'customer'];
+const ROLES: AppRole[] = ['admin', 'management', 'stock_controller', 'logistics_manager', 'production', 'operator', 'viewer', 'customer'];
 
 const ROLE_DESCRIPTIONS: Record<AppRole, string> = {
   admin: 'Full access to everything including user management',
   management: 'Full access to all modules — cannot manage users',
   stock_controller: 'Write access to Stock Management only',
+  logistics_manager: 'Write access to Logistics only',
   production: 'Write access to Treatment Plant only',
   operator: 'Treatment Plant shift entry only',
   viewer: 'Read-only access across all modules',

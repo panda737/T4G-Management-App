@@ -42,6 +42,8 @@ import DocumentLibrary from './pages/DocumentLibrary';
 import ComplianceExpiry from './pages/ComplianceExpiry';
 import AppointmentsRegister from './pages/EmployeeRegister/AppointmentsRegister';
 import Organogram from './pages/EmployeeRegister/Organogram';
+import VehicleRegister from './pages/Logistics/VehicleRegister';
+import DriverCompliance from './pages/Logistics/DriverCompliance';
 import WasteOnFloor from './pages/TreatmentWasteOnFloor';
 import OperatorShiftEntry from './pages/OperatorShiftEntry';
 import StockOrders from './pages/StockOrders';
@@ -108,20 +110,24 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | 
 }
 
 function RootRedirect() {
-  const { isOperator, isStockController, isCustomer, loading } = useUser();
+  const { isOperator, isStockController, isLogisticsManager, isCustomer, loading } = useUser();
   if (loading) return null;
   if (isCustomer) return <Navigate to="/portal/dashboard" replace />;
   if (isOperator) return <Navigate to="/shift-report" replace />;
   if (isStockController) return <Navigate to="/stock/master-list" replace />;
+  if (isLogisticsManager) return <Navigate to="/logistics/vehicles" replace />;
   return <GlobalDashboard />;
 }
 
 function StockControllerGuard({ children }: { children: ReactNode }) {
-  const { isAdmin, isStockController, loading } = useUser();
+  const { isAdmin, isStockController, isLogisticsManager, loading } = useUser();
   const location = useLocation();
   if (loading) return null;
   if (isStockController && !location.pathname.startsWith('/stock')) {
     return <Navigate to="/stock/master-list" replace />;
+  }
+  if (isLogisticsManager && !location.pathname.startsWith('/logistics')) {
+    return <Navigate to="/logistics/vehicles" replace />;
   }
   if (!isAdmin && location.pathname.startsWith('/commercial')) {
     return <Navigate to="/" replace />;
@@ -180,6 +186,8 @@ const ROUTE_LABELS: Record<string, string> = {
   '/maintenance/assets': 'Equipment Register',
   '/maintenance/parts': 'Spare Parts',
   '/maintenance/work-orders': 'Service History',
+  '/logistics/vehicles': 'Vehicle Register',
+  '/logistics/drivers': 'Driver Compliance',
   '/compliance': 'Compliance',
   '/documents': 'Document Library',
   '/documents/expiry-dashboard': 'Expiry Dashboard',
@@ -323,6 +331,11 @@ function StaffShell({ session }: { session: Session }) {
             <Route path="/maintenance/assets" element={<MaintenanceAssets />} />
             <Route path="/maintenance/parts" element={<MaintenanceParts />} />
             <Route path="/maintenance/work-orders" element={<MaintenanceWorkOrders />} />
+
+            {/* Logistics */}
+            <Route path="/logistics" element={<Navigate to="/logistics/vehicles" replace />} />
+            <Route path="/logistics/vehicles" element={<VehicleRegister />} />
+            <Route path="/logistics/drivers" element={<DriverCompliance />} />
 
             {/* Compliance (Coming Soon) */}
             <Route path="/compliance" element={<ComingSoon title="Compliance Overview" description="Unified compliance view across all modules -- SHEQ, training, treatment, and stock management." />} />

@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useEffect, ReactNode } from 'react
 import type { Session } from '@supabase/supabase-js';
 import { supabase, UserProfile, AppRole } from './supabase';
 
-type WriteModule = 'stock' | 'treatment' | 'safety' | 'training' | 'admin' | 'commercial';
+type WriteModule = 'stock' | 'treatment' | 'safety' | 'training' | 'admin' | 'commercial' | 'logistics';
 
 interface UserContextValue {
   profile: UserProfile | null;
@@ -11,6 +11,7 @@ interface UserContextValue {
   isManagement: boolean;
   isOperator: boolean;
   isStockController: boolean;
+  isLogisticsManager: boolean;
   isCustomer: boolean;
   clientId: string | null;
   canWrite: (module: WriteModule) => boolean;
@@ -24,6 +25,7 @@ const UserContext = createContext<UserContextValue>({
   isManagement: false,
   isOperator: false,
   isStockController: false,
+  isLogisticsManager: false,
   isCustomer: false,
   clientId: null,
   canWrite: () => false,
@@ -39,6 +41,7 @@ export function useUser() {
   - admin:            all modules ✓
   - management:       all except admin ✓
   - stock_controller: stock only ✓
+  - logistics_manager: logistics only ✓
   - production:       treatment only ✓
   - operator:         treatment only ✓ (shift entry)
   - viewer:           none ✗
@@ -49,6 +52,7 @@ function resolveCanWrite(role: AppRole | null, module: WriteModule): boolean {
   if (role === 'admin') return true;
   if (role === 'management') return module !== 'admin';
   if (role === 'stock_controller') return module === 'stock';
+  if (role === 'logistics_manager') return module === 'logistics';
   if (role === 'production') return module === 'treatment';
   if (role === 'operator') return module === 'treatment';
   return false; // viewer, customer
@@ -98,6 +102,7 @@ export function UserProvider({ session, children }: { session: Session; children
     isManagement: role === 'management',
     isOperator: role === 'operator',
     isStockController: role === 'stock_controller',
+    isLogisticsManager: role === 'logistics_manager',
     isCustomer: role === 'customer',
     clientId: profile?.client_id ?? null,
     canWrite: (module) => resolveCanWrite(role, module),
