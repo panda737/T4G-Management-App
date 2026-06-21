@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useEffect, ReactNode } from 'react
 import type { Session } from '@supabase/supabase-js';
 import { supabase, UserProfile, AppRole } from './supabase';
 
-type WriteModule = 'stock' | 'treatment' | 'safety' | 'training' | 'admin' | 'commercial' | 'logistics';
+type WriteModule = 'stock' | 'treatment' | 'safety' | 'training' | 'admin' | 'commercial' | 'logistics' | 'spillage';
 
 interface UserContextValue {
   profile: UserProfile | null;
@@ -46,9 +46,14 @@ export function useUser() {
   - operator:         treatment only ✓ (shift entry)
   - viewer:           none ✗
   - customer:         none ✗ (portal is read-only, own data via RLS view)
+  Note: the 'spillage' module is an exception — every internal non-viewer role
+  can report a spillage (handled first, before the per-role rules below).
 */
 function resolveCanWrite(role: AppRole | null, module: WriteModule): boolean {
   if (!role) return false;
+  // Spillages are an easy-to-report H&S log: any internal non-viewer can report
+  // one (operators especially), even though they can't write the rest of safety.
+  if (module === 'spillage') return role !== 'viewer' && role !== 'customer';
   if (role === 'admin') return true;
   if (role === 'management') return module !== 'admin';
   if (role === 'stock_controller') return module === 'stock';

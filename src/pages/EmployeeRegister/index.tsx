@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Search, Plus, ChevronDown, ChevronUp, Phone, User, AlertCircle, Download } from 'lucide-react';
-import { downloadCSV } from '../../lib/csvExport';
+import { exportToXlsx } from '../../lib/xlsxExport';
 import { supabase } from '../../lib/supabase';
 import { usePageTitle } from '../../lib/usePageTitle';
 import { useToast } from '../../lib/toast';
@@ -78,18 +78,54 @@ export default function EmployeeRegister() {
   }
 
   function handleExport() {
-    const rows = filtered.map(e => ({
-      'Employee Number': e.employee_number,
-      'Surname': e.surname,
-      'First Name': e.first_name,
-      'Position': e.position,
-      'Department': departmentForPosition(e.position),
-      'Status': e.status === 'active' ? 'Active' : 'Inactive',
-      'Contact': e.contact_number,
-      'Email': e.email,
-      'Date Joined': e.date_joined ?? '',
-    }));
-    downloadCSV(rows, 'employees');
+    exportToXlsx({
+      filename: `tech4green_employees_${new Date().toISOString().slice(0, 10)}`,
+      title: 'Employee Register',
+      subtitle: `${filtered.length} employee${filtered.length !== 1 ? 's' : ''}`,
+      sheets: [{
+        name: 'Employees',
+        columns: [
+          { header: 'Employee No', key: 'employee_number', width: 14 },
+          { header: 'Surname', key: 'surname', width: 18 },
+          { header: 'First Name', key: 'first_name', width: 18 },
+          { header: 'Gender', key: 'gender', width: 10 },
+          { header: 'ID Number', key: 'id_number', width: 16 },
+          { header: 'Date of Birth', key: 'date_of_birth', width: 14 },
+          { header: 'Position', key: 'position', width: 24 },
+          { header: 'Department', key: 'department', width: 14 },
+          { header: 'Status', key: 'status', width: 12 },
+          { header: 'Date Joined', key: 'date_joined', width: 14 },
+          { header: 'Contact Number', key: 'contact_number', width: 16 },
+          { header: 'Email', key: 'email', width: 28 },
+          { header: 'Address', key: 'address', width: 36 },
+          { header: 'Postal Code', key: 'postal_code', width: 12 },
+          { header: 'Emergency Contact', key: 'emergency_contact_name', width: 22 },
+          { header: 'Emergency Number', key: 'emergency_contact_number', width: 16 },
+          { header: 'Medical Fund', key: 'medical_fund', width: 18 },
+          { header: 'Medical Fund No', key: 'medical_fund_number', width: 16 },
+        ],
+        rows: filtered.map(e => ({
+          employee_number: e.employee_number,
+          surname: e.surname,
+          first_name: e.first_name,
+          gender: e.gender,
+          id_number: e.id_number,
+          date_of_birth: e.date_of_birth ?? '',
+          position: e.position,
+          department: departmentForPosition(e.position),
+          status: e.status,
+          date_joined: e.date_joined ?? '',
+          contact_number: e.contact_number,
+          email: e.email,
+          address: [e.address_line_1, e.address_line_2, e.address_line_3].filter(Boolean).join(', '),
+          postal_code: e.postal_code,
+          emergency_contact_name: e.emergency_contact_name,
+          emergency_contact_number: e.emergency_contact_number,
+          medical_fund: e.medical_fund,
+          medical_fund_number: e.medical_fund_number,
+        })),
+      }],
+    });
   }
 
   return (
