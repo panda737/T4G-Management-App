@@ -68,6 +68,7 @@ const moduleGroups: ModuleGroup[] = [
     items: [
       { path: '/safety', label: 'SHEQ Dashboard' },
       { path: '/safety/incidents', label: 'Incidents' },
+      { path: '/safety/spillages', label: 'Spillages' },
       { path: '/safety/inspections', label: 'Inspections' },
       { path: '/safety/risk-assessments', label: 'Risk Assessments' },
       { path: '/safety/corrective-actions', label: 'Corrective Actions' },
@@ -257,6 +258,7 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
           icon: ShieldAlert,
           color: 'text-amber-400',
           items: [
+            { path: '/safety/spillages', label: 'Spillages' },
             { path: '/safety/toolbox-talks', label: 'Toolbox Talks' },
           ],
         },

@@ -233,6 +233,24 @@ export type SafetyIncident = {
   root_cause: string;
   status: string;
   closed_date: string | null;
+  source_spillage_id?: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type Spillage = {
+  id: string;
+  spillage_number: string;
+  spillage_date: string;
+  spillage_time: string | null;
+  party: string;
+  spillage_type: string;
+  location: string;
+  description: string;
+  photo_path: string | null;
+  reported_by: string;
+  reported_by_id: string | null;
+  created_by: string | null;
   created_at: string;
   updated_at: string;
 };

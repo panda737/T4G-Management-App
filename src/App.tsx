@@ -21,6 +21,7 @@ import TreatmentDailyLog from './pages/TreatmentDailyLog';
 import TreatmentTransfers from './pages/TreatmentTransfers';
 import SheqDashboard from './pages/SheqDashboard';
 import SafetyIncidents from './pages/SafetyIncidents';
+import Spillages from './pages/Spillages';
 import SafetyInspections from './pages/SafetyInspections';
 import SafetyRiskAssessments from './pages/SafetyRiskAssessments';
 import SafetyCorrectiveActions from './pages/SafetyCorrectiveActions';
@@ -171,6 +172,7 @@ const ROUTE_LABELS: Record<string, string> = {
   '/treatment/waste-on-floor': 'Waste on Floor',
   '/safety': 'Health & Safety',
   '/safety/incidents': 'Incidents',
+  '/safety/spillages': 'Spillages',
   '/safety/inspections': 'Inspections',
   '/safety/risk-assessments': 'Risk Assessments',
   '/safety/corrective-actions': 'Corrective Actions',
@@ -310,6 +312,7 @@ function StaffShell({ session }: { session: Session }) {
             {/* Health & Safety */}
             <Route path="/safety" element={<SheqDashboard />} />
             <Route path="/safety/incidents" element={<SafetyIncidents />} />
+            <Route path="/safety/spillages" element={<Spillages />} />
             <Route path="/safety/inspections" element={<SafetyInspections />} />
             <Route path="/safety/risk-assessments" element={<SafetyRiskAssessments />} />
             <Route path="/safety/corrective-actions" element={<SafetyCorrectiveActions />} />
