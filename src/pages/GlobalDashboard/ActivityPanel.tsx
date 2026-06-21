@@ -56,7 +56,7 @@ export function QuickActionsPanel() {
   return (
     <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 sm:p-6">
       <h2 className="font-semibold text-gray-900 text-sm mb-4">Quick Actions</h2>
-      <div className="space-y-2">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-1">
         <QuickAction icon={Package} label="View Stock Master List" onClick={() => navigate('/stock/master-list')} color="text-emerald-600 bg-emerald-50" />
         <QuickAction icon={TrendingUp} label="Record Stock Movement" onClick={() => navigate('/stock/movements')} color="text-blue-600 bg-blue-50" />
         <QuickAction icon={Factory} label="Treatment Daily Log" onClick={() => navigate('/treatment/daily-log')} color="text-cyan-600 bg-cyan-50" />

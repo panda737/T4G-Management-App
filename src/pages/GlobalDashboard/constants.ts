@@ -6,6 +6,24 @@ export interface MonthlyTreatment {
   activeDays: number;
   chemicalLitres: number;
   downtimeMinutes: number;
+  rucWashed: number;
+  lidsWashed: number;
+  binsWashed: number;
+}
+
+export interface Washing {
+  ruc: number;
+  lids: number;
+  bins: number;
+}
+
+export interface ComplianceItem {
+  id: string;
+  kind: 'vehicle' | 'driver';
+  subject: string;   // vehicle registration/fleet, or driver name
+  docType: string;   // e.g. 'Licence disc', 'Roadworthy', 'PrDP', 'Medical'
+  expiryDate: string;
+  daysLeft: number;  // negative if already expired
 }
 
 export interface StockByCategory {

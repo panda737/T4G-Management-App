@@ -1,14 +1,15 @@
 import { useNavigate } from 'react-router-dom';
-import { AlertTriangle, Clock, Package, Award } from 'lucide-react';
+import { AlertTriangle, Clock, Package, Award, Truck } from 'lucide-react';
 
 interface AlertBannerProps {
   openIncidents: number;
   overdueActions: number;
   outOfStockCount: number;
   expiringCertsCount: number;
+  complianceExpiringCount: number;
 }
 
-export default function AlertBanner({ openIncidents, overdueActions, outOfStockCount, expiringCertsCount }: AlertBannerProps) {
+export default function AlertBanner({ openIncidents, overdueActions, outOfStockCount, expiringCertsCount, complianceExpiringCount }: AlertBannerProps) {
   const navigate = useNavigate();
 
   const alerts = [
@@ -47,6 +48,15 @@ export default function AlertBanner({ openIncidents, overdueActions, outOfStockC
       text: 'text-amber-700',
       dot: 'bg-amber-400',
       onClick: () => navigate('/training/certificates'),
+    },
+    complianceExpiringCount > 0 && {
+      key: 'compliance',
+      label: `${complianceExpiringCount} compliance doc${complianceExpiringCount !== 1 ? 's' : ''} expiring`,
+      Icon: Truck,
+      bg: 'bg-amber-50 border-amber-200',
+      text: 'text-amber-700',
+      dot: 'bg-amber-500',
+      onClick: () => navigate('/logistics/vehicles'),
     },
   ].filter(Boolean) as Array<{
     key: string; label: string; Icon: React.ElementType;
