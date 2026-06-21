@@ -23,7 +23,7 @@ export const ORG_REPORTS_TO: Record<string, string | null> = {
   'Handler': 'Logistics Manager',
   'Stock Controller': 'Operations Manager',
   'Maintenance': 'Operations Manager',
-  'Receiving Officer': 'Operations Manager',
+  'Receiving Officer': 'Admin Manager',
   'Health & Safety Officer': 'Operations Manager',
   // Shift pool — all report to the Operations Manager and render as ONE block.
   'Supervisor': 'Operations Manager',
