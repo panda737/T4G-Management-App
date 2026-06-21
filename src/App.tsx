@@ -41,6 +41,7 @@ import AdminUsers from './pages/AdminUsers';
 import DocumentLibrary from './pages/DocumentLibrary';
 import ComplianceExpiry from './pages/ComplianceExpiry';
 import AppointmentsRegister from './pages/EmployeeRegister/AppointmentsRegister';
+import Organogram from './pages/EmployeeRegister/Organogram';
 import WasteOnFloor from './pages/TreatmentWasteOnFloor';
 import OperatorShiftEntry from './pages/OperatorShiftEntry';
 import StockOrders from './pages/StockOrders';
@@ -184,6 +185,7 @@ const ROUTE_LABELS: Record<string, string> = {
   '/documents/expiry-dashboard': 'Expiry Dashboard',
   '/employees': 'Employee Register',
   '/employees/appointments': 'Legal Appointments',
+  '/employees/organogram': 'Organogram',
   '/admin/users': 'User Management',
   '/admin/settings': 'Settings',
 };
@@ -332,8 +334,9 @@ function StaffShell({ session }: { session: Session }) {
 
             {/* Employee Register */}
             <Route path="/employees" element={<EmployeeRegister />} />
-            <Route path="/employees/:id" element={<EmployeeProfile />} />
+            <Route path="/employees/organogram" element={<Organogram />} />
             <Route path="/employees/appointments" element={<AppointmentsRegister />} />
+            <Route path="/employees/:id" element={<EmployeeProfile />} />
 
             {/* Admin */}
             <Route path="/admin/users" element={<AdminUsers />} />
