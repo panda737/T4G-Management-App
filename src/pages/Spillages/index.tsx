@@ -1,10 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Droplets, Plus, Eye, Trash2, Calendar, AlertCircle, Download, Camera } from 'lucide-react';
+import { Droplets, Plus, Eye, Trash2, Calendar, AlertCircle, Camera } from 'lucide-react';
 import { supabase, Spillage } from '../../lib/supabase';
 import { usePageTitle } from '../../lib/usePageTitle';
 import { useToast } from '../../lib/toast';
 import { useUser } from '../../lib/UserContext';
-import { exportToXlsx } from '../../lib/xlsxExport';
 import { PageHeader, Button, Toolbar, SearchInput, FilterSelect } from '../../components/ui';
 import DeleteConfirmModal from '../../components/DeleteConfirmModal';
 import { SPILLAGE_PARTIES, SPILLAGE_TYPES, SPILLAGE_PHOTO_BUCKET } from './constants';
@@ -84,37 +83,6 @@ export default function Spillages() {
     }
   }
 
-  function handleExport() {
-    exportToXlsx({
-      filename: `tech4green_spillages_${new Date().toISOString().slice(0, 10)}`,
-      title: 'Spillage Register',
-      subtitle: `${filtered.length} spillage${filtered.length !== 1 ? 's' : ''}`,
-      sheets: [{
-        name: 'Spillages',
-        columns: [
-          { header: 'Spillage No', key: 'spillage_number', width: 16 },
-          { header: 'Date', key: 'spillage_date', width: 14 },
-          { header: 'Time', key: 'spillage_time', width: 10 },
-          { header: 'Team', key: 'party', width: 18 },
-          { header: 'Type', key: 'spillage_type', width: 26 },
-          { header: 'Location', key: 'location', width: 22 },
-          { header: 'Notes', key: 'description', width: 40 },
-          { header: 'Reported By', key: 'reported_by', width: 20 },
-        ],
-        rows: filtered.map(s => ({
-          spillage_number: s.spillage_number,
-          spillage_date: s.spillage_date,
-          spillage_time: s.spillage_time?.slice(0, 5) ?? '',
-          party: s.party,
-          spillage_type: s.spillage_type,
-          location: s.location,
-          description: s.description,
-          reported_by: s.reported_by,
-        })),
-      }],
-    });
-  }
-
   return (
     <div className="space-y-4">
       {loadError && (
@@ -130,18 +98,9 @@ export default function Spillages() {
         icon={Droplets}
         accent="amber"
         actions={
-          <>
-            <Button
-              variant="secondary"
-              accent="amber"
-              icon={Download}
-              hideLabelOnMobile
-              onClick={handleExport}
-            >Export</Button>
-            {canReport && (
-              <Button variant="primary" accent="amber" icon={Plus} onClick={() => setShowForm(true)}>Report Spillage</Button>
-            )}
-          </>
+          canReport
+            ? <Button variant="primary" accent="amber" icon={Plus} onClick={() => setShowForm(true)}>Report Spillage</Button>
+            : undefined
         }
       />
 
