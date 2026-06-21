@@ -25,8 +25,12 @@ export default function SpillageFormModal({ onClose, onSaved }: Props) {
   const { profile } = useUser();
   const { addToast } = useToast();
 
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
-  const [time, setTime] = useState('');
+  // Date & time are locked to when the report is opened — the reporter can't
+  // change them. Captured in LOCAL time (not UTC) so the date is correct in SAST.
+  const [now] = useState(() => new Date());
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const localDate = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+  const localTime = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
   const [party, setParty] = useState('');
   const [type, setType] = useState('');
   const [location, setLocation] = useState('');
@@ -87,8 +91,8 @@ export default function SpillageFormModal({ onClose, onSaved }: Props) {
       const spillage_number = await generateSequentialNumber('spillages', 'spillage_number', 'SPL');
       const { error: dbErr } = await supabase.from('spillages').insert([{
         spillage_number,
-        spillage_date: date,
-        spillage_time: time || null,
+        spillage_date: localDate,
+        spillage_time: localTime,
         party,
         spillage_type: type,
         location: location.trim(),
@@ -205,15 +209,12 @@ export default function SpillageFormModal({ onClose, onSaved }: Props) {
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
-            <input type="date" value={date} onChange={e => setDate(e.target.value)} className={inputClass} />
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Date &amp; time</label>
+          <div className={`${inputClass} bg-gray-50 text-gray-700 flex items-center`}>
+            {now.toLocaleDateString()} · {localTime}
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Time</label>
-            <input type="time" value={time} onChange={e => setTime(e.target.value)} className={inputClass} />
-          </div>
+          <p className="text-xs text-gray-400 mt-1">Recorded as now.</p>
         </div>
 
         <div>

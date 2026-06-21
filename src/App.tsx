@@ -6,6 +6,7 @@ import { supabase } from './lib/supabase';
 import { UserProvider, useUser } from './lib/UserContext';
 import { ToastProvider } from './lib/toast';
 import Sidebar from './components/Sidebar';
+import InstallPrompt from './components/InstallPrompt';
 import Login from './pages/Login';
 import GlobalDashboard from './pages/GlobalDashboard';
 import StockMasterList from './pages/StockMasterList';
@@ -428,15 +429,21 @@ export default function App() {
 
   if (!session) {
     return (
-      <BrowserRouter>
-        <Login />
-      </BrowserRouter>
+      <>
+        <BrowserRouter>
+          <Login />
+        </BrowserRouter>
+        <InstallPrompt />
+      </>
     );
   }
 
   return (
-    <BrowserRouter>
-      <AuthenticatedLayout session={session} />
-    </BrowserRouter>
+    <>
+      <BrowserRouter>
+        <AuthenticatedLayout session={session} />
+      </BrowserRouter>
+      <InstallPrompt />
+    </>
   );
 }
