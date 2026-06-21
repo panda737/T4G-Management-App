@@ -205,7 +205,11 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
   // (covers in-page tabs whose URLs don't share the item's prefix).
   function isItemActive(item: ModuleGroup['items'][number]) {
     if (location.pathname === item.path) return true;
-    if (item.path === '/employees' && location.pathname.startsWith('/employees/')) return true;
+    // Employee Register stays highlighted on employee profile pages (/employees/:id),
+    // but NOT on /employees/appointments (Legal Appointments is its own sidebar item).
+    if (item.path === '/employees'
+      && location.pathname.startsWith('/employees/')
+      && !location.pathname.startsWith('/employees/appointments')) return true;
     if (item.match) return item.match.some(m => location.pathname === m || location.pathname.startsWith(m + '/'));
     return false;
   }
