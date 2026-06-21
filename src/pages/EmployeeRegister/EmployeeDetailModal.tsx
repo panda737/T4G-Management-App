@@ -6,6 +6,7 @@ import {
 import { supabase } from '../../lib/supabase';
 import type { Employee } from '../../lib/supabase';
 import Modal from '../../components/Modal';
+import { departmentForPosition } from './constants';
 
 type ProfileTab = 'info' | 'training' | 'safety' | 'incidents';
 
@@ -75,12 +76,11 @@ export default function EmployeeDetailModal({ employee, onClose }: { employee: E
     { label: 'Employee Number', value: employee.employee_number },
     { label: 'Full Name', value: `${employee.first_name} ${employee.surname}` },
     { label: 'Position', value: employee.position },
-    { label: 'Department', value: employee.department },
+    { label: 'Department', value: departmentForPosition(employee.position) },
     { label: 'Gender', value: employee.gender },
     { label: 'ID Number', value: employee.id_number || '--' },
     { label: 'Contact Number', value: employee.contact_number || '--' },
     { label: 'Email', value: employee.email || '--' },
-    { label: 'Truck Handler', value: employee.is_truck_handler ? 'Yes' : 'No' },
     { label: 'Status', value: employee.status },
     { label: 'Address', value: [employee.address_line_1, employee.address_line_2, employee.address_line_3, employee.postal_code].filter(Boolean).join(', ') || '--' },
     { label: 'Medical Fund', value: employee.medical_fund || '--' },

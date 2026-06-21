@@ -1,16 +1,14 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Search, Plus, ChevronDown, ChevronUp, Phone, User, Truck, AlertCircle, Download } from 'lucide-react';
+import { Search, Plus, ChevronDown, ChevronUp, Phone, User, AlertCircle, Download } from 'lucide-react';
 import { downloadCSV } from '../../lib/csvExport';
 import { supabase } from '../../lib/supabase';
 import { usePageTitle } from '../../lib/usePageTitle';
 import { useToast } from '../../lib/toast';
 import type { Employee } from '../../lib/supabase';
-import { HS_ROLE_LABELS, HS_ROLE_COLORS } from '../../lib/supabase';
-import type { EmployeeHsRole } from '../../lib/supabase';
 import { Spinner } from '../../components/Spinner';
 import { useUser } from '../../lib/UserContext';
-import { POSITIONS } from './constants';
+import { POSITIONS, DEPARTMENTS, departmentForPosition } from './constants';
 import EmployeeFormModal from './EmployeeFormModal';
 
 type SortKey = 'surname' | 'position' | 'status';
@@ -27,7 +25,7 @@ export default function EmployeeRegister() {
   const [search, setSearch] = useState('');
   const [positionFilter, setPositionFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('active');
-  const [hsRoleFilter, setHsRoleFilter] = useState('');
+  const [departmentFilter, setDepartmentFilter] = useState('');
   const [sortKey, setSortKey] = useState<SortKey>('surname');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const [showForm, setShowForm] = useState(false);
@@ -58,8 +56,8 @@ export default function EmployeeRegister() {
         .some(f => f?.toLowerCase().includes(search.toLowerCase()));
       const matchesPosition = !positionFilter || e.position === positionFilter;
       const matchesStatus = !statusFilter || e.status === statusFilter;
-      const matchesHsRole = !hsRoleFilter || e.hs_role === hsRoleFilter;
-      return matchesSearch && matchesPosition && matchesStatus && matchesHsRole;
+      const matchesDept = !departmentFilter || departmentForPosition(e.position) === departmentFilter;
+      return matchesSearch && matchesPosition && matchesStatus && matchesDept;
     })
     .sort((a, b) => {
       const aVal = (a[sortKey] ?? '') as string;
@@ -85,22 +83,14 @@ export default function EmployeeRegister() {
       'Surname': e.surname,
       'First Name': e.first_name,
       'Position': e.position,
-      'Department': e.department,
-      'H&S Role': HS_ROLE_LABELS[e.hs_role],
+      'Department': departmentForPosition(e.position),
       'Status': e.status === 'active' ? 'Active' : 'Inactive',
       'Contact': e.contact_number,
       'Email': e.email,
       'Date Joined': e.date_joined ?? '',
-      'Truck Handler': e.is_truck_handler ? 'Yes' : 'No',
     }));
     downloadCSV(rows, 'employees');
   }
-
-  const hsRoleOptions: { value: EmployeeHsRole; label: string }[] = [
-    { value: 'employee', label: 'Employee' },
-    { value: 'supervisor', label: 'Supervisor' },
-    { value: 'hs_staff', label: 'H&S Staff' },
-  ];
 
   return (
     <div className="space-y-5">
@@ -152,12 +142,12 @@ export default function EmployeeRegister() {
         </div>
         <div className="relative w-full sm:w-auto">
           <select
-            value={hsRoleFilter}
-            onChange={e => setHsRoleFilter(e.target.value)}
+            value={departmentFilter}
+            onChange={e => setDepartmentFilter(e.target.value)}
             className="appearance-none w-full bg-white border border-gray-200 rounded-lg px-4 py-2 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
           >
-            <option value="">All Roles</option>
-            {hsRoleOptions.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
+            <option value="">All Departments</option>
+            {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
           </select>
           <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
         </div>
@@ -205,7 +195,7 @@ export default function EmployeeRegister() {
             <Search size={28} className="mx-auto text-gray-300 mb-2" />
             <p className="text-sm text-gray-400">No employees match your filters.</p>
             <button
-              onClick={() => { setSearch(''); setPositionFilter(''); setStatusFilter('active'); setHsRoleFilter(''); }}
+              onClick={() => { setSearch(''); setPositionFilter(''); setStatusFilter('active'); setDepartmentFilter(''); }}
               className="mt-2 text-xs text-gray-500 underline"
             >
               Clear filters
@@ -218,15 +208,14 @@ export default function EmployeeRegister() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-gray-800 text-white">
-                    <th className="text-left px-4 py-2.5 font-medium text-xs uppercase tracking-wider cursor-pointer select-none" onClick={() => handleSort('surname')}>
+                    <th className="text-left px-4 py-2.5 font-medium text-xs uppercase tracking-wider cursor-pointer select-none w-56" onClick={() => handleSort('surname')}>
                       Employee <SortIcon k="surname" />
                     </th>
                     <th className="text-left px-4 py-2.5 font-medium text-xs uppercase tracking-wider cursor-pointer select-none" onClick={() => handleSort('position')}>
                       Position <SortIcon k="position" />
                     </th>
-                    <th className="text-left px-4 py-2.5 font-medium text-xs uppercase tracking-wider hidden lg:table-cell">H&S Role</th>
+                    <th className="text-left px-4 py-2.5 font-medium text-xs uppercase tracking-wider hidden lg:table-cell">Department</th>
                     <th className="text-left px-4 py-2.5 font-medium text-xs uppercase tracking-wider hidden md:table-cell">Contact</th>
-                    <th className="text-center px-4 py-2.5 font-medium text-xs uppercase tracking-wider w-20 hidden lg:table-cell">Handler</th>
                     <th className="text-center px-4 py-2.5 font-medium text-xs uppercase tracking-wider w-24 cursor-pointer select-none" onClick={() => handleSort('status')}>
                       Status <SortIcon k="status" />
                     </th>
@@ -244,9 +233,9 @@ export default function EmployeeRegister() {
                           <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0 text-xs font-bold text-emerald-700 uppercase">
                             {emp.first_name[0]}{emp.surname[0]}
                           </div>
-                          <div>
-                            <p className="font-medium text-gray-900 group-hover:text-emerald-700 transition-colors">{emp.surname}, {emp.first_name}</p>
-                            <p className="text-xs text-gray-400">{emp.employee_number}</p>
+                          <div className="min-w-0">
+                            <p className="font-medium text-gray-900 group-hover:text-emerald-700 transition-colors truncate">{emp.surname}, {emp.first_name}</p>
+                            <p className="text-xs text-gray-400 truncate">{emp.employee_number}</p>
                           </div>
                         </Link>
                       </td>
@@ -254,9 +243,7 @@ export default function EmployeeRegister() {
                         <span className="text-gray-700">{emp.position}</span>
                       </td>
                       <td className="px-4 py-3 hidden lg:table-cell">
-                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${HS_ROLE_COLORS[emp.hs_role] ?? 'bg-gray-100 text-gray-600'}`}>
-                          {HS_ROLE_LABELS[emp.hs_role] ?? emp.hs_role}
-                        </span>
+                        <span className="text-gray-700">{departmentForPosition(emp.position)}</span>
                       </td>
                       <td className="px-4 py-3 hidden md:table-cell">
                         {emp.contact_number ? (
@@ -266,13 +253,6 @@ export default function EmployeeRegister() {
                           </div>
                         ) : (
                           <span className="text-xs text-gray-300">--</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-center hidden lg:table-cell">
-                        {emp.is_truck_handler && (
-                          <span className="inline-flex items-center gap-1 text-xs text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">
-                            <Truck size={11} /> Yes
-                          </span>
                         )}
                       </td>
                       <td className="px-4 py-3 text-center">
@@ -323,14 +303,8 @@ export default function EmployeeRegister() {
                         <p className="text-gray-700">{emp.position}</p>
                       </div>
                       <div>
-                        <p className="text-xs text-gray-500 font-medium mb-0.5">H&S Role</p>
-                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${HS_ROLE_COLORS[emp.hs_role] ?? 'bg-gray-100 text-gray-600'}`}>
-                          {HS_ROLE_LABELS[emp.hs_role] ?? emp.hs_role}
-                        </span>
-                      </div>
-                      <div>
                         <p className="text-xs text-gray-500 font-medium mb-0.5">Department</p>
-                        <p className="text-gray-700">{emp.department}</p>
+                        <p className="text-gray-700">{departmentForPosition(emp.position)}</p>
                       </div>
                       <div>
                         <p className="text-xs text-gray-500 font-medium mb-0.5">Contact</p>
