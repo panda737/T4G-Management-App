@@ -482,7 +482,7 @@ export type ToolboxTalkTopic = {
   created_at: string;
 };
 
-export type AppRole = 'admin' | 'management' | 'stock_controller' | 'production' | 'operator' | 'viewer' | 'customer';
+export type AppRole = 'admin' | 'management' | 'stock_controller' | 'production' | 'operator' | 'viewer' | 'customer' | 'logistics_manager';
 
 export type ShiftType = 'Day' | 'Afternoon' | 'Night';
 
@@ -536,6 +536,7 @@ export const ROLE_LABELS: Record<AppRole, string> = {
   operator: 'Operator',
   viewer: 'Viewer',
   customer: 'Customer (Portal)',
+  logistics_manager: 'Logistics Manager',
 };
 
 export const ROLE_COLORS: Record<AppRole, string> = {
@@ -546,6 +547,7 @@ export const ROLE_COLORS: Record<AppRole, string> = {
   operator: 'bg-indigo-500/20 text-indigo-300',
   viewer: 'bg-gray-500/20 text-gray-400',
   customer: 'bg-blue-500/20 text-blue-300',
+  logistics_manager: 'bg-slate-500/20 text-slate-300',
 };
 
 export type Equipment = {
@@ -679,6 +681,47 @@ export type WasteReceipt = {
   vehicle_registration: string;
   received_by: string | null;
   notes: string;
+  created_at: string;
+  updated_at: string;
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Logistics — fleet register & driver compliance (Ctrack owns routing/tracking)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type LogisticsVehicleStatus = 'Active' | 'In for Repair' | 'Decommissioned';
+
+export type LogisticsVehicle = {
+  id: string;
+  registration: string;
+  fleet_number: string;
+  make_model: string;
+  vehicle_type: string;
+  capacity_kg: number | null;
+  assigned_driver_id: string | null;
+  status: LogisticsVehicleStatus;
+  licence_disc_expiry: string | null;
+  roadworthy_expiry: string | null;
+  transport_permit_expiry: string | null;
+  insurance_expiry: string | null;
+  notes: string;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type LogisticsDriverCompliance = {
+  id: string;
+  employee_id: string;
+  licence_code: string;
+  licence_expiry: string | null;
+  prdp_categories: string;
+  prdp_expiry: string | null;
+  medical_expiry: string | null;
+  dg_training_expiry: string | null;
+  induction_date: string | null;
+  notes: string;
+  created_by: string | null;
   created_at: string;
   updated_at: string;
 };

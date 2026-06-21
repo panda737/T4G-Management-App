@@ -132,8 +132,8 @@ const moduleGroups: ModuleGroup[] = [
     icon: Truck,
     color: 'text-slate-400',
     items: [
-      { path: '/logistics/vehicles', label: 'Vehicle Register', soon: true },
-      { path: '/logistics/drivers', label: 'Driver Compliance', soon: true },
+      { path: '/logistics/vehicles', label: 'Vehicle Register' },
+      { path: '/logistics/drivers', label: 'Driver Compliance' },
     ],
   },
   {
@@ -166,7 +166,7 @@ interface SidebarProps {
 export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose, userEmail, onSignOut }: SidebarProps) {
   const navigate = useNavigate();
   const location = useLocation();
-  const { role, profile, isStockController } = useUser();
+  const { role, profile, isStockController, isLogisticsManager } = useUser();
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(() => {
     const activeGroup = moduleGroups.find(g =>
       g.items.some(item => location.pathname === item.path || location.pathname.startsWith(item.path + '/'))
@@ -231,6 +231,10 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
     if (isStockController) setExpandedGroups(new Set(['stock']));
   }, [isStockController]);
 
+  useEffect(() => {
+    if (isLogisticsManager) setExpandedGroups(new Set(['logistics']));
+  }, [isLogisticsManager]);
+
   const displayName = profile?.display_name ?? userEmail ?? 'User';
   const roleLabel = role ? ROLE_LABELS[role] : 'Loading...';
   const roleColor = role ? ROLE_COLORS[role] : 'bg-gray-500/20 text-gray-400';
@@ -259,11 +263,13 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
       ]
     : isStockController
       ? moduleGroups.filter(g => g.id === 'stock')
-      : moduleGroups.filter(g => {
-          if (g.id === 'logistics') return isAdmin; // still coming soon
-          if (g.id === 'commercial') return isAdmin;
-          return true;
-        });
+      : isLogisticsManager
+        ? moduleGroups.filter(g => g.id === 'logistics')
+        : moduleGroups.filter(g => {
+            if (g.id === 'logistics') return isAdmin || role === 'management';
+            if (g.id === 'commercial') return isAdmin;
+            return true;
+          });
 
   // Hide admin-only items (e.g. Company docs, Expiry Dashboard) from non-admins.
   const visibleGroups: ModuleGroup[] = rawVisibleGroups.map(g => ({
@@ -302,7 +308,7 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
 
         {/* Nav */}
         <nav className="flex-1 py-3 overflow-y-auto">
-          {!isOperator && !isStockController && (
+          {!isOperator && !isStockController && !isLogisticsManager && (
             <>
               <button
                 onClick={() => handleNavigate('/')}

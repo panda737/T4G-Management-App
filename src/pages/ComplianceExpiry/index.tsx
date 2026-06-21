@@ -46,15 +46,17 @@ export default function ComplianceExpiry() {
     setLoading(true);
     setError('');
     try {
-    const [docsRes, apptRes, certRes, medRes, empRes] = await Promise.all([
+    const [docsRes, apptRes, certRes, medRes, empRes, vehRes, drvRes] = await Promise.all([
       supabase.from('documents').select('title, category, expiry_date, review_date, is_active'),
       supabase.from('legal_appointments').select('appointment_type, expiry_date, employee_id'),
       supabase.from('training_certificates').select('course_name, employee_name, expiry_date'),
       supabase.from('employee_medical_records').select('record_type, name, expiry_date, employee_id'),
       supabase.from('employees').select('id, first_name, surname'),
+      supabase.from('logistics_vehicles').select('registration, licence_disc_expiry, roadworthy_expiry, transport_permit_expiry, insurance_expiry'),
+      supabase.from('logistics_driver_compliance').select('employee_id, licence_expiry, prdp_expiry, medical_expiry, dg_training_expiry'),
     ]);
 
-    const firstErr = [docsRes, apptRes, certRes, medRes, empRes].find(r => r.error)?.error;
+    const firstErr = [docsRes, apptRes, certRes, medRes, empRes, vehRes, drvRes].find(r => r.error)?.error;
     if (firstErr) throw new Error(firstErr.message);
 
     const empName = new Map<string, string>();
@@ -75,6 +77,25 @@ export default function ComplianceExpiry() {
     }
     for (const m of medRes.data ?? []) {
       if (m.expiry_date) collected.push({ source: 'Medical', name: m.name || m.record_type, owner: empName.get(m.employee_id) ?? '—', kind: 'Expiry', date: m.expiry_date, status: statusOf(m.expiry_date) });
+    }
+    for (const v of vehRes.data ?? []) {
+      const push = (label: string, date: string | null) => {
+        if (date) collected.push({ source: 'Vehicle', name: label, owner: v.registration, kind: 'Expiry', date, status: statusOf(date) });
+      };
+      push('Licence disc', v.licence_disc_expiry);
+      push('Roadworthy / COF', v.roadworthy_expiry);
+      push('Transport / waste permit', v.transport_permit_expiry);
+      push('Insurance', v.insurance_expiry);
+    }
+    for (const d of drvRes.data ?? []) {
+      const owner = empName.get(d.employee_id) ?? '—';
+      const push = (label: string, date: string | null) => {
+        if (date) collected.push({ source: 'Driver', name: label, owner, kind: 'Expiry', date, status: statusOf(date) });
+      };
+      push("Driver's licence", d.licence_expiry);
+      push('PrDP', d.prdp_expiry);
+      push('Medical certificate', d.medical_expiry);
+      push('Dangerous-goods training', d.dg_training_expiry);
     }
 
     collected.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
