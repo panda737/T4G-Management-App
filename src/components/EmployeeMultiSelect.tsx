@@ -22,6 +22,7 @@ interface EmployeeMultiSelectProps {
   positionFilter?: string[];
   hsRoleFilter?: EmployeeHsRole[];
   excludeIds?: string[];
+  excludeNames?: string[];
 }
 
 export default function EmployeeMultiSelect({
@@ -34,6 +35,7 @@ export default function EmployeeMultiSelect({
   positionFilter,
   hsRoleFilter,
   excludeIds,
+  excludeNames,
 }: EmployeeMultiSelectProps) {
   const [employees, setEmployees] = useState<EmployeeOption[]>([]);
   const [open, setOpen] = useState(false);
@@ -79,9 +81,18 @@ export default function EmployeeMultiSelect({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const availableEmployees = excludeIds?.length
-    ? employees.filter(e => !excludeIds.includes(e.id))
-    : employees;
+  const excludeNameSet = excludeNames?.length
+    ? new Set(excludeNames.map(n => n.trim().toLowerCase()))
+    : null;
+  const availableEmployees = employees.filter(e => {
+    if (excludeIds?.includes(e.id)) return false;
+    if (excludeNameSet) {
+      const full = e.label.toLowerCase();
+      const first = full.split(' ')[0];
+      if (excludeNameSet.has(full) || excludeNameSet.has(first)) return false;
+    }
+    return true;
+  });
 
   const filtered = search
     ? availableEmployees.filter(
@@ -93,19 +104,23 @@ export default function EmployeeMultiSelect({
       )
     : availableEmployees;
 
+  // Names are returned parallel to `next` (same order as the ids) so callers can
+  // pair selected_attendee_ids[i] with selected_attendee_names[i].
+  function namesFor(ids: string[]): string[] {
+    return ids.map(id => employees.find(e => e.id === id)?.label || '');
+  }
+
   function toggle(emp: EmployeeOption) {
     const next = value.includes(emp.id)
       ? value.filter(id => id !== emp.id)
       : [...value, emp.id];
-    const names = employees.filter(e => next.includes(e.id)).map(e => e.label);
-    onChange(next, names);
+    onChange(next, namesFor(next));
   }
 
   function removeChip(id: string, e: React.MouseEvent) {
     e.stopPropagation();
     const next = value.filter(v => v !== id);
-    const names = employees.filter(emp => next.includes(emp.id)).map(emp => emp.label);
-    onChange(next, names);
+    onChange(next, namesFor(next));
   }
 
   const selectedEmployees = employees.filter(e => value.includes(e.id));
@@ -180,7 +195,7 @@ export default function EmployeeMultiSelect({
             </div>
           )}
 
-          <ul className="max-h-52 overflow-y-auto">
+          <ul className="max-h-72 overflow-y-auto">
             {filtered.length === 0 ? (
               <li className="px-3 py-4 text-sm text-gray-400 text-center flex flex-col items-center gap-1">
                 <User size={16} className="text-gray-300" />
@@ -193,6 +208,7 @@ export default function EmployeeMultiSelect({
                   <li key={emp.id}>
                     <button
                       type="button"
+                      onMouseDown={e => e.preventDefault()}
                       onClick={() => toggle(emp)}
                       className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm text-left transition-colors ${
                         selected ? 'bg-emerald-50' : 'hover:bg-gray-50'

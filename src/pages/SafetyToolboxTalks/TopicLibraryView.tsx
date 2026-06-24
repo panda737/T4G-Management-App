@@ -15,7 +15,7 @@ export default function TopicLibraryView({ topics, categories, lastUsedByTopic, 
   onSuggest: (topic: ToolboxTalkTopic) => void;
   onEdit: (topic: ToolboxTalkTopic) => void;
   onDelete: (topic: ToolboxTalkTopic) => void;
-  suggestedProgress?: { id: string; done: number; required: number } | null;
+  suggestedProgress?: Map<string, { done: number; required: number }> | null;
 }) {
   const [selCat, setSelCat] = useState('');
   const [selSub, setSelSub] = useState('');
@@ -68,6 +68,7 @@ export default function TopicLibraryView({ topics, categories, lastUsedByTopic, 
       <div className="space-y-3">
         {filtered.map(topic => {
           const lastUsed = lastUsedByTopic.get(topic.title);
+          const sp = suggestedProgress?.get(topic.id);
           return (
             <div key={topic.id} className={`rounded-xl shadow-sm border overflow-hidden ${topic.is_suggested ? 'border-emerald-300 ring-1 ring-emerald-200 bg-emerald-50/40' : 'bg-white border-gray-200'}`}>
               <button onClick={() => setExpandedTopic(expandedTopic === topic.id ? null : topic.id)} className="w-full flex flex-wrap items-center gap-x-3 gap-y-2 px-3 sm:px-5 py-3 sm:py-4 text-left hover:bg-gray-50 transition">
@@ -77,7 +78,7 @@ export default function TopicLibraryView({ topics, categories, lastUsedByTopic, 
                     <p className="text-sm font-semibold text-gray-900">
                       {topic.is_suggested && (
                         <span className="mr-1.5 align-middle text-[10px] font-bold text-white bg-emerald-600 rounded px-1.5 py-0.5">
-                          SUGGESTED{suggestedProgress?.id === topic.id ? ` ${suggestedProgress.done}/${suggestedProgress.required}` : ''}
+                          SUGGESTED{sp ? ` ${sp.done}/${sp.required}` : ''}
                         </span>
                       )}
                       {topic.title}

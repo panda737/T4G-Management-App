@@ -8,7 +8,7 @@ import {
   FileText, TrendingUp, Truck,
 } from 'lucide-react';
 import { useUser } from '../lib/UserContext';
-import { ROLE_LABELS, ROLE_COLORS } from '../lib/supabase';
+import { supabase, ROLE_LABELS, ROLE_COLORS } from '../lib/supabase';
 
 interface ModuleGroup {
   id: string;
@@ -236,7 +236,25 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
     if (isLogisticsManager) setExpandedGroups(new Set(['logistics']));
   }, [isLogisticsManager]);
 
-  const displayName = profile?.display_name ?? userEmail ?? 'User';
+  // Show the user's full name (name + surname) from their linked employee record,
+  // falling back to the profile display name / email.
+  const [employeeName, setEmployeeName] = useState<string | null>(null);
+  useEffect(() => {
+    const empId = profile?.employee_id;
+    if (!empId) { setEmployeeName(null); return; }
+    let active = true;
+    supabase
+      .from('employees')
+      .select('first_name, surname')
+      .eq('id', empId)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (active && data) setEmployeeName(`${data.first_name} ${data.surname}`.trim());
+      });
+    return () => { active = false; };
+  }, [profile?.employee_id]);
+
+  const displayName = employeeName ?? profile?.display_name ?? userEmail ?? 'User';
   const roleLabel = role ? ROLE_LABELS[role] : 'Loading...';
   const roleColor = role ? ROLE_COLORS[role] : 'bg-gray-500/20 text-gray-400';
 

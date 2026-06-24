@@ -20,6 +20,12 @@ import TopicLibraryView from './TopicLibraryView';
 import TopicLibraryPicker from './TopicLibraryPicker';
 import TopicFormModal from './TopicFormModal';
 
+// People who should not appear in the toolbox-talk attendee picker.
+// Matched case-insensitively on full name or first name.
+const TOOLBOX_EXCLUDED_NAMES = [
+  'Juandre Cross', 'Waldo', 'Gerriaan', 'Leon', 'Theresa', 'Nicolene', 'Dineo', 'Linokuhle',
+];
+
 export default function SafetyToolboxTalks() {
   usePageTitle('Safety — Toolbox Talks');
   const { isAdmin, isManagement, profile } = useUser();
@@ -36,7 +42,7 @@ export default function SafetyToolboxTalks() {
   const [showLibraryModal, setShowLibraryModal] = useState(false);
   const [showAttendanceModal, setShowAttendanceModal] = useState(false);
   const [selectedTalk, setSelectedTalk] = useState<SafetyToolboxTalk | null>(null);
-  const [activeTab, setActiveTab] = useState<Tab>('register');
+  const [activeTab, setActiveTab] = useState<Tab>('library');
   const [sortConfig, setSortConfig] = useState<{ key: string; ascending: boolean }>({ key: 'talk_date', ascending: false });
   const [selectedCategory, setSelectedCategory] = useState('');
   const [selectedSubcategory, setSelectedSubcategory] = useState('');
@@ -50,6 +56,10 @@ export default function SafetyToolboxTalks() {
   const [editTopic, setEditTopic] = useState<ToolboxTalkTopic | null>(null);
   const [talkSignature, setTalkSignature] = useState<string | null>(null);
   const [showSignaturePad, setShowSignaturePad] = useState(false);
+  // Record flow: 'details' (talk + presenter signs) → 'attendance' (each attendee signs).
+  const [modalStep, setModalStep] = useState<'details' | 'attendance'>('details');
+  const [attendeeSignatures, setAttendeeSignatures] = useState<Record<string, string>>({});
+  const [signingAttendeeId, setSigningAttendeeId] = useState<string | null>(null);
 
   useEffect(() => { loadData(); }, []);
   useEffect(() => { filterTalks(); }, [talks, searchTerm, monthFilter, sortConfig]);
@@ -150,6 +160,8 @@ export default function SafetyToolboxTalks() {
         employee_id: empId,
         employee_name: empMap.get(empId) || '',
         status: 'Present',
+        signature_data: attendeeSignatures[empId] ?? null,
+        signed_at: attendeeSignatures[empId] ? new Date().toISOString() : null,
       }));
       const junctionRecords = formData.selected_attendee_ids.map(empId => ({
         toolbox_id: insertedTalk.id,
@@ -181,10 +193,32 @@ export default function SafetyToolboxTalks() {
       }
     }
 
-    addToast('Toolbox talk saved');
+    addToast('Toolbox talk & attendance saved');
     setShowAddModal(false);
+    setActiveTab('library');
     loadData();
     resetForm();
+  }
+
+  // Details → attendance: validate the talk is complete and the presenter signed.
+  function goToAttendance() {
+    if (!formData.topic?.trim()) { setOpError('Please choose a topic from the library.'); return; }
+    if (!talkSignature) { setOpError('Please sign as presenter before continuing.'); return; }
+    if (formData.selected_attendee_ids.length === 0) { setOpError('Select at least one attendee.'); return; }
+    setOpError('');
+    setModalStep('attendance');
+  }
+
+  function removeAttendee(id: string) {
+    setFormData(prev => {
+      const idx = prev.selected_attendee_ids.indexOf(id);
+      return {
+        ...prev,
+        selected_attendee_ids: prev.selected_attendee_ids.filter(x => x !== id),
+        selected_attendee_names: prev.selected_attendee_names.filter((_, i) => i !== idx),
+      };
+    });
+    setAttendeeSignatures(prev => { const next = { ...prev }; delete next[id]; return next; });
   }
 
   function handleDelete(id: string, label: string) {
@@ -207,6 +241,9 @@ export default function SafetyToolboxTalks() {
     setFormData({ ...EMPTY_FORM, talk_date: new Date().toISOString().split('T')[0] });
     setTalkSignature(null);
     setShowSignaturePad(false);
+    setModalStep('details');
+    setAttendeeSignatures({});
+    setSigningAttendeeId(null);
   }
 
   async function downloadAttachment(talk: SafetyToolboxTalk) {
@@ -219,13 +256,12 @@ export default function SafetyToolboxTalks() {
     setShowAddModal(true);
   }
 
-  // Suggest: only one topic may be "suggested" at a time. A suggestion stays
-  // active until the topic has been recorded 3 times (once per shift).
+  // Suggest: any number of topics can be "suggested" at once. Each suggestion
+  // stays active until that topic has been recorded 3 times (once per shift).
   async function toggleSuggest(topic: ToolboxTalkTopic) {
     if (topic.is_suggested) {
       await supabase.from('toolbox_talk_topics').update({ is_suggested: false, suggested_at: null }).eq('id', topic.id);
     } else {
-      await supabase.from('toolbox_talk_topics').update({ is_suggested: false, suggested_at: null }).eq('is_suggested', true);
       await supabase.from('toolbox_talk_topics').update({ is_suggested: true, suggested_at: new Date().toISOString() }).eq('id', topic.id);
     }
     addToast(topic.is_suggested ? 'Suggestion removed' : `Suggested "${topic.title}" (needs 3 shifts)`);
@@ -233,13 +269,15 @@ export default function SafetyToolboxTalks() {
   }
 
   const SHIFTS_REQUIRED = 3;
-  // The active suggestion + how many shifts have recorded it since it was suggested.
+  // Per-topic progress for every suggested topic: shifts recorded since it was suggested.
   const suggestedProgress = useMemo(() => {
-    const sugg = topics.find(t => t.is_suggested);
-    if (!sugg) return null;
-    const since = sugg.suggested_at || '';
-    const done = talks.filter(t => t.topic === sugg.title && (!since || t.created_at >= since)).length;
-    return { id: sugg.id, done: Math.min(done, SHIFTS_REQUIRED), required: SHIFTS_REQUIRED };
+    const map = new Map<string, { done: number; required: number }>();
+    topics.filter(t => t.is_suggested).forEach(sugg => {
+      const since = sugg.suggested_at || '';
+      const done = talks.filter(t => t.topic === sugg.title && (!since || t.created_at >= since)).length;
+      map.set(sugg.id, { done: Math.min(done, SHIFTS_REQUIRED), required: SHIFTS_REQUIRED });
+    });
+    return map;
   }, [topics, talks]);
 
   function openAddTopic() { setEditTopic(null); setShowTopicForm(true); }
@@ -260,6 +298,7 @@ export default function SafetyToolboxTalks() {
       description: `${topic.talking_points}\n\nKey Discussion Questions:\n${topic.key_questions}`,
     }));
     setShowLibraryModal(false);
+    setModalStep('details');
     setShowAddModal(true);
   }
 
@@ -337,11 +376,11 @@ export default function SafetyToolboxTalks() {
       />
 
       <div className="flex gap-1 bg-gray-100 rounded-lg p-0.5 w-fit">
-          <button onClick={() => setActiveTab('register')} className={`px-4 py-2 text-sm font-medium rounded-md transition ${activeTab === 'register' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
-            <ClipboardList size={14} className="inline mr-1.5" /> Talk Register
-          </button>
           <button onClick={() => setActiveTab('library')} className={`px-4 py-2 text-sm font-medium rounded-md transition ${activeTab === 'library' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
             <Library size={14} className="inline mr-1.5" /> Topic Library
+          </button>
+          <button onClick={() => setActiveTab('register')} className={`px-4 py-2 text-sm font-medium rounded-md transition ${activeTab === 'register' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+            <ClipboardList size={14} className="inline mr-1.5" /> Talk Register
           </button>
         </div>
 
@@ -367,7 +406,7 @@ export default function SafetyToolboxTalks() {
                     <>
                       <p className="text-sm font-medium text-gray-500">No toolbox talks recorded yet</p>
                       <p className="text-xs text-gray-400 mt-1">Record your first safety toolbox talk.</p>
-                      <button onClick={() => setShowAddModal(true)} className="mt-4 text-sm text-green-700 hover:text-green-800 font-medium">+ Record Talk</button>
+                      <button onClick={openAddModal} className="mt-4 text-sm text-green-700 hover:text-green-800 font-medium">+ Record Talk</button>
                     </>
                   ) : (
                     <>
@@ -464,20 +503,36 @@ export default function SafetyToolboxTalks() {
         )}
 
       {showAddModal && (
-        <Modal title="Record Toolbox Talk" onClose={() => setShowAddModal(false)} size="lg" accent="green" footer={
-          <>
-            <button onClick={() => setShowAddModal(false)} className="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition">Cancel</button>
-            <button onClick={handleSave} className="px-4 py-2 text-sm bg-gray-800 text-white rounded-lg hover:bg-gray-900 transition font-medium">Save</button>
-          </>
+        <Modal title={modalStep === 'details' ? 'Record Toolbox Talk' : 'Attendance — everyone signs'} onClose={() => setShowAddModal(false)} size="lg" accent="green" footer={
+          modalStep === 'details' ? (
+            <>
+              <button onClick={() => setShowAddModal(false)} className="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition">Cancel</button>
+              <button onClick={goToAttendance} className="px-4 py-2 text-sm bg-gray-800 text-white rounded-lg hover:bg-gray-900 transition font-medium">Continue to attendance →</button>
+            </>
+          ) : (
+            <>
+              <button onClick={() => setModalStep('details')} className="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition">← Back</button>
+              <button
+                onClick={handleSave}
+                disabled={formData.selected_attendee_ids.length === 0 || formData.selected_attendee_ids.some(id => !attendeeSignatures[id])}
+                className="px-4 py-2 text-sm bg-gray-800 text-white rounded-lg hover:bg-gray-900 transition font-medium disabled:opacity-50"
+              >
+                Save attendance ({formData.selected_attendee_ids.filter(id => attendeeSignatures[id]).length}/{formData.selected_attendee_ids.length} signed)
+              </button>
+            </>
+          )
         }>
+          {modalStep === 'details' ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Talk Date *</label>
-              <input type="date" value={formData.talk_date} onChange={e => setFormData({ ...formData, talk_date: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
-              <input type="text" value={formData.location} onChange={e => setFormData({ ...formData, location: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500" />
+            <div className="col-span-2 flex flex-col sm:flex-row gap-4">
+              <div className="sm:w-48 flex-shrink-0">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Talk Date *</label>
+                <input type="date" value={formData.talk_date} onChange={e => setFormData({ ...formData, talk_date: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
+                <input type="text" value={formData.location} onChange={e => setFormData({ ...formData, location: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500" />
+              </div>
             </div>
             <div className="col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -499,7 +554,7 @@ export default function SafetyToolboxTalks() {
                 Description / Talking Points <span className="text-gray-400 font-normal text-xs">(loaded from the topic)</span>
               </label>
               {formData.description ? (
-                <div className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-sm text-gray-700 whitespace-pre-wrap max-h-48 overflow-y-auto">{formData.description}</div>
+                <div className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-sm text-gray-700 whitespace-pre-wrap max-h-80 overflow-y-auto">{formData.description}</div>
               ) : (
                 <p className="px-3 py-3 border border-dashed border-gray-200 rounded-lg text-sm text-gray-400">Choose a topic above to load its talking points.</p>
               )}
@@ -520,8 +575,9 @@ export default function SafetyToolboxTalks() {
               <EmployeeMultiSelect
                 label="Attendees"
                 value={formData.selected_attendee_ids}
-                onChange={(ids) => setFormData(prev => ({ ...prev, selected_attendee_ids: ids }))}
+                onChange={(ids, names) => setFormData(prev => ({ ...prev, selected_attendee_ids: ids, selected_attendee_names: names }))}
                 placeholder="Select attendees..."
+                excludeNames={TOOLBOX_EXCLUDED_NAMES}
               />
             </div>
 
@@ -580,6 +636,41 @@ export default function SafetyToolboxTalks() {
               )}
             </div>
           </div>
+          ) : (
+            <div className="space-y-3">
+              <p className="text-sm text-gray-600">
+                Each attendee signs to confirm they attended <span className="font-medium text-gray-900">{formData.topic}</span>. Save once everyone has signed.
+              </p>
+              {formData.selected_attendee_ids.length === 0 ? (
+                <p className="text-sm text-gray-400 py-6 text-center">No attendees selected — go back and add the team.</p>
+              ) : (
+                formData.selected_attendee_ids.map((id, idx) => {
+                  const name = formData.selected_attendee_names[idx] || 'Attendee';
+                  const sig = attendeeSignatures[id];
+                  return (
+                    <div key={id} className="flex items-center gap-3 border border-gray-200 rounded-lg px-3 py-2.5 bg-white">
+                      <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0 text-xs font-bold text-emerald-700 uppercase">
+                        {name[0]}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-900 truncate">{name}</p>
+                        {sig
+                          ? <p className="text-[11px] text-emerald-600 font-medium">Signed</p>
+                          : <p className="text-[11px] text-gray-400">Not signed yet</p>}
+                      </div>
+                      {sig && <img src={sig} alt="Signature" className="h-8 w-16 object-contain border border-gray-100 rounded bg-white flex-shrink-0" />}
+                      <button type="button" onClick={() => setSigningAttendeeId(id)} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium flex-shrink-0 transition ${sig ? 'text-gray-500 border border-gray-200 hover:bg-gray-50' : 'bg-emerald-600 text-white hover:bg-emerald-700'}`}>
+                        {sig ? <><RotateCcw size={12} /> Re-sign</> : <><PenLine size={12} /> Sign</>}
+                      </button>
+                      <button type="button" onClick={() => removeAttendee(id)} title="Remove attendee" className="p-1.5 text-gray-300 hover:text-red-500 transition flex-shrink-0">
+                        <XIcon size={14} />
+                      </button>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          )}
         </Modal>
       )}
 
@@ -592,6 +683,22 @@ export default function SafetyToolboxTalks() {
               onSave={url => { setTalkSignature(url); setShowSignaturePad(false); }}
               onCancel={() => setShowSignaturePad(false)}
               existingSignature={talkSignature}
+            />
+          </div>
+        </div>
+      )}
+
+      {showAddModal && signingAttendeeId && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-5">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setSigningAttendeeId(null)} />
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm p-5 space-y-3">
+            <h3 className="text-base font-semibold text-gray-900 text-center">
+              {formData.selected_attendee_names[formData.selected_attendee_ids.indexOf(signingAttendeeId)] || 'Attendee'} — sign
+            </h3>
+            <SignaturePad
+              onSave={url => { setAttendeeSignatures(prev => ({ ...prev, [signingAttendeeId]: url })); setSigningAttendeeId(null); }}
+              onCancel={() => setSigningAttendeeId(null)}
+              existingSignature={attendeeSignatures[signingAttendeeId]}
             />
           </div>
         </div>
