@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
-import { Sun, Sunset, Moon, ClipboardCopy, Check, CheckCircle, AlertTriangle, Loader, PenLine, RotateCcw, ChevronLeft } from 'lucide-react';
+import { Sun, Sunset, Moon, ClipboardCopy, Check, CheckCircle, AlertTriangle, Loader, PenLine, RotateCcw, ChevronLeft, Menu } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { usePageTitle } from '../../lib/usePageTitle';
 import type { ShiftType } from '../../lib/supabase';
 import { useUser } from '../../lib/UserContext';
 import { useToast } from '../../lib/toast';
+import { useOpenNav } from '../../lib/mobileNav';
 import EmployeeTogglePicker from '../../components/EmployeeTogglePicker';
 import SignaturePad from '../../components/SignaturePad';
 
@@ -124,6 +125,7 @@ export default function OperatorShiftEntry() {
   usePageTitle('Shift Report');
   const { profile } = useUser();
   const { addToast } = useToast();
+  const openNav = useOpenNav();
 
   const [step, setStep] = useState<Step>('select');
   const [shift, setShift] = useState<ShiftType | null>(null);
@@ -386,6 +388,16 @@ export default function OperatorShiftEntry() {
             );
           })}
         </div>
+
+        {/* Menu — opens the navigation drawer (mobile). Operators land here, so
+            this gives them a clear way into the rest of the app without reaching
+            for the top bar. */}
+        <button
+          onClick={openNav}
+          className="lg:hidden w-full flex items-center justify-center gap-2 p-4 rounded-xl border-2 border-gray-200 bg-white text-gray-700 font-semibold hover:bg-gray-50 active:scale-[0.99] transition-all"
+        >
+          <Menu size={20} /> Menu
+        </button>
       </div>
     );
   }

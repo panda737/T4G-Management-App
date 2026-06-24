@@ -7,6 +7,7 @@ import { UserProvider, useUser } from './lib/UserContext';
 import { ToastProvider } from './lib/toast';
 import Sidebar from './components/Sidebar';
 import InstallPrompt from './components/InstallPrompt';
+import { OpenNavContext } from './lib/mobileNav';
 import Login from './pages/Login';
 import GlobalDashboard from './pages/GlobalDashboard';
 import StockMasterList from './pages/StockMasterList';
@@ -221,6 +222,7 @@ function StaffShell({ session }: { session: Session }) {
   const { isAdmin } = useUser();
 
   return (
+    <OpenNavContext.Provider value={() => setMobileOpen(true)}>
     <div className="min-h-screen bg-gray-50 flex">
       <div className="print:hidden">
         <Sidebar
@@ -367,6 +369,7 @@ function StaffShell({ session }: { session: Session }) {
         </div>
       </main>
     </div>
+    </OpenNavContext.Provider>
   );
 }
 
