@@ -73,8 +73,18 @@ function txt(doc: JsPDFType, s: string, x: number, y: number, o: TxtOpts = {}) {
   doc.setFont('helvetica', o.style || 'normal');
   doc.setFontSize(o.size || 10);
   doc.setTextColor(...(o.color || C.ink));
-  if (o.charSpace) doc.setCharSpace(o.charSpace);
-  doc.text(String(s), x, y, { align: o.align || 'left' });
+  const align = o.align || 'left';
+  let drawX = x;
+  if (o.charSpace) {
+    doc.setCharSpace(o.charSpace);
+    // jsPDF computes right/centre alignment from the un-spaced string width, so
+    // letter-spaced text overshoots the anchor by charSpace × (chars − 1). Shift
+    // the anchor back so the visible right/centre edge lands exactly on x.
+    const extra = o.charSpace * Math.max(0, String(s).length - 1);
+    if (align === 'right') drawX = x - extra;
+    else if (align === 'center') drawX = x - extra / 2;
+  }
+  doc.text(String(s), drawX, y, { align });
   if (o.charSpace) doc.setCharSpace(0);
 }
 
@@ -148,7 +158,9 @@ function drawNote(doc: JsPDFType, page: DeliveryNotePage, logo: Logo) {
     ['ORDER DATE', fmtDate(order.order_date)],
     ['SOURCE', order.source],
     ['CUSTOMER REF', order.customer_reference || '—'],
-    showDelivered && order.confirmed_at ? ['CONFIRMED', fmtDate(order.confirmed_at)] : ['DELIVERY DATE', '—'],
+    showDelivered && order.confirmed_at
+      ? ['CONFIRMED', fmtDate(order.confirmed_at)]
+      : ['DELIVERY DATE', order.delivery_date ? fmtDate(order.delivery_date) : '—'],
   ];
   const colX = [ML, ML + 45, ML + 90, ML + 135];
   metas.forEach((m, i) => {

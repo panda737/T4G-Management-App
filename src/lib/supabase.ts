@@ -789,10 +789,12 @@ export type StockOrder = {
   site_id: string | null;
   site_name: string;
   order_date: string;
+  delivery_date: string | null;
   source: OrderSource;
   customer_reference: string;
   status: StockOrderStatus;
   notes: string;
+  back_order_of: string | null;
   printed_at: string | null;
   dispatched_at: string | null;
   signed_note_path: string | null;
