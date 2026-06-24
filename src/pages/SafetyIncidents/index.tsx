@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { AlertTriangle, Plus, Eye, Trash2, Calendar, AlertCircle, Download, Pencil } from 'lucide-react';
+import { AlertTriangle, Plus, Trash2, Calendar, AlertCircle, Download, Pencil } from 'lucide-react';
 import { supabase, SafetyIncident } from '../../lib/supabase';
 import { usePageTitle } from '../../lib/usePageTitle';
 import { useToast } from '../../lib/toast';
@@ -10,7 +10,7 @@ import DeleteConfirmModal from '../../components/DeleteConfirmModal';
 import { severityColors, incidentStatusColors, badgeColor } from '../../lib/badgeColors';
 import { generateSequentialNumber } from '../../lib/numberGenerator';
 import IncidentFormModal, { IncidentFormData } from './IncidentFormModal';
-import IncidentViewModal from './IncidentViewModal';
+import IncidentDetailView from './IncidentDetailView';
 
 const INCIDENT_TYPES = ['Injury', 'Near Miss', 'Property Damage', 'Environmental', 'Unsafe Act', 'Unsafe Condition'];
 const SEVERITIES = ['Minor', 'Moderate', 'Serious', 'Critical'];
@@ -60,7 +60,6 @@ export default function SafetyIncidents() {
   const [monthFilter, setMonthFilter] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [showViewModal, setShowViewModal] = useState(false);
   const [selectedIncident, setSelectedIncident] = useState<SafetyIncident | null>(null);
   const { canWrite } = useUser();
   const canEditSafety = canWrite('safety');
@@ -80,6 +79,14 @@ export default function SafetyIncidents() {
   useEffect(() => {
     loadIncidents();
   }, []);
+
+  // Keep the open detail view in sync with the list after edit/close/delete:
+  // re-point to the fresh row by id, or back to the list if it was removed.
+  useEffect(() => {
+    if (!selectedIncident) return;
+    const fresh = incidents.find(i => i.id === selectedIncident.id) ?? null;
+    if (fresh !== selectedIncident) setSelectedIncident(fresh);
+  }, [incidents, selectedIncident]);
 
   const loadIncidents = async () => {
     try {
@@ -172,7 +179,6 @@ export default function SafetyIncidents() {
       status: incident.status,
       closed_date: incident.closed_date,
     });
-    setShowViewModal(false);
     setShowAddModal(true);
   };
 
@@ -183,8 +189,6 @@ export default function SafetyIncidents() {
       .eq('id', incident.id);
     if (error) { addToast('Could not close incident', 'error'); return; }
     addToast('Incident closed');
-    setShowViewModal(false);
-    setSelectedIncident(null);
     loadIncidents();
   };
 
@@ -199,6 +203,7 @@ export default function SafetyIncidents() {
       const { error } = await supabase.from('safety_incidents').delete().eq('id', deleteTarget.id);
       if (error) throw error;
       addToast('Incident deleted');
+      setSelectedIncident(null);
       loadIncidents();
     } catch (error) {
       console.error('Error deleting incident:', error);
@@ -250,6 +255,17 @@ export default function SafetyIncidents() {
         </div>
       )}
 
+      {selectedIncident ? (
+        <IncidentDetailView
+          incident={selectedIncident}
+          canEdit={canEditSafety}
+          onBack={() => setSelectedIncident(null)}
+          onEdit={() => openEditModal(selectedIncident)}
+          onCloseIncident={() => handleCloseIncident(selectedIncident)}
+          onDelete={() => handleDelete(selectedIncident.id, selectedIncident.incident_number || 'this incident')}
+        />
+      ) : (
+        <>
       <PageHeader
         title="Incident Register"
         subtitle="Log and manage workplace safety incidents"
@@ -350,7 +366,14 @@ export default function SafetyIncidents() {
                   </thead>
                   <tbody>
                     {filteredIncidents.map(incident => (
-                      <tr key={incident.id} className="border-b border-gray-200 hover:bg-gray-50 transition">
+                      <tr
+                        key={incident.id}
+                        onClick={() => setSelectedIncident(incident)}
+                        onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedIncident(incident); } }}
+                        role="button"
+                        tabIndex={0}
+                        className="border-b border-gray-200 hover:bg-gray-50 transition cursor-pointer focus:outline-none focus:bg-amber-50"
+                      >
                         <td className="px-4 py-3 text-sm font-medium text-gray-900">{incident.incident_number}</td>
                         <td className="px-4 py-3 text-sm text-gray-600">{new Date(incident.incident_date).toLocaleDateString()}</td>
                         <td className="px-4 py-3 text-sm">
@@ -370,16 +393,9 @@ export default function SafetyIncidents() {
                           </span>
                         </td>
                         <td className="px-4 py-3 text-sm flex gap-2">
-                          <button
-                            onClick={() => { setSelectedIncident(incident); setShowViewModal(true); }}
-                            className="text-amber-600 hover:text-amber-700 transition"
-                            title="View"
-                          >
-                            <Eye className="w-4 h-4" />
-                          </button>
                           {canEditSafety && (
                             <button
-                              onClick={() => openEditModal(incident)}
+                              onClick={e => { e.stopPropagation(); openEditModal(incident); }}
                               className="text-gray-500 hover:text-amber-700 transition"
                               title="Edit"
                             >
@@ -388,7 +404,7 @@ export default function SafetyIncidents() {
                           )}
                           {canEditSafety && (
                             <button
-                              onClick={() => handleDelete(incident.id, incident.incident_number || 'this incident')}
+                              onClick={e => { e.stopPropagation(); handleDelete(incident.id, incident.incident_number || 'this incident'); }}
                               className="text-red-600 hover:text-red-700 transition"
                               title="Delete"
                             >
@@ -405,7 +421,14 @@ export default function SafetyIncidents() {
               {/* Mobile Cards */}
               <div className="md:hidden divide-y divide-gray-100">
                 {filteredIncidents.map(incident => (
-                  <div key={incident.id} className="px-4 py-3 flex items-start gap-2">
+                  <div
+                    key={incident.id}
+                    onClick={() => setSelectedIncident(incident)}
+                    onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedIncident(incident); } }}
+                    role="button"
+                    tabIndex={0}
+                    className="px-4 py-3 flex items-start gap-2 cursor-pointer hover:bg-gray-50 transition focus:outline-none focus:bg-amber-50"
+                  >
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5 flex-wrap">
                         <span className="text-sm font-semibold text-gray-900">{incident.incident_number}</span>
@@ -418,9 +441,8 @@ export default function SafetyIncidents() {
                       {incident.reported_by && <p className="text-xs text-gray-400 truncate">By {incident.reported_by}</p>}
                     </div>
                     <div className="flex items-center gap-0.5 flex-shrink-0">
-                      <button onClick={() => { setSelectedIncident(incident); setShowViewModal(true); }} className="p-2 text-amber-600 hover:bg-amber-50 rounded"><Eye size={15} /></button>
-                      {canEditSafety && <button onClick={() => openEditModal(incident)} className="p-2 text-gray-500 hover:bg-amber-50 rounded"><Pencil size={15} /></button>}
-                      {canEditSafety && <button onClick={() => handleDelete(incident.id, incident.incident_number || 'this incident')} className="p-2 text-red-500 hover:bg-red-50 rounded"><Trash2 size={15} /></button>}
+                      {canEditSafety && <button onClick={e => { e.stopPropagation(); openEditModal(incident); }} className="p-2 text-gray-500 hover:bg-amber-50 rounded"><Pencil size={15} /></button>}
+                      {canEditSafety && <button onClick={e => { e.stopPropagation(); handleDelete(incident.id, incident.incident_number || 'this incident'); }} className="p-2 text-red-500 hover:bg-red-50 rounded"><Trash2 size={15} /></button>}
                     </div>
                   </div>
                 ))}
@@ -428,6 +450,8 @@ export default function SafetyIncidents() {
             </>
           )}
         </div>
+        </>
+      )}
 
       {showQuickModal && (
         <div className="fixed inset-0 z-50 flex items-end justify-center">
@@ -489,16 +513,6 @@ export default function SafetyIncidents() {
           onChange={setFormData}
           onSave={handleSave}
           onClose={() => { setShowAddModal(false); setEditingId(null); }}
-        />
-      )}
-
-      {selectedIncident && showViewModal && (
-        <IncidentViewModal
-          incident={selectedIncident}
-          canEdit={canEditSafety}
-          onEdit={() => openEditModal(selectedIncident)}
-          onCloseIncident={() => handleCloseIncident(selectedIncident)}
-          onClose={() => setShowViewModal(false)}
         />
       )}
 

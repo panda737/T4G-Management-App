@@ -147,7 +147,14 @@ export default function Spillages() {
                 </thead>
                 <tbody>
                   {filtered.map(s => (
-                    <tr key={s.id} className="border-b border-gray-200 hover:bg-gray-50 transition">
+                    <tr
+                      key={s.id}
+                      onClick={() => setSelected(s)}
+                      onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelected(s); } }}
+                      role="button"
+                      tabIndex={0}
+                      className="border-b border-gray-200 hover:bg-gray-50 transition cursor-pointer focus:outline-none focus:bg-amber-50"
+                    >
                       <td className="px-4 py-3 text-sm font-medium text-gray-900">{s.spillage_number}</td>
                       <td className="px-4 py-3 text-sm text-gray-600">{new Date(s.spillage_date).toLocaleDateString()}</td>
                       <td className="px-4 py-3 text-sm text-gray-600">{s.party}</td>
@@ -156,9 +163,9 @@ export default function Spillages() {
                       <td className="px-4 py-3 text-sm text-gray-600">{s.reported_by}</td>
                       <td className="px-4 py-3 text-sm text-gray-500">{s.photo_path ? <Camera size={16} className="text-amber-600" /> : '—'}</td>
                       <td className="px-4 py-3 text-sm flex gap-2">
-                        <button onClick={() => setSelected(s)} className="text-amber-600 hover:text-amber-700 transition" title="View"><Eye className="w-4 h-4" /></button>
+                        <button onClick={e => { e.stopPropagation(); setSelected(s); }} className="text-amber-600 hover:text-amber-700 transition" title="View"><Eye className="w-4 h-4" /></button>
                         {canManage && (
-                          <button onClick={() => setDeleteTarget({ id: s.id, photo_path: s.photo_path, label: s.spillage_number })} className="text-red-600 hover:text-red-700 transition" title="Delete"><Trash2 className="w-4 h-4" /></button>
+                          <button onClick={e => { e.stopPropagation(); setDeleteTarget({ id: s.id, photo_path: s.photo_path, label: s.spillage_number }); }} className="text-red-600 hover:text-red-700 transition" title="Delete"><Trash2 className="w-4 h-4" /></button>
                         )}
                       </td>
                     </tr>

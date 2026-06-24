@@ -12,6 +12,7 @@ export const SPILLAGE_PARTIES = [
 export const SPILLAGE_TYPES = [
   'Loose waste in wheelie bin',
   'Blood in wheelie bin',
+  'Sharps in wheelie bin',
   'Blood spilt on floor',
   'Other',
 ] as const;

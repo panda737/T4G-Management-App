@@ -39,7 +39,8 @@ export default function SpillageFormModal({ onClose, onSaved }: Props) {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const cameraRef = useRef<HTMLInputElement>(null);
+  const libraryRef = useRef<HTMLInputElement>(null);
 
   function pickFile(f: File | null) {
     setError('');
@@ -131,14 +132,22 @@ export default function SpillageFormModal({ onClose, onSaved }: Props) {
       }
     >
       <div className="space-y-4">
-        {/* Photo — the headline action, big and obvious on mobile */}
+        {/* Photo — the headline action, big and obvious on mobile.
+            Two inputs: the camera (capture) and the gallery/file picker (no capture). */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Photo *</label>
           <input
-            ref={inputRef}
+            ref={cameraRef}
             type="file"
             accept="image/*"
             capture="environment"
+            className="hidden"
+            onChange={e => pickFile(e.target.files?.[0] ?? null)}
+          />
+          <input
+            ref={libraryRef}
+            type="file"
+            accept="image/*"
             className="hidden"
             onChange={e => pickFile(e.target.files?.[0] ?? null)}
           />
@@ -152,22 +161,39 @@ export default function SpillageFormModal({ onClose, onSaved }: Props) {
               >
                 <X size={16} />
               </button>
-              <button
-                onClick={() => inputRef.current?.click()}
-                className="absolute bottom-2 right-2 bg-white/90 text-gray-700 rounded-lg px-3 py-1.5 text-xs font-medium flex items-center gap-1.5 hover:bg-white"
-              >
-                <ImagePlus size={14} /> Retake
-              </button>
+              <div className="absolute bottom-2 right-2 flex gap-1.5">
+                <button
+                  onClick={() => cameraRef.current?.click()}
+                  className="bg-white/90 text-gray-700 rounded-lg px-3 py-1.5 text-xs font-medium flex items-center gap-1.5 hover:bg-white"
+                >
+                  <Camera size={14} /> Retake
+                </button>
+                <button
+                  onClick={() => libraryRef.current?.click()}
+                  className="bg-white/90 text-gray-700 rounded-lg px-3 py-1.5 text-xs font-medium flex items-center gap-1.5 hover:bg-white"
+                >
+                  <ImagePlus size={14} /> Replace
+                </button>
+              </div>
             </div>
           ) : (
-            <button
-              onClick={() => inputRef.current?.click()}
-              className="w-full border-2 border-dashed border-amber-300 bg-amber-50 rounded-xl px-4 py-8 text-center hover:bg-amber-100 transition-colors"
-            >
-              <Camera size={32} className="mx-auto text-amber-500 mb-2" />
-              <p className="text-sm font-semibold text-amber-700">Take or choose a photo</p>
-              <p className="text-xs text-amber-600/80 mt-0.5">A picture is required</p>
-            </button>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={() => cameraRef.current?.click()}
+                className="border-2 border-dashed border-amber-300 bg-amber-50 rounded-xl px-3 py-6 text-center hover:bg-amber-100 transition-colors"
+              >
+                <Camera size={28} className="mx-auto text-amber-500 mb-1.5" />
+                <p className="text-sm font-semibold text-amber-700">Take photo</p>
+              </button>
+              <button
+                onClick={() => libraryRef.current?.click()}
+                className="border-2 border-dashed border-amber-300 bg-amber-50 rounded-xl px-3 py-6 text-center hover:bg-amber-100 transition-colors"
+              >
+                <ImagePlus size={28} className="mx-auto text-amber-500 mb-1.5" />
+                <p className="text-sm font-semibold text-amber-700">Upload from library</p>
+              </button>
+              <p className="col-span-2 text-xs text-amber-600/80 text-center">A picture is required</p>
+            </div>
           )}
         </div>
 
