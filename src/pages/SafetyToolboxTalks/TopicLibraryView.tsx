@@ -6,7 +6,7 @@ function fmtDate(d: string) {
   return new Date(d).toLocaleDateString('en-ZA', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
-export default function TopicLibraryView({ topics, lastUsedByTopic, onSelect, canManage, onSuggest, onEdit, onDelete, suggestedProgress }: {
+export default function TopicLibraryView({ topics, lastUsedByTopic, onSelect, canManage, onSuggest, onEdit, onDelete, progress }: {
   topics: ToolboxTalkTopic[];
   lastUsedByTopic: Map<string, string>;
   onSelect: (topic: ToolboxTalkTopic) => void;
@@ -14,7 +14,7 @@ export default function TopicLibraryView({ topics, lastUsedByTopic, onSelect, ca
   onSuggest: (topic: ToolboxTalkTopic) => void;
   onEdit: (topic: ToolboxTalkTopic) => void;
   onDelete: (topic: ToolboxTalkTopic) => void;
-  suggestedProgress?: Map<string, { done: number; required: number }> | null;
+  progress?: Map<string, { done: number; required: number }> | null;
 }) {
   const [search, setSearch] = useState('');
   const [expandedTopic, setExpandedTopic] = useState<string | null>(null);
@@ -48,7 +48,7 @@ export default function TopicLibraryView({ topics, lastUsedByTopic, onSelect, ca
       <div className="space-y-3">
         {filtered.map(topic => {
           const lastUsed = lastUsedByTopic.get(topic.title);
-          const sp = suggestedProgress?.get(topic.id);
+          const p = progress?.get(topic.id);
           return (
             <div key={topic.id} className={`rounded-xl shadow-sm border overflow-hidden ${topic.is_suggested ? 'border-emerald-300 ring-1 ring-emerald-200 bg-emerald-50/40' : 'bg-white border-gray-200'}`}>
               <button onClick={() => setExpandedTopic(expandedTopic === topic.id ? null : topic.id)} className="w-full flex flex-wrap items-center gap-x-3 gap-y-2 px-3 sm:px-5 py-3 sm:py-4 text-left hover:bg-gray-50 transition">
@@ -56,9 +56,14 @@ export default function TopicLibraryView({ topics, lastUsedByTopic, onSelect, ca
                 <div className="flex-1 min-w-0">
                   <div className="flex items-start justify-between gap-2">
                     <p className="text-sm font-semibold text-gray-900">
+                      {p && (
+                        <span className={`mr-1.5 align-middle text-[10px] font-bold rounded px-1.5 py-0.5 ${p.done >= p.required ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-200 text-gray-600'}`}>
+                          {p.done}/{p.required}
+                        </span>
+                      )}
                       {topic.is_suggested && (
                         <span className="mr-1.5 align-middle text-[10px] font-bold text-white bg-emerald-600 rounded px-1.5 py-0.5">
-                          SUGGESTED{sp ? ` ${sp.done}/${sp.required}` : ''}
+                          SUGGESTED
                         </span>
                       )}
                       {topic.title}
