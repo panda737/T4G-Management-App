@@ -12,6 +12,7 @@ const ROLE_DESCRIPTIONS: Record<AppRole, string> = {
   logistics_manager: 'Write access to Logistics only',
   production: 'Write access to Treatment Plant only',
   operator: 'Treatment Plant shift entry only',
+  receiving_officer: 'Spillage register only — lands on Spillages, can report spills',
   viewer: 'Read-only access across all modules',
   customer: 'Customer portal only — link to a client in Commercial → Client Management',
 };

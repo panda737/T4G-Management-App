@@ -12,6 +12,7 @@ interface UserContextValue {
   isOperator: boolean;
   isStockController: boolean;
   isLogisticsManager: boolean;
+  isReceivingOfficer: boolean;
   isCustomer: boolean;
   clientId: string | null;
   canWrite: (module: WriteModule) => boolean;
@@ -26,6 +27,7 @@ const UserContext = createContext<UserContextValue>({
   isOperator: false,
   isStockController: false,
   isLogisticsManager: false,
+  isReceivingOfficer: false,
   isCustomer: false,
   clientId: null,
   canWrite: () => false,
@@ -44,6 +46,7 @@ export function useUser() {
   - logistics_manager: logistics only ✓
   - production:       treatment only ✓
   - operator:         treatment only ✓ (shift entry)
+  - receiving_officer: spillage only ✓ (no other writes; handled by the spillage rule below)
   - viewer:           none ✗
   - customer:         none ✗ (portal is read-only, own data via RLS view)
   Note: the 'spillage' module is an exception — every internal non-viewer role
@@ -108,6 +111,7 @@ export function UserProvider({ session, children }: { session: Session; children
     isOperator: role === 'operator',
     isStockController: role === 'stock_controller',
     isLogisticsManager: role === 'logistics_manager',
+    isReceivingOfficer: role === 'receiving_officer',
     isCustomer: role === 'customer',
     clientId: profile?.client_id ?? null,
     canWrite: (module) => resolveCanWrite(role, module),

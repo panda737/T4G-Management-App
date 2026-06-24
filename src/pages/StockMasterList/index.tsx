@@ -141,9 +141,9 @@ export default function StockMasterList() {
             const catTotal = catItems.reduce((s, i) => s + i.current_quantity, 0);
             const meta = categoryMeta(category);
             return (
-              <div key={category} className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+              <div key={category} className={`bg-white rounded-xl border border-gray-200 border-l-4 ${meta.borderL} shadow-sm overflow-hidden`}>
                 <div
-                  className={`flex items-center justify-between pl-3 pr-4 py-2.5 cursor-pointer transition-opacity hover:opacity-90 select-none border-l-4 ${meta.header} ${meta.border}`}
+                  className={`flex items-center justify-between pl-4 pr-4 py-2.5 cursor-pointer transition-opacity hover:opacity-90 select-none ${meta.header}`}
                   onClick={() => toggleCategory(category)}
                 >
                   <div className="flex items-center gap-2.5">

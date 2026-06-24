@@ -19,12 +19,8 @@ import { EMPTY_FORM, type FormData, type Tab } from './constants';
 import TopicLibraryView from './TopicLibraryView';
 import TopicLibraryPicker from './TopicLibraryPicker';
 import TopicFormModal from './TopicFormModal';
-
-// People who should not appear in the toolbox-talk attendee picker.
-// Matched case-insensitively on full name or first name.
-const TOOLBOX_EXCLUDED_NAMES = [
-  'Juandre Cross', 'Waldo', 'Gerriaan', 'Leon', 'Theresa', 'Nicolene', 'Dineo', 'Linokuhle',
-];
+import MobileNavButton from '../../components/MobileNavButton';
+import { TOOLBOX_EXCLUDED_NAMES } from '../../lib/excludedEmployees';
 
 export default function SafetyToolboxTalks() {
   usePageTitle('Safety — Toolbox Talks');
@@ -209,18 +205,6 @@ export default function SafetyToolboxTalks() {
     setModalStep('attendance');
   }
 
-  function removeAttendee(id: string) {
-    setFormData(prev => {
-      const idx = prev.selected_attendee_ids.indexOf(id);
-      return {
-        ...prev,
-        selected_attendee_ids: prev.selected_attendee_ids.filter(x => x !== id),
-        selected_attendee_names: prev.selected_attendee_names.filter((_, i) => i !== idx),
-      };
-    });
-    setAttendeeSignatures(prev => { const next = { ...prev }; delete next[id]; return next; });
-  }
-
   function handleDelete(id: string, label: string) {
     setDeleteTarget({ id, label });
   }
@@ -371,6 +355,7 @@ export default function SafetyToolboxTalks() {
           <>
             {canManage && <Button variant="secondary" accent="amber" icon={Plus} onClick={openAddTopic}>Add Talk</Button>}
             <Button variant="primary" accent="amber" icon={Plus} onClick={openAddModal}>Record Talk</Button>
+            <MobileNavButton />
           </>
         }
       />
@@ -491,7 +476,6 @@ export default function SafetyToolboxTalks() {
         {activeTab === 'library' && (
           <TopicLibraryView
             topics={topics}
-            categories={categories}
             lastUsedByTopic={lastUsedByTopic}
             onSelect={selectTopicFromLibrary}
             canManage={canManage}
@@ -661,9 +645,6 @@ export default function SafetyToolboxTalks() {
                       {sig && <img src={sig} alt="Signature" className="h-8 w-16 object-contain border border-gray-100 rounded bg-white flex-shrink-0" />}
                       <button type="button" onClick={() => setSigningAttendeeId(id)} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium flex-shrink-0 transition ${sig ? 'text-gray-500 border border-gray-200 hover:bg-gray-50' : 'bg-emerald-600 text-white hover:bg-emerald-700'}`}>
                         {sig ? <><RotateCcw size={12} /> Re-sign</> : <><PenLine size={12} /> Sign</>}
-                      </button>
-                      <button type="button" onClick={() => removeAttendee(id)} title="Remove attendee" className="p-1.5 text-gray-300 hover:text-red-500 transition flex-shrink-0">
-                        <XIcon size={14} />
                       </button>
                     </div>
                   );

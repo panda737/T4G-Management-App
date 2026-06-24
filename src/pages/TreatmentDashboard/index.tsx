@@ -19,6 +19,7 @@ import DowntimePanel from './DowntimePanel';
 import DailyLogFormModal from '../TreatmentDailyLog/DailyLogFormModal';
 import LandfillFormModal from '../TreatmentTransfers/LandfillFormModal';
 import DeleteConfirmModal from '../../components/DeleteConfirmModal';
+import MobileNavButton from '../../components/MobileNavButton';
 import { useUser } from '../../lib/UserContext';
 
 export default function TreatmentDashboard() {
@@ -338,8 +339,11 @@ export default function TreatmentDashboard() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Treatment Plant Dashboard</h1>
+        <div className="min-w-0">
+          <div className="flex items-start justify-between gap-2">
+            <h1 className="text-2xl font-bold text-gray-900">Treatment Plant Dashboard</h1>
+            <MobileNavButton />
+          </div>
           <p className="text-sm text-gray-500 mt-1">Cold chemical treatment -- Peracetic acid & hydrogen peroxide</p>
           {lastFetched && (
             <span className="text-xs text-gray-400 flex items-center gap-1.5 mt-1">
@@ -405,6 +409,18 @@ export default function TreatmentDashboard() {
             </span>
           </div>
           <div className="flex items-center gap-1.5 flex-shrink-0">
+            {period !== 'year' && (
+              <label className="relative flex items-center gap-1 px-2 py-1 text-xs bg-white/15 hover:bg-white/25 text-white rounded-md cursor-pointer transition-colors" title="Pick a date">
+                <Calendar size={11} />
+                <input
+                  type="date"
+                  value={headerLog?.date ?? yesterday}
+                  max={yesterday}
+                  onChange={e => setSelectedDayLog(logs.find(l => l.date === e.target.value) ?? null)}
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                />
+              </label>
+            )}
             {isAdmin && !isOperator && headerLog && period !== 'year' && (
               <>
                 <button

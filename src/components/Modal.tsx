@@ -1,5 +1,6 @@
 import { X } from 'lucide-react';
 import { useEffect, useRef } from 'react';
+import { useBackClose } from '../lib/useBackClose';
 
 interface ModalProps {
   title: string;
@@ -14,6 +15,9 @@ const FOCUSABLE = 'a[href],button:not([disabled]),textarea,input,select,[tabinde
 
 export default function Modal({ title, onClose, children, footer, size = 'md', accent }: ModalProps) {
   const panelRef = useRef<HTMLDivElement>(null);
+
+  // Device/browser Back closes the modal instead of leaving the page.
+  useBackClose(true, onClose);
 
   // Initial focus + scroll lock — runs once on mount only
   useEffect(() => {

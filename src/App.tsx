@@ -113,17 +113,18 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | 
 }
 
 function RootRedirect() {
-  const { isOperator, isStockController, isLogisticsManager, isCustomer, loading } = useUser();
+  const { isOperator, isStockController, isLogisticsManager, isReceivingOfficer, isCustomer, loading } = useUser();
   if (loading) return null;
   if (isCustomer) return <Navigate to="/portal/dashboard" replace />;
   if (isOperator) return <Navigate to="/shift-report" replace />;
   if (isStockController) return <Navigate to="/stock/master-list" replace />;
   if (isLogisticsManager) return <Navigate to="/logistics/vehicles" replace />;
+  if (isReceivingOfficer) return <Navigate to="/safety/spillages" replace />;
   return <GlobalDashboard />;
 }
 
 function StockControllerGuard({ children }: { children: ReactNode }) {
-  const { isAdmin, isStockController, isLogisticsManager, loading } = useUser();
+  const { isAdmin, isStockController, isLogisticsManager, isReceivingOfficer, loading } = useUser();
   const location = useLocation();
   if (loading) return null;
   if (isStockController && !location.pathname.startsWith('/stock')) {
@@ -131,6 +132,10 @@ function StockControllerGuard({ children }: { children: ReactNode }) {
   }
   if (isLogisticsManager && !location.pathname.startsWith('/logistics')) {
     return <Navigate to="/logistics/vehicles" replace />;
+  }
+  // Receiving officers are scoped to the Spillage register for now.
+  if (isReceivingOfficer && !location.pathname.startsWith('/safety/spillages')) {
+    return <Navigate to="/safety/spillages" replace />;
   }
   if (!isAdmin && location.pathname.startsWith('/commercial')) {
     return <Navigate to="/" replace />;

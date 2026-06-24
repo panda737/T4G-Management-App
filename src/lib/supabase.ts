@@ -502,7 +502,7 @@ export type ToolboxTalkTopic = {
   created_at: string;
 };
 
-export type AppRole = 'admin' | 'management' | 'stock_controller' | 'production' | 'operator' | 'viewer' | 'customer' | 'logistics_manager';
+export type AppRole = 'admin' | 'management' | 'stock_controller' | 'production' | 'operator' | 'viewer' | 'customer' | 'logistics_manager' | 'receiving_officer';
 
 export type ShiftType = 'Day' | 'Afternoon' | 'Night';
 
@@ -557,6 +557,7 @@ export const ROLE_LABELS: Record<AppRole, string> = {
   viewer: 'Viewer',
   customer: 'Customer (Portal)',
   logistics_manager: 'Logistics Manager',
+  receiving_officer: 'Receiving Officer',
 };
 
 export const ROLE_COLORS: Record<AppRole, string> = {
@@ -568,6 +569,7 @@ export const ROLE_COLORS: Record<AppRole, string> = {
   viewer: 'bg-gray-500/20 text-gray-400',
   customer: 'bg-blue-500/20 text-blue-300',
   logistics_manager: 'bg-slate-500/20 text-slate-300',
+  receiving_officer: 'bg-amber-500/20 text-amber-300',
 };
 
 export type Equipment = {

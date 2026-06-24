@@ -12,6 +12,7 @@ const ROLE_BADGE: Record<AppRole, string> = {
   viewer: 'bg-gray-500 text-white',
   customer: 'bg-blue-600 text-white',
   logistics_manager: 'bg-slate-600 text-white',
+  receiving_officer: 'bg-amber-600 text-white',
 };
 
 function formatDate(d: string | null | undefined) {

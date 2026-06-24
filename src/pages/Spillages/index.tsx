@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
-import { Droplets, Plus, Eye, Trash2, Calendar, AlertCircle, Camera } from 'lucide-react';
+import { Droplets, Plus, Eye, Trash2, Calendar, AlertCircle, Camera, Search } from 'lucide-react';
 import { supabase, Spillage } from '../../lib/supabase';
 import { usePageTitle } from '../../lib/usePageTitle';
 import { useToast } from '../../lib/toast';
 import { useUser } from '../../lib/UserContext';
-import { PageHeader, Button, Toolbar, SearchInput, FilterSelect } from '../../components/ui';
+import { PageHeader, Button } from '../../components/ui';
 import DeleteConfirmModal from '../../components/DeleteConfirmModal';
+import MobileNavButton from '../../components/MobileNavButton';
 import { SPILLAGE_PARTIES, SPILLAGE_TYPES, SPILLAGE_PHOTO_BUCKET } from './constants';
 import SpillageFormModal from './SpillageFormModal';
 import SpillageViewModal from './SpillageViewModal';
@@ -98,32 +99,51 @@ export default function Spillages() {
         icon={Droplets}
         accent="amber"
         actions={
-          canReport
-            ? <Button variant="primary" accent="amber" icon={Plus} onClick={() => setShowForm(true)}>Report Spillage</Button>
-            : undefined
+          <>
+            {canReport && <Button variant="primary" accent="amber" icon={Plus} onClick={() => setShowForm(true)}>Report Spillage</Button>}
+            <MobileNavButton />
+          </>
         }
       />
 
-      <Toolbar>
-        <SearchInput value={searchTerm} onChange={setSearchTerm} placeholder="Search spillages…" />
-        <FilterSelect value={partyFilter} onChange={setPartyFilter} accent="amber">
+      {/* Filters — 2 per row, equal width */}
+      <div className="grid grid-cols-2 gap-2">
+        <div className="relative">
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+            placeholder="Search spillages…"
+            className="w-full pl-10 pr-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          />
+        </div>
+        <select
+          value={partyFilter}
+          onChange={e => setPartyFilter(e.target.value)}
+          className={`w-full text-sm border rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 ${partyFilter !== 'All' ? 'border-amber-300 text-amber-700' : 'border-gray-200 text-gray-600'}`}
+        >
           <option value="All">All Clients</option>
           {SPILLAGE_PARTIES.map(p => <option key={p} value={p}>{p}</option>)}
-        </FilterSelect>
-        <FilterSelect value={typeFilter} onChange={setTypeFilter} accent="amber">
+        </select>
+        <select
+          value={typeFilter}
+          onChange={e => setTypeFilter(e.target.value)}
+          className={`w-full text-sm border rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 ${typeFilter !== 'All' ? 'border-amber-300 text-amber-700' : 'border-gray-200 text-gray-600'}`}
+        >
           <option value="All">All Types</option>
           {SPILLAGE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-        </FilterSelect>
+        </select>
         <div className="relative">
           <Calendar size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
           <input
             type="month"
             value={monthFilter}
             onChange={e => setMonthFilter(e.target.value)}
-            className={`pl-10 pr-3 py-2 text-sm border rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 ${monthFilter ? 'border-amber-300 text-amber-700' : 'border-gray-200 text-gray-600'}`}
+            className={`w-full pl-10 pr-3 py-2 text-sm border rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 ${monthFilter ? 'border-amber-300 text-amber-700' : 'border-gray-200 text-gray-600'}`}
           />
         </div>
-      </Toolbar>
+      </div>
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
         {loading ? (

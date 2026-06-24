@@ -223,6 +223,7 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
 
   const isAdmin = role === 'admin';
   const isOperator = role === 'operator';
+  const isReceivingOfficer = role === 'receiving_officer';
 
   useEffect(() => {
     if (isOperator) setExpandedGroups(new Set(['treatment', 'safety']));
@@ -281,6 +282,18 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
           ],
         },
       ]
+    : isReceivingOfficer
+    ? [
+        {
+          id: 'safety',
+          label: 'Health & Safety',
+          icon: ShieldAlert,
+          color: 'text-amber-400',
+          items: [
+            { path: '/safety/spillages', label: 'Spillages' },
+          ],
+        },
+      ]
     : isStockController
       ? moduleGroups.filter(g => g.id === 'stock')
       : isLogisticsManager
@@ -328,7 +341,7 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
 
         {/* Nav */}
         <nav className="flex-1 py-3 overflow-y-auto">
-          {!isOperator && !isStockController && !isLogisticsManager && (
+          {!isOperator && !isStockController && !isLogisticsManager && !isReceivingOfficer && (
             <>
               <button
                 onClick={() => handleNavigate('/')}

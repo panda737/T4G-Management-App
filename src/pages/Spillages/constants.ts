@@ -6,6 +6,7 @@ export const SPILLAGE_PARTIES = [
   'Pleasant Waste',
   'Umndeni Waste',
   'Switch Waste',
+  'Tech4Green',
 ] as const;
 
 // What was found. "Other" lets them describe anything not listed.
