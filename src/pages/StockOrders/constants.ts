@@ -24,7 +24,7 @@ export function buildSteps(order: StockOrder): StepState[] {
 }
 
 export const canEdit = (s: StockOrderStatus) => s === 'Open';
-export const canPrint = (s: StockOrderStatus) => s !== 'Cancelled';
+export const canPrint = (s: StockOrderStatus) => s !== 'Cancelled' && s !== 'Completed';
 export const canDispatch = (s: StockOrderStatus) => s === 'Open';
 export const canUpload = (s: StockOrderStatus) => s === 'Dispatched' || s === 'Awaiting Confirmation';
 export const canConfirm = (s: StockOrderStatus) => s === 'Awaiting Confirmation';

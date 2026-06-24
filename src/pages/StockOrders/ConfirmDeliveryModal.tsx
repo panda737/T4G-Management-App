@@ -14,7 +14,7 @@ interface Props {
   order: StockOrder;
   items: StockOrderItem[];
   onClose: () => void;
-  onSave: () => void;
+  onSave: (backOrderNumber?: string) => void;
 }
 
 export default function ConfirmDeliveryModal({ order, items, onClose, onSave }: Props) {
@@ -33,6 +33,7 @@ export default function ConfirmDeliveryModal({ order, items, onClose, onSave }: 
 
   const varianceCount = lines.filter((l, idx) => l.qtyDelivered !== sorted[idx].qty_ordered).length;
   const missingNotes = lines.filter((l, idx) => l.qtyDelivered !== sorted[idx].qty_ordered && !l.varianceNote.trim()).length;
+  const shortCount = lines.filter((l, idx) => l.qtyDelivered < sorted[idx].qty_ordered).length;
   const allZero = lines.every(l => l.qtyDelivered === 0);
 
   async function handleConfirm() {
@@ -41,7 +42,7 @@ export default function ConfirmDeliveryModal({ order, items, onClose, onSave }: 
     if (allZero) { setError('All quantities are zero — if nothing was delivered, cancel the order instead.'); return; }
 
     setSaving(true);
-    const { error: rpcErr } = await supabase.rpc('confirm_stock_order', {
+    const { data, error: rpcErr } = await supabase.rpc('confirm_stock_order', {
       p_order_id: order.id,
       p_lines: lines.map(l => ({
         order_item_id: l.orderItemId,
@@ -54,7 +55,7 @@ export default function ConfirmDeliveryModal({ order, items, onClose, onSave }: 
 
     if (rpcErr) { setError(rpcErr.message); setSaving(false); return; }
     setSaving(false);
-    onSave();
+    onSave((data as { back_order_number?: string } | null)?.back_order_number);
   }
 
   return (
@@ -86,6 +87,13 @@ export default function ConfirmDeliveryModal({ order, items, onClose, onSave }: 
         <div className="flex items-center gap-2 text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-3">
           <AlertTriangle size={13} className="flex-shrink-0" />
           {varianceCount} of {lines.length} line{lines.length !== 1 ? 's' : ''} differ{varianceCount === 1 ? 's' : ''} from the order — a variance note is required for each.
+        </div>
+      )}
+
+      {shortCount > 0 && (
+        <div className="flex items-center gap-2 text-xs font-medium text-purple-700 bg-purple-50 border border-purple-200 rounded-lg px-3 py-2 mb-3">
+          <CheckCircle2 size={13} className="flex-shrink-0" />
+          {shortCount} short line{shortCount !== 1 ? 's' : ''} — a back-order for the balance will be opened automatically (delivery tomorrow).
         </div>
       )}
 

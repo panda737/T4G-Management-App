@@ -14,6 +14,16 @@ function siteSubLabel(s: ClientSite): string {
   return [details, addr].filter(Boolean).join('  ·  ');
 }
 
+/** Tomorrow as a local YYYY-MM-DD string (avoids the UTC off-by-one of toISOString). */
+function tomorrowLocalISO(): string {
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 interface OrderLine {
   id: number;
   itemId: string;
@@ -58,6 +68,7 @@ export default function OrderFormModal({ items, clients, sites, order, orderItem
   const [source, setSource] = useState<OrderSource>(order?.source || 'OrderCo');
   const [customerRef, setCustomerRef] = useState(order?.customer_reference || '');
   const [orderDate, setOrderDate] = useState(order?.order_date || new Date().toISOString().slice(0, 10));
+  const [deliveryDate, setDeliveryDate] = useState(order?.delivery_date || tomorrowLocalISO());
   const [notes, setNotes] = useState(order?.notes || '');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -106,6 +117,7 @@ export default function OrderFormModal({ items, clients, sites, order, orderItem
         site_id: siteId || null,
         site_name: selectedSite?.generator_facility || '',
         order_date: orderDate,
+        delivery_date: deliveryDate,
         source,
         customer_reference: customerRef,
         notes,
@@ -150,9 +162,12 @@ export default function OrderFormModal({ items, clients, sites, order, orderItem
         site_id: siteId || null,
         site_name: selectedSite?.generator_facility || '',
         order_date: orderDate,
+        delivery_date: deliveryDate,
         source,
         customer_reference: customerRef,
         notes,
+        // Editing invalidates any downloaded note — force a re-print before dispatch.
+        printed_at: null,
       })
       .eq('id', order!.id)
       .eq('status', 'Open');
@@ -185,6 +200,7 @@ export default function OrderFormModal({ items, clients, sites, order, orderItem
     setError('');
     if (!clientId) { setError('Please select a client.'); return; }
     if (!isEdit && !siteId) { setError('Please select a delivery site.'); return; }
+    if (!deliveryDate) { setError('Please choose a delivery date.'); return; }
     const validLines = lines.filter(l => l.itemId);
     if (validLines.length === 0) { setError('Please add at least one item.'); return; }
     for (const line of validLines) {
@@ -228,6 +244,11 @@ export default function OrderFormModal({ items, clients, sites, order, orderItem
         <ClipboardList size={12} />
         Stock only moves when the signed delivery note is confirmed — loading an order reserves nothing.
       </div>
+      {isEdit && (
+        <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-3">
+          Saving changes resets the download — re-print the delivery note before dispatching.
+        </p>
+      )}
 
       {/* Order header */}
       <div className="grid grid-cols-2 gap-3 mb-4">
@@ -335,6 +356,10 @@ export default function OrderFormModal({ items, clients, sites, order, orderItem
         <div>
           <label className="block text-[11px] font-semibold text-gray-600 mb-0.5">Order Date</label>
           <input type="date" value={orderDate} onChange={e => setOrderDate(e.target.value)} className={inputCls} />
+        </div>
+        <div>
+          <label className="block text-[11px] font-semibold text-gray-600 mb-0.5">Delivery Date *</label>
+          <input type="date" value={deliveryDate} onChange={e => setDeliveryDate(e.target.value)} className={inputCls} />
         </div>
         <div>
           <label className="block text-[11px] font-semibold text-gray-600 mb-0.5">Customer Reference / PO No.</label>

@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useCallback } from 'react';
+import { useEffect, useState, useMemo, useCallback, Fragment } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Plus, ClipboardList, ChevronRight } from 'lucide-react';
 import { supabase, StockOrder, StockOrderItem, StockItem, Client, ClientSite, StockOrderStatus, ORDER_STATUS_COLORS } from '../../lib/supabase';
@@ -14,6 +14,22 @@ import BulkDispatchBar from './BulkDispatchBar';
 
 type Tab = StockOrderStatus | 'All';
 const TABS: Tab[] = ['Open', 'Dispatched', 'Awaiting Confirmation', 'Completed', 'Cancelled', 'All'];
+
+/** Bucket a delivery date into a planning group (sorted by `order`). */
+function deliveryBucket(deliveryDate: string | null): { key: string; label: string; order: number } {
+  if (!deliveryDate) return { key: 'none', label: 'No delivery date', order: 9999 };
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const d = new Date(deliveryDate + 'T00:00:00');
+  const diff = Math.round((d.getTime() - today.getTime()) / 86400000);
+  if (diff < 0) return { key: 'overdue', label: 'Overdue', order: -1 };
+  if (diff === 0) return { key: 'today', label: 'Today', order: 0 };
+  if (diff === 1) return { key: 'tomorrow', label: 'Tomorrow', order: 1 };
+  if (diff <= 7) return { key: `d${diff}`, label: d.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'short' }), order: diff };
+  if (diff <= 14) return { key: 'nextweek', label: 'Next week', order: 100 };
+  return { key: 'later', label: 'Later', order: 200 };
+}
+
+const fmtDate = (s: string | null) => (s ? new Date(s + 'T00:00:00').toLocaleDateString() : '—');
 
 export default function StockOrders() {
   usePageTitle('Stock — Orders & Deliveries');
@@ -90,6 +106,29 @@ export default function StockOrders() {
 
   const openOrders = useMemo(() => orders.filter(o => o.status === 'Open'), [orders]);
 
+  // The Open / Dispatched tabs are grouped by delivery date so deliveries are
+  // clearly separated by day; other tabs stay a flat, most-recent-first list.
+  const isGroupedTab = tab === 'Open' || tab === 'Dispatched';
+  const displayGroups = useMemo(() => {
+    if (!isGroupedTab) return [{ key: 'all', label: '', orders: filtered }];
+    const map = new Map<string, { key: string; label: string; order: number; orders: StockOrder[] }>();
+    for (const o of filtered) {
+      const b = deliveryBucket(o.delivery_date);
+      if (!map.has(b.key)) map.set(b.key, { key: b.key, label: b.label, order: b.order, orders: [] });
+      map.get(b.key)!.orders.push(o);
+    }
+    const groups = [...map.values()].sort((a, b) => a.order - b.order);
+    for (const g of groups) {
+      g.orders.sort((a, b) => {
+        const da = a.delivery_date || '9999-12-31';
+        const db = b.delivery_date || '9999-12-31';
+        if (da !== db) return da < db ? -1 : 1;
+        return a.created_at < b.created_at ? 1 : -1;
+      });
+    }
+    return groups;
+  }, [filtered, isGroupedTab]);
+
   const selectedOrder = orders.find(o => o.id === selectedId) || null;
 
   if (selectedOrder) {
@@ -159,7 +198,8 @@ export default function StockOrders() {
                 <thead>
                   <tr className="bg-gray-800 text-white">
                     <th className="text-left px-4 py-3 font-medium text-xs uppercase tracking-wider w-32">DN No</th>
-                    <th className="text-left px-4 py-3 font-medium text-xs uppercase tracking-wider w-28">Date</th>
+                    <th className="text-left px-4 py-3 font-medium text-xs uppercase tracking-wider w-28">Delivery</th>
+                    <th className="text-left px-4 py-3 font-medium text-xs uppercase tracking-wider w-24">Ordered</th>
                     <th className="text-left px-4 py-3 font-medium text-xs uppercase tracking-wider">Client</th>
                     <th className="text-left px-4 py-3 font-medium text-xs uppercase tracking-wider">Site</th>
                     <th className="text-left px-4 py-3 font-medium text-xs uppercase tracking-wider w-32">Customer Ref</th>
@@ -169,27 +209,39 @@ export default function StockOrders() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {filtered.map((o, idx) => (
-                    <tr
-                      key={o.id}
-                      onClick={() => setSelectedId(o.id)}
-                      className={`hover:bg-emerald-50/40 transition-colors cursor-pointer group ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}
-                    >
-                      <td className="px-4 py-2.5 font-mono text-xs font-semibold text-gray-900">{o.order_number}</td>
-                      <td className="px-4 py-2.5 text-xs text-gray-600">{new Date(o.order_date).toLocaleDateString()}</td>
-                      <td className="px-4 py-2.5 font-medium text-gray-900">{o.client_name}</td>
-                      <td className="px-4 py-2.5 text-xs text-gray-600">{o.site_name || '—'}</td>
-                      <td className="px-4 py-2.5 text-xs text-gray-500 font-mono">{o.customer_reference || '—'}</td>
-                      <td className="px-4 py-2.5 text-center text-xs font-semibold text-gray-700">{itemCounts[o.id] ?? 0}</td>
-                      <td className="px-4 py-2.5 text-center">
-                        <span className={`text-xs px-2 py-0.5 rounded-full font-semibold whitespace-nowrap ${ORDER_STATUS_COLORS[o.status]}`}>
-                          {o.status}
-                        </span>
-                      </td>
-                      <td className="px-2 py-2.5 text-center">
-                        <ChevronRight size={14} className="text-gray-300 group-hover:text-emerald-600 transition-colors inline" />
-                      </td>
-                    </tr>
+                  {displayGroups.map(g => (
+                    <Fragment key={g.key}>
+                      {g.label && (
+                        <tr className="bg-gray-100/80">
+                          <td colSpan={9} className="px-4 py-1.5 text-[11px] font-bold text-gray-600 uppercase tracking-wider">
+                            {g.label} <span className="text-gray-400 font-normal normal-case">· {g.orders.length}</span>
+                          </td>
+                        </tr>
+                      )}
+                      {g.orders.map((o, idx) => (
+                        <tr
+                          key={o.id}
+                          onClick={() => setSelectedId(o.id)}
+                          className={`hover:bg-emerald-50/40 transition-colors cursor-pointer group ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}
+                        >
+                          <td className="px-4 py-2.5 font-mono text-xs font-semibold text-gray-900">{o.order_number}</td>
+                          <td className="px-4 py-2.5 text-xs font-medium text-gray-700">{fmtDate(o.delivery_date)}</td>
+                          <td className="px-4 py-2.5 text-xs text-gray-500">{new Date(o.order_date).toLocaleDateString()}</td>
+                          <td className="px-4 py-2.5 font-medium text-gray-900">{o.client_name}</td>
+                          <td className="px-4 py-2.5 text-xs text-gray-600">{o.site_name || '—'}</td>
+                          <td className="px-4 py-2.5 text-xs text-gray-500 font-mono">{o.customer_reference || '—'}</td>
+                          <td className="px-4 py-2.5 text-center text-xs font-semibold text-gray-700">{itemCounts[o.id] ?? 0}</td>
+                          <td className="px-4 py-2.5 text-center">
+                            <span className={`text-xs px-2 py-0.5 rounded-full font-semibold whitespace-nowrap ${ORDER_STATUS_COLORS[o.status]}`}>
+                              {o.status}
+                            </span>
+                          </td>
+                          <td className="px-2 py-2.5 text-center">
+                            <ChevronRight size={14} className="text-gray-300 group-hover:text-emerald-600 transition-colors inline" />
+                          </td>
+                        </tr>
+                      ))}
+                    </Fragment>
                   ))}
                 </tbody>
               </table>
@@ -197,23 +249,32 @@ export default function StockOrders() {
 
             {/* Mobile cards */}
             <div className="md:hidden divide-y divide-gray-100">
-              {filtered.map(o => (
-                <div key={o.id} className="p-4 hover:bg-emerald-50/40 transition-colors cursor-pointer" onClick={() => setSelectedId(o.id)}>
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="font-mono text-sm font-bold text-gray-900">{o.order_number}</p>
-                      <p className="text-sm text-gray-700 mt-0.5">{o.client_name}</p>
-                      {o.site_name && <p className="text-xs text-gray-500">{o.site_name}</p>}
+              {displayGroups.map(g => (
+                <Fragment key={g.key}>
+                  {g.label && (
+                    <div className="px-4 py-1.5 bg-gray-100/80 text-[11px] font-bold text-gray-600 uppercase tracking-wider">
+                      {g.label} <span className="text-gray-400 font-normal normal-case">· {g.orders.length}</span>
                     </div>
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-semibold flex-shrink-0 ${ORDER_STATUS_COLORS[o.status]}`}>
-                      {o.status}
-                    </span>
-                  </div>
-                  <p className="text-xs text-gray-400 mt-1.5">
-                    {new Date(o.order_date).toLocaleDateString()} · {itemCounts[o.id] ?? 0} item{(itemCounts[o.id] ?? 0) !== 1 ? 's' : ''}
-                    {o.customer_reference && ` · ref ${o.customer_reference}`}
-                  </p>
-                </div>
+                  )}
+                  {g.orders.map(o => (
+                    <div key={o.id} className="p-4 hover:bg-emerald-50/40 transition-colors cursor-pointer" onClick={() => setSelectedId(o.id)}>
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="font-mono text-sm font-bold text-gray-900">{o.order_number}</p>
+                          <p className="text-sm text-gray-700 mt-0.5">{o.client_name}</p>
+                          {o.site_name && <p className="text-xs text-gray-500">{o.site_name}</p>}
+                        </div>
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-semibold flex-shrink-0 ${ORDER_STATUS_COLORS[o.status]}`}>
+                          {o.status}
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-400 mt-1.5">
+                        Deliver <span className="font-semibold text-gray-600">{fmtDate(o.delivery_date)}</span> · {itemCounts[o.id] ?? 0} item{(itemCounts[o.id] ?? 0) !== 1 ? 's' : ''}
+                        {o.customer_reference && ` · ref ${o.customer_reference}`}
+                      </p>
+                    </div>
+                  ))}
+                </Fragment>
               ))}
             </div>
           </>

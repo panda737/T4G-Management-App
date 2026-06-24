@@ -107,9 +107,15 @@ export default function OrderDetailView({ order, items, client, site, stockItems
               <span className={`text-xs px-2.5 py-1 rounded-full font-semibold ${ORDER_STATUS_COLORS[order.status]}`}>
                 {order.status}
               </span>
+              {order.back_order_of && (
+                <span className="text-xs px-2.5 py-1 rounded-full font-semibold bg-purple-100 text-purple-700" title="Created automatically from a short delivery">
+                  Back-order
+                </span>
+              )}
             </div>
             <p className="text-sm text-gray-500 mt-1">
               {order.client_name} · {new Date(order.order_date).toLocaleDateString()} · via {order.source}
+              {order.delivery_date && <> · deliver <span className="font-medium text-gray-700">{new Date(order.delivery_date).toLocaleDateString()}</span></>}
               {order.customer_reference && <> · ref <span className="font-mono">{order.customer_reference}</span></>}
             </p>
           </div>
@@ -351,7 +357,13 @@ export default function OrderDetailView({ order, items, client, site, stockItems
           order={order}
           items={sorted}
           onClose={() => setModal(null)}
-          onSave={() => { setModal(null); addToast('Delivery confirmed — stock updated'); onChanged(); }}
+          onSave={(backOrderNumber) => {
+            setModal(null);
+            addToast(backOrderNumber
+              ? `Delivery confirmed — back-order ${backOrderNumber} opened for the balance`
+              : 'Delivery confirmed — stock updated');
+            onChanged();
+          }}
         />
       )}
       {modal === 'cancel' && (
