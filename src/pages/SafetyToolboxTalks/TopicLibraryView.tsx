@@ -6,9 +6,8 @@ function fmtDate(d: string) {
   return new Date(d).toLocaleDateString('en-ZA', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
-export default function TopicLibraryView({ topics, categories, lastUsedByTopic, onSelect, canManage, onSuggest, onEdit, onDelete, suggestedProgress }: {
+export default function TopicLibraryView({ topics, lastUsedByTopic, onSelect, canManage, onSuggest, onEdit, onDelete, suggestedProgress }: {
   topics: ToolboxTalkTopic[];
-  categories: Map<string, Set<string>>;
   lastUsedByTopic: Map<string, string>;
   onSelect: (topic: ToolboxTalkTopic) => void;
   canManage: boolean;
@@ -17,18 +16,13 @@ export default function TopicLibraryView({ topics, categories, lastUsedByTopic, 
   onDelete: (topic: ToolboxTalkTopic) => void;
   suggestedProgress?: Map<string, { done: number; required: number }> | null;
 }) {
-  const [selCat, setSelCat] = useState('');
-  const [selSub, setSelSub] = useState('');
   const [search, setSearch] = useState('');
   const [expandedTopic, setExpandedTopic] = useState<string | null>(null);
 
   const filtered = useMemo(() => {
-    const base = topics.filter(t => {
-      const matchCat = !selCat || t.category === selCat;
-      const matchSub = !selSub || t.subcategory === selSub;
-      const matchSearch = !search || t.title.toLowerCase().includes(search.toLowerCase()) || t.talking_points.toLowerCase().includes(search.toLowerCase());
-      return matchCat && matchSub && matchSearch;
-    });
+    const base = topics.filter(t =>
+      !search || t.title.toLowerCase().includes(search.toLowerCase()) || t.talking_points.toLowerCase().includes(search.toLowerCase())
+    );
     return base.sort((a, b) => {
       if (a.is_suggested !== b.is_suggested) return a.is_suggested ? -1 : 1;
       const aDate = lastUsedByTopic.get(a.title) ?? null;
@@ -38,28 +32,14 @@ export default function TopicLibraryView({ topics, categories, lastUsedByTopic, 
       if (!bDate) return 1;
       return aDate.localeCompare(bDate);
     });
-  }, [topics, selCat, selSub, search, lastUsedByTopic]);
-
-  const subcategories = selCat ? Array.from(categories.get(selCat) || []) : [];
+  }, [topics, search, lastUsedByTopic]);
 
   return (
     <div>
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-4">
-        <div className="flex flex-col sm:flex-row gap-2">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
-            <input type="text" placeholder="Search topics..." value={search} onChange={e => setSearch(e.target.value)} className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-500" />
-          </div>
-          <select value={selCat} onChange={e => { setSelCat(e.target.value); setSelSub(''); }} className="px-3 py-2 border border-gray-300 rounded-lg text-sm">
-            <option value="">All Categories</option>
-            {Array.from(categories.keys()).map(c => <option key={c} value={c}>{c}</option>)}
-          </select>
-          {subcategories.length > 0 && (
-            <select value={selSub} onChange={e => setSelSub(e.target.value)} className="px-3 py-2 border border-gray-300 rounded-lg text-sm">
-              <option value="">All Subcategories</option>
-              {subcategories.map(s => <option key={s} value={s}>{s}</option>)}
-            </select>
-          )}
+        <div className="relative">
+          <Search className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
+          <input type="text" placeholder="Search topics..." value={search} onChange={e => setSearch(e.target.value)} className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-500" />
         </div>
       </div>
 

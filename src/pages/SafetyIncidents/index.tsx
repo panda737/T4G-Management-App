@@ -9,6 +9,7 @@ import { PageHeader, Button, Toolbar, SearchInput, FilterSelect, FilterTabs } fr
 import DeleteConfirmModal from '../../components/DeleteConfirmModal';
 import { severityColors, incidentStatusColors, badgeColor } from '../../lib/badgeColors';
 import { generateSequentialNumber } from '../../lib/numberGenerator';
+import { useBackClose } from '../../lib/useBackClose';
 import IncidentFormModal, { IncidentFormData } from './IncidentFormModal';
 import IncidentDetailView from './IncidentDetailView';
 
@@ -87,6 +88,9 @@ export default function SafetyIncidents() {
     const fresh = incidents.find(i => i.id === selectedIncident.id) ?? null;
     if (fresh !== selectedIncident) setSelectedIncident(fresh);
   }, [incidents, selectedIncident]);
+
+  // Device/browser Back returns from the incident detail view to the list.
+  useBackClose(!!selectedIncident, () => setSelectedIncident(null));
 
   const loadIncidents = async () => {
     try {

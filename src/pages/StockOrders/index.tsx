@@ -7,6 +7,7 @@ import { useToast } from '../../lib/toast';
 import { useUser } from '../../lib/UserContext';
 import { PageSpinner } from '../../components/Spinner';
 import { PageHeader, Button, Toolbar, SearchInput, FilterTabs } from '../../components/ui';
+import { useBackClose } from '../../lib/useBackClose';
 import { ORDER_STATUSES } from './constants';
 import OrderFormModal from './OrderFormModal';
 import OrderDetailView from './OrderDetailView';
@@ -128,6 +129,9 @@ export default function StockOrders() {
     }
     return groups;
   }, [filtered, isGroupedTab]);
+
+  // Device/browser Back returns from the order detail view to the list.
+  useBackClose(!!selectedId, () => setSelectedId(null));
 
   const selectedOrder = orders.find(o => o.id === selectedId) || null;
 

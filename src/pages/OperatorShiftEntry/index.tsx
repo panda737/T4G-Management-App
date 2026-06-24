@@ -6,6 +6,8 @@ import type { ShiftType } from '../../lib/supabase';
 import { useUser } from '../../lib/UserContext';
 import { useToast } from '../../lib/toast';
 import { useOpenNav } from '../../lib/mobileNav';
+import { useBackClose } from '../../lib/useBackClose';
+import { SHIFT_TEAM_EXCLUDED_NAMES } from '../../lib/excludedEmployees';
 import EmployeeTogglePicker from '../../components/EmployeeTogglePicker';
 import SignaturePad from '../../components/SignaturePad';
 
@@ -154,13 +156,17 @@ export default function OperatorShiftEntry() {
             ? linked.first_name
             : (profile?.display_name ?? '').split(' ')[0]
         );
+        const excludedNames = new Set(SHIFT_TEAM_EXCLUDED_NAMES.map(n => n.toLowerCase()));
         const excluded = data
-          .filter(e =>
-            e.hs_role === 'hs_staff' ||
-            (e.position ?? '').toLowerCase().includes('driver') ||
-            (e.position ?? '').toLowerCase().includes('maintenance') ||
-            (linkedId ? e.id === linkedId : `${e.first_name} ${e.surname}`.toLowerCase() === (profile?.display_name ?? '').toLowerCase())
-          )
+          .filter(e => {
+            const full = `${e.first_name} ${e.surname}`.toLowerCase();
+            const first = (e.first_name ?? '').toLowerCase();
+            return e.hs_role === 'hs_staff' ||
+              (e.position ?? '').toLowerCase().includes('driver') ||
+              (e.position ?? '').toLowerCase().includes('maintenance') ||
+              excludedNames.has(full) || excludedNames.has(first) ||
+              (linkedId ? e.id === linkedId : full === (profile?.display_name ?? '').toLowerCase());
+          })
           .map(e => e.id);
         setExcludeIds(excluded);
       });
@@ -185,6 +191,11 @@ export default function OperatorShiftEntry() {
     resetAll();
     setStep('select');
   }
+
+  // Device/browser Back: from the form/summary return to the shift picker (instead
+  // of leaving the page); if the signature pad is open, Back closes it first.
+  useBackClose(step !== 'select', goBackToSelect);
+  useBackClose(showSignaturePad, () => setShowSignaturePad(false));
 
   function setField<K extends keyof FormState>(key: K, val: FormState[K]) {
     setForm(f => ({ ...f, [key]: val }));
@@ -524,7 +535,11 @@ export default function OperatorShiftEntry() {
           {form.has_downtime && (
             <div className="space-y-3">
               {form.downtimes.map((entry, idx) => (
-                <div key={idx} className="flex gap-2 items-start">
+                <div key={idx} className={idx > 0 ? 'pt-3 mt-1 border-t border-gray-100' : ''}>
+                  {form.downtimes.length > 1 && (
+                    <p className="text-[11px] font-semibold text-gray-400 mb-1.5">Delay {idx + 1}</p>
+                  )}
+                  <div className="flex gap-2 items-start">
                   <div className="flex-1 space-y-2">
                     <input
                       type="text"
@@ -570,6 +585,7 @@ export default function OperatorShiftEntry() {
                       ×
                     </button>
                   )}
+                  </div>
                 </div>
               ))}
               <div className="flex justify-end">

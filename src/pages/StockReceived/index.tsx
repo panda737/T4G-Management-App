@@ -7,6 +7,7 @@ import { useToast } from '../../lib/toast';
 import { useUser } from '../../lib/UserContext';
 import { PageSpinner } from '../../components/Spinner';
 import { PageHeader, Button, Toolbar, SearchInput } from '../../components/ui';
+import { useBackClose } from '../../lib/useBackClose';
 import ReceiptFormModal from './ReceiptFormModal';
 import ReceiptDetailView from './ReceiptDetailView';
 
@@ -69,6 +70,9 @@ export default function StockReceived() {
       !q || `${r.receipt_number} ${r.supplier} ${r.supplier_ref}`.toLowerCase().includes(q)
     );
   }, [receipts, search]);
+
+  // Device/browser Back returns from the receipt detail view to the list.
+  useBackClose(!!selectedId, () => setSelectedId(null));
 
   const selected = receipts.find(r => r.id === selectedId) || null;
 
