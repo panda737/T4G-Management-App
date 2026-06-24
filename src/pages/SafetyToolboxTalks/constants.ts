@@ -20,6 +20,7 @@ export interface FormData {
   follow_up_required: boolean;
   follow_up_notes: string;
   selected_attendee_ids: string[];
+  selected_attendee_names: string[];
   attachment_path: string;
   attachment_name: string;
   attachment_file: File | null;
@@ -38,6 +39,7 @@ export const EMPTY_FORM: FormData = {
   follow_up_required: false,
   follow_up_notes: '',
   selected_attendee_ids: [],
+  selected_attendee_names: [],
   attachment_path: '',
   attachment_name: '',
   attachment_file: null,

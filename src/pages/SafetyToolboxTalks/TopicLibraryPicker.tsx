@@ -21,7 +21,7 @@ export default function TopicLibraryPicker({
   filteredTopics: ToolboxTalkTopic[];
   lastUsedByTopic: Map<string, string>;
   onSelect: (topic: ToolboxTalkTopic) => void;
-  suggestedProgress?: { id: string; done: number; required: number } | null;
+  suggestedProgress?: Map<string, { done: number; required: number }> | null;
   canManage?: boolean;
   onSuggest?: (topic: ToolboxTalkTopic) => void;
 }) {
@@ -49,13 +49,14 @@ export default function TopicLibraryPicker({
       <div className="space-y-2">
         {filteredTopics.map(topic => {
           const lastUsed = lastUsedByTopic.get(topic.title);
+          const sp = suggestedProgress?.get(topic.id);
           return (
             <button key={topic.id} onClick={() => onSelect(topic)} className={`w-full text-left px-4 py-3 border rounded-lg transition ${topic.is_suggested ? 'bg-emerald-50 border-emerald-300 ring-1 ring-emerald-200 hover:bg-emerald-100' : 'bg-white border-gray-200 hover:bg-sky-50 hover:border-sky-200'}`}>
               <div className="flex flex-wrap items-start justify-between gap-x-2 gap-y-1.5">
                 <p className="text-sm font-semibold text-gray-900 flex-1 min-w-0">
                   {topic.is_suggested && (
                     <span className="mr-1.5 align-middle text-[10px] font-bold text-white bg-emerald-600 rounded px-1.5 py-0.5">
-                      SUGGESTED{suggestedProgress?.id === topic.id ? ` ${suggestedProgress.done}/${suggestedProgress.required}` : ''}
+                      SUGGESTED{sp ? ` ${sp.done}/${sp.required}` : ''}
                     </span>
                   )}
                   {topic.title}
