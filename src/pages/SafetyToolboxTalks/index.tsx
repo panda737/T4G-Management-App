@@ -253,13 +253,14 @@ export default function SafetyToolboxTalks() {
   }
 
   const SHIFTS_REQUIRED = 3;
-  // Per-topic progress for every suggested topic: shifts recorded since it was suggested.
-  const suggestedProgress = useMemo(() => {
+  // Per-topic 3-shift progress for EVERY topic — how many times it's been recorded,
+  // capped at 3. Suggested topics are just highlighted on top of this count.
+  const topicProgress = useMemo(() => {
+    const counts = new Map<string, number>();
+    talks.forEach(t => { if (t.topic) counts.set(t.topic, (counts.get(t.topic) || 0) + 1); });
     const map = new Map<string, { done: number; required: number }>();
-    topics.filter(t => t.is_suggested).forEach(sugg => {
-      const since = sugg.suggested_at || '';
-      const done = talks.filter(t => t.topic === sugg.title && (!since || t.created_at >= since)).length;
-      map.set(sugg.id, { done: Math.min(done, SHIFTS_REQUIRED), required: SHIFTS_REQUIRED });
+    topics.forEach(t => {
+      map.set(t.id, { done: Math.min(counts.get(t.title) || 0, SHIFTS_REQUIRED), required: SHIFTS_REQUIRED });
     });
     return map;
   }, [topics, talks]);
@@ -482,7 +483,7 @@ export default function SafetyToolboxTalks() {
             onSuggest={toggleSuggest}
             onEdit={openEditTopic}
             onDelete={deleteTopic}
-            suggestedProgress={suggestedProgress}
+            progress={topicProgress}
           />
         )}
 
@@ -510,12 +511,17 @@ export default function SafetyToolboxTalks() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="col-span-2 flex flex-col sm:flex-row gap-4">
               <div className="sm:w-48 flex-shrink-0">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Talk Date *</label>
-                <input type="date" value={formData.talk_date} onChange={e => setFormData({ ...formData, talk_date: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500" />
+                <label className="block text-sm font-medium text-gray-700 mb-1">Talk Date</label>
+                <div className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-sm text-gray-700">
+                  {new Date(formData.talk_date + 'T00:00:00').toLocaleDateString()}
+                </div>
+                <p className="text-xs text-gray-400 mt-1">Recorded as today.</p>
               </div>
               <div className="flex-1 min-w-0">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
-                <input type="text" value={formData.location} onChange={e => setFormData({ ...formData, location: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500" />
+                <div className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-sm text-gray-700">
+                  {formData.location || 'Tech4Green'}
+                </div>
               </div>
             </div>
             <div className="col-span-2">
@@ -770,7 +776,7 @@ export default function SafetyToolboxTalks() {
             filteredTopics={sortedFilteredTopics}
             lastUsedByTopic={lastUsedByTopic}
             onSelect={selectTopicFromLibrary}
-            suggestedProgress={suggestedProgress}
+            progress={topicProgress}
             canManage={canManage}
             onSuggest={toggleSuggest}
           />

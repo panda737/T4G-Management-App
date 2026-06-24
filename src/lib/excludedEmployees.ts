@@ -5,7 +5,7 @@
 // the same set plus a couple of extra names (drivers are already dropped by the
 // position filter in OperatorShiftEntry).
 export const TOOLBOX_EXCLUDED_NAMES = [
-  'Juandre Cross', 'Waldo', 'Gerriaan', 'Leon', 'Theresa', 'Nicolene', 'Dineo', 'Linokuhle',
+  'Juandre Cross', 'Waldo', 'Gerriaan', 'Leon', 'Theresa', 'Nicolene', 'Dineo', 'Linokuhle', 'Corne',
 ];
 
 export const SHIFT_TEAM_EXCLUDED_NAMES = [

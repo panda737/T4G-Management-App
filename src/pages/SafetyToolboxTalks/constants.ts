@@ -35,7 +35,7 @@ export const EMPTY_FORM: FormData = {
   duration_minutes: 15,
   attendee_count: 0,
   attendees: '',
-  location: '',
+  location: 'Tech4Green',
   follow_up_required: false,
   follow_up_notes: '',
   selected_attendee_ids: [],
