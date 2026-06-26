@@ -123,7 +123,7 @@ export default function SafetyToolboxTalks() {
       }
     }
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { selected_attendee_ids, attachment_file, attachment_path: _ap, attachment_name: _an, ...rest } = formData;
+    const { selected_attendee_ids, selected_attendee_names: _names, attachment_file, attachment_path: _ap, attachment_name: _an, ...rest } = formData;
     const { data: insertedTalk, error } = await supabase
       .from('safety_toolbox_talks')
       .insert([{
@@ -142,7 +142,7 @@ export default function SafetyToolboxTalks() {
       }])
       .select('id')
       .single();
-    if (error || !insertedTalk) return;
+    if (error || !insertedTalk) { setOpError(error?.message || 'Could not save the talk. Please try again.'); return; }
 
     if (formData.selected_attendee_ids.length > 0) {
       const { data: empData } = await supabase
