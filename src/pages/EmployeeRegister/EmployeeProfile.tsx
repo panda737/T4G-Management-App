@@ -14,6 +14,16 @@ import DeleteConfirmModal from '../../components/DeleteConfirmModal';
 
 type ProfileTab = 'incidents' | 'inspections' | 'toolbox' | 'training' | 'medical';
 
+// Some activity sections only make sense for the people whose job actually does
+// them, so we hide them on everyone else's profile to avoid always-empty tabs.
+// Gated on the *employee's* job position (not the viewer's login role).
+// "Operators" = Supervisor + Senior Operator (per Tech4Green).
+const INSPECTOR_POSITIONS = ['Health & Safety Officer', 'Supervisor', 'Senior Operator'];
+const PRESENTER_POSITIONS = [
+  'Managing Director', 'Logistics Manager', 'Operations Manager',
+  'Supervisor', 'Senior Operator', 'Health & Safety Officer',
+];
+
 interface ActivityData {
   incidentsReported: any[];
   incidentsInjured: any[];
@@ -235,9 +245,15 @@ export default function EmployeeProfile() {
   const toolboxTotal = activity.toolboxPresented.length + activity.toolboxAttended.length;
   const trainingTotal = activity.trainingRecords.length + activity.trainingAttendance.length;
 
+  // Position-based visibility: inspections only for inspectors, "Talks Presented"
+  // only for presenter roles. Everyone keeps "Talks Attended".
+  const empPosition = employee.position ?? '';
+  const showInspections = INSPECTOR_POSITIONS.includes(empPosition);
+  const showTalksPresented = PRESENTER_POSITIONS.includes(empPosition);
+
   const tabs: { id: ProfileTab; label: string; count: number; icon: React.ReactNode }[] = [
     { id: 'incidents', label: 'H&S Incidents', count: incidentTotal, icon: <AlertTriangle size={14} /> },
-    { id: 'inspections', label: 'Inspections', count: activity.inspections.length, icon: <ClipboardCheck size={14} /> },
+    ...(showInspections ? [{ id: 'inspections' as ProfileTab, label: 'Inspections', count: activity.inspections.length, icon: <ClipboardCheck size={14} /> }] : []),
     { id: 'toolbox', label: 'Toolbox Talks', count: toolboxTotal, icon: <Users size={14} /> },
     { id: 'training', label: 'Training', count: trainingTotal, icon: <GraduationCap size={14} /> },
     ...(canViewMedical ? [{ id: 'medical' as ProfileTab, label: 'Medical', count: medicalRecords.length, icon: <Syringe size={14} /> }] : []),
@@ -419,8 +435,8 @@ export default function EmployeeProfile() {
                 </div>
               )}
 
-              {/* Inspections Tab */}
-              {activeTab === 'inspections' && (
+              {/* Inspections Tab (only for inspector positions) */}
+              {showInspections && activeTab === 'inspections' && (
                 <Section
                   icon={<ClipboardCheck size={14} className="text-sky-600" />}
                   title="Inspections Conducted"
@@ -452,31 +468,10 @@ export default function EmployeeProfile() {
                 </Section>
               )}
 
-              {/* Toolbox Talks Tab */}
+              {/* Toolbox Talks Tab — "Talks Attended" first (shown to everyone),
+                  then "Talks Presented" only for presenter roles. */}
               {activeTab === 'toolbox' && (
                 <div className="space-y-5">
-                  <Section
-                    icon={<Activity size={14} className="text-amber-600" />}
-                    title="Talks Presented"
-                    count={activity.toolboxPresented.length}
-                  >
-                    {activity.toolboxPresented.length === 0 ? (
-                      <EmptyState message="No talks presented" />
-                    ) : (
-                      activity.toolboxPresented.map((t: any) => (
-                        <div key={t.id} className="p-3 bg-amber-50/50 rounded-lg border border-amber-100 hover:border-amber-200 transition-colors">
-                          <div className="flex items-start justify-between gap-2">
-                            <div>
-                              <p className="text-sm font-semibold text-gray-900">{t.topic}</p>
-                              <p className="text-xs text-gray-500 mt-0.5">{fmt(t.talk_date)} · {t.duration_minutes} min{t.location ? ` · ${t.location}` : ''}</p>
-                            </div>
-                            <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-medium flex-shrink-0">Presenter</span>
-                          </div>
-                        </div>
-                      ))
-                    )}
-                  </Section>
-
                   <Section
                     icon={<Users size={14} className="text-gray-600" />}
                     title="Talks Attended"
@@ -500,6 +495,30 @@ export default function EmployeeProfile() {
                       ))
                     )}
                   </Section>
+
+                  {showTalksPresented && (
+                    <Section
+                      icon={<Activity size={14} className="text-amber-600" />}
+                      title="Talks Presented"
+                      count={activity.toolboxPresented.length}
+                    >
+                      {activity.toolboxPresented.length === 0 ? (
+                        <EmptyState message="No talks presented" />
+                      ) : (
+                        activity.toolboxPresented.map((t: any) => (
+                          <div key={t.id} className="p-3 bg-amber-50/50 rounded-lg border border-amber-100 hover:border-amber-200 transition-colors">
+                            <div className="flex items-start justify-between gap-2">
+                              <div>
+                                <p className="text-sm font-semibold text-gray-900">{t.topic}</p>
+                                <p className="text-xs text-gray-500 mt-0.5">{fmt(t.talk_date)} · {t.duration_minutes} min{t.location ? ` · ${t.location}` : ''}</p>
+                              </div>
+                              <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-medium flex-shrink-0">Presenter</span>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </Section>
+                  )}
                 </div>
               )}
 
