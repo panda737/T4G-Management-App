@@ -29,6 +29,7 @@ const moduleGroups: ModuleGroup[] = [
       { path: '/treatment/daily-log', label: 'Daily Log' },
       { path: '/treatment/transfers', label: 'Transfers' },
       { path: '/treatment/waste-on-floor', label: 'Waste on Floor' },
+      { path: '/treatment/chemicals', label: 'Chemicals' },
     ],
   },
   {

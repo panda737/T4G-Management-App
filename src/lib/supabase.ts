@@ -213,6 +213,33 @@ export type TreatmentMonthlySummary = {
   updated_at: string;
 };
 
+export type TreatmentChemical = {
+  id: string;
+  stock_item_id: string;
+  supplier_id: string | null;
+  name: string;
+  litres_per_cycle: number;
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type TreatmentChemicalUsage = {
+  id: string;
+  chemical_id: string;
+  month: string;
+  expected_litres: number;
+  actual_litres: number;
+  variance_litres: number;
+  unit_cost: number;
+  total_cost: number;
+  movement_group_id: string | null;
+  notes: string;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 export type SafetyIncident = {
   id: string;
   incident_number: string;
