@@ -218,21 +218,21 @@ export type TreatmentChemical = {
   stock_item_id: string;
   supplier_id: string | null;
   name: string;
-  litres_per_cycle: number;
+  litres_per_unit: number;
   active: boolean;
   created_at: string;
   updated_at: string;
 };
 
-export type TreatmentChemicalUsage = {
+export type TreatmentChemicalBookout = {
   id: string;
   chemical_id: string;
-  month: string;
-  expected_litres: number;
-  actual_litres: number;
-  variance_litres: number;
+  bookout_date: string;
+  units: number;
+  litres: number;
   unit_cost: number;
   total_cost: number;
+  booked_out_by_employee_id: string | null;
   movement_group_id: string | null;
   notes: string;
   created_by: string | null;
