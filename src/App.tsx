@@ -133,7 +133,7 @@ function StockControllerGuard({ children }: { children: ReactNode }) {
   if (isLogisticsManager && !location.pathname.startsWith('/logistics')) {
     return <Navigate to="/logistics/vehicles" replace />;
   }
-  // Receiving officers are scoped to the Spillage register for now.
+  // Receiving officers are scoped to the Spillage register.
   if (isReceivingOfficer && !location.pathname.startsWith('/safety/spillages')) {
     return <Navigate to="/safety/spillages" replace />;
   }
