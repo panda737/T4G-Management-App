@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
-import { Plus, Beaker, Droplets, Wallet, Activity, Settings, Pencil, Trash2, AlertTriangle, PackageSearch, Camera } from 'lucide-react';
+import { Plus, Beaker, Droplets, Activity, Settings, Pencil, Trash2, PackageSearch, Camera } from 'lucide-react';
 import {
   supabase, getStockStatus,
   type TreatmentChemical, type TreatmentChemicalBookout, type StockItem, type Supplier,
@@ -14,68 +14,54 @@ import BookOutModal from './BookOutModal';
 import ChemicalConfigModal from './ChemicalConfigModal';
 import { CHEM_PHOTO_BUCKET } from './constants';
 
-// Employees eligible to be recorded as the person who booked chemical out.
-export const BOOKOUT_POSITIONS = [
-  'Stock Controller', 'Supervisor', 'Senior Operator', 'Maintenance',
-  'Health & Safety Officer', 'Operations Manager',
-];
-
-export type SupplierItemLink = { supplier_id: string; stock_item_id: string; unit_price: number };
-export type EligibleEmployee = { id: string; first_name: string; surname: string; position: string };
-type BookoutRow = TreatmentChemicalBookout & { employees?: { first_name: string; surname: string } | null };
+type SupplierItemLink = { supplier_id: string; stock_item_id: string; unit_price: number };
 
 const fmtL = (n: number) => n.toLocaleString('en-ZA', { maximumFractionDigits: 0 });
 const fmtU = (n: number) => n.toLocaleString('en-ZA', { maximumFractionDigits: 1 });
-const fmtR = (n: number) => `R ${n.toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const mKey = (d: string) => d.substring(0, 7);
 const mLabel = (key: string) => { const [y, m] = key.split('-'); return `${MONTHS[Number(m) - 1]} ${y}`; };
 
+type BookoutValues = { bookout_date: string; notes: string; file: File | null };
+
 export default function TreatmentChemicals() {
   usePageTitle('Treatment — Chemicals');
-  const { canWrite } = useUser();
+  const { canWrite, profile } = useUser();
   const { addToast } = useToast();
   const canManage = canWrite('stock');
 
   const [chemical, setChemical] = useState<TreatmentChemical | null>(null);
   const [stockItem, setStockItem] = useState<StockItem | null>(null);
-  const [supplierName, setSupplierName] = useState('');
-  const [unitPrice, setUnitPrice] = useState(0); // price per IBC (per stock unit)
-  const [bookouts, setBookouts] = useState<BookoutRow[]>([]);
+  const [bookouts, setBookouts] = useState<TreatmentChemicalBookout[]>([]);
   const [systemByMonth, setSystemByMonth] = useState<Record<string, number>>({});
   const [stockItems, setStockItems] = useState<StockItem[]>([]);
   const [suppliers, setSuppliers] = useState<Pick<Supplier, 'id' | 'supplier_name'>[]>([]);
   const [supplierItems, setSupplierItems] = useState<SupplierItemLink[]>([]);
-  const [employees, setEmployees] = useState<EligibleEmployee[]>([]);
   const [loading, setLoading] = useState(true);
 
   const [showConfig, setShowConfig] = useState(false);
   const [showBookout, setShowBookout] = useState(false);
-  const [editBookout, setEditBookout] = useState<BookoutRow | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<BookoutRow | null>(null);
+  const [editBookout, setEditBookout] = useState<TreatmentChemicalBookout | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<TreatmentChemicalBookout | null>(null);
   const [deleting, setDeleting] = useState(false);
 
   useEffect(() => { loadData(); }, []);
 
   async function loadData() {
     setLoading(true);
-    const [chemRes, logRes, itemsRes, supRes, supItemsRes, empRes] = await Promise.all([
+    const [chemRes, logRes, itemsRes, supRes, supItemsRes] = await Promise.all([
       supabase.from('treatment_chemicals').select('*').eq('active', true).order('created_at').limit(1),
       supabase.from('treatment_daily_log').select('date, chemical_litres'),
       supabase.from('stock_items').select('*').eq('active', true).order('stock_item'),
       supabase.from('suppliers').select('id, supplier_name').eq('active', true).order('supplier_name'),
       supabase.from('supplier_items').select('supplier_id, stock_item_id, unit_price'),
-      supabase.from('employees').select('id, first_name, surname, position').in('position', BOOKOUT_POSITIONS).eq('status', 'active').order('surname'),
     ]);
 
     const chem = (chemRes.data?.[0] ?? null) as TreatmentChemical | null;
     const items = (itemsRes.data ?? []) as StockItem[];
-    const supItems = (supItemsRes.data ?? []) as SupplierItemLink[];
-    const sups = (supRes.data ?? []) as { id: string; supplier_name: string }[];
     setChemical(chem);
     setStockItems(items);
-    setSuppliers(sups);
-    setSupplierItems(supItems);
-    setEmployees((empRes.data ?? []) as EligibleEmployee[]);
+    setSuppliers((supRes.data ?? []) as { id: string; supplier_name: string }[]);
+    setSupplierItems((supItemsRes.data ?? []) as SupplierItemLink[]);
 
     // System usage per month = sum of daily-log chemical_litres (already cycles × 27 L).
     const sys: Record<string, number> = {};
@@ -86,17 +72,14 @@ export default function TreatmentChemicals() {
 
     if (chem) {
       setStockItem(items.find(i => i.id === chem.stock_item_id) ?? null);
-      const link = supItems.find(s => s.supplier_id === chem.supplier_id && s.stock_item_id === chem.stock_item_id);
-      setUnitPrice(Number(link?.unit_price ?? 0));
-      setSupplierName(sups.find(s => s.id === chem.supplier_id)?.supplier_name ?? '');
       const boRes = await supabase
         .from('treatment_chemical_bookouts')
-        .select('*, employees(first_name, surname)')
+        .select('*')
         .eq('chemical_id', chem.id)
         .order('bookout_date', { ascending: false });
-      setBookouts((boRes.data ?? []) as BookoutRow[]);
+      setBookouts((boRes.data ?? []) as TreatmentChemicalBookout[]);
     } else {
-      setStockItem(null); setUnitPrice(0); setSupplierName(''); setBookouts([]);
+      setStockItem(null); setBookouts([]);
     }
     setLoading(false);
   }
@@ -106,11 +89,11 @@ export default function TreatmentChemicals() {
   const onHandLitres = onHandUnits * litresPerUnit;
 
   const bookedByMonth = useMemo(() => {
-    const m: Record<string, { units: number; litres: number; cost: number }> = {};
+    const m: Record<string, { units: number; litres: number }> = {};
     for (const b of bookouts) {
       const k = mKey(b.bookout_date);
-      (m[k] ||= { units: 0, litres: 0, cost: 0 });
-      m[k].units += Number(b.units); m[k].litres += Number(b.litres); m[k].cost += Number(b.total_cost);
+      (m[k] ||= { units: 0, litres: 0 });
+      m[k].units += Number(b.units); m[k].litres += Number(b.litres);
     }
     return m;
   }, [bookouts]);
@@ -120,13 +103,13 @@ export default function TreatmentChemicals() {
     return Array.from(keys).sort().reverse().map(key => ({
       key,
       system: systemByMonth[key] ?? 0,
-      booked: bookedByMonth[key] ?? { units: 0, litres: 0, cost: 0 },
+      booked: bookedByMonth[key] ?? { units: 0, litres: 0 },
     }));
   }, [systemByMonth, bookedByMonth]);
 
   const thisMonth = mKey(new Date().toISOString());
   const sysThis = systemByMonth[thisMonth] ?? 0;
-  const bookThis = bookedByMonth[thisMonth] ?? { units: 0, litres: 0, cost: 0 };
+  const bookThis = bookedByMonth[thisMonth] ?? { units: 0, litres: 0 };
 
   // ── Stock movement helper (reuses the atomic mover used by Stock receipts) ──
   async function postMovement(deltaUnits: number, type: string, groupId: string) {
@@ -162,7 +145,7 @@ export default function TreatmentChemicals() {
     if (data?.signedUrl) window.open(data.signedUrl, '_blank');
   }
 
-  // Each book-out is exactly one IBC and must carry a batch photo.
+  // Each book-out is exactly one IBC, attributed to the logged-in user, with a batch photo.
   async function handleCreate(v: BookoutValues) {
     if (!chemical || !v.file) throw new Error('A batch photo is required.');
     const path = await uploadPhoto(v.file);
@@ -172,8 +155,8 @@ export default function TreatmentChemicals() {
       bookout_date: v.bookout_date,
       units: 1,
       litres: litresPerUnit,
-      unit_cost: unitPrice,
-      booked_out_by_employee_id: v.booked_out_by_employee_id,
+      booked_out_by: profile?.display_name ?? '',
+      booked_out_by_employee_id: profile?.employee_id ?? null,
       notes: v.notes,
       photo_path: path,
       movement_group_id: groupId,
@@ -199,7 +182,6 @@ export default function TreatmentChemicals() {
     if (v.file) { oldPhoto = editBookout.photo_path; photo_path = await uploadPhoto(v.file); }
     const { error } = await supabase.from('treatment_chemical_bookouts').update({
       bookout_date: v.bookout_date,
-      booked_out_by_employee_id: v.booked_out_by_employee_id,
       notes: v.notes,
       photo_path,
     }).eq('id', editBookout.id);
@@ -273,28 +255,18 @@ export default function TreatmentChemicals() {
 
   const status = stockItem ? getStockStatus(stockItem) : 'Out of Stock';
   const statusColor = status === 'Out of Stock' ? 'bg-red-100 text-red-700' : status === 'Low Stock' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700';
-  const noPrice = unitPrice <= 0;
   const uom = stockItem?.unit_of_measure || 'IBC';
 
   return (
     <div className="space-y-5">
       <Header canManage={canManage} hasChemical onConfig={() => setShowConfig(true)} onBookout={() => { setEditBookout(null); setShowBookout(true); }} />
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <Card icon={<Droplets size={18} className="text-cyan-600" />} bg="bg-cyan-100" value={`${fmtL(onHandLitres)} L`} label={`On site · ${fmtU(onHandUnits)} ${uom}`}
           extra={<span className={`text-[11px] px-1.5 py-0.5 rounded-full font-medium ${statusColor}`}>{status}</span>} />
         <Card icon={<Activity size={18} className="text-blue-600" />} bg="bg-blue-100" value={`${fmtL(sysThis)} L`} label="System used (this month)" />
         <Card icon={<PackageSearch size={18} className="text-amber-600" />} bg="bg-amber-100" value={`${fmtL(bookThis.litres)} L`} label={`Booked out (this month) · ${fmtU(bookThis.units)} ${uom}`} />
-        <Card icon={<Wallet size={18} className="text-emerald-600" />} bg="bg-emerald-100" value={noPrice ? '—' : fmtR(unitPrice)} label={`Cost / ${uom}`}
-          extra={noPrice ? <span className="text-[11px] text-amber-600 font-medium">set price</span> : (supplierName ? <span className="text-[11px] text-gray-400">{supplierName}</span> : undefined)} />
       </div>
-
-      {noPrice && (
-        <div className="flex items-start gap-2 text-xs bg-amber-50 border border-amber-200 text-amber-800 rounded-lg px-3 py-2">
-          <AlertTriangle size={14} className="mt-0.5 flex-shrink-0" />
-          <span>No supplier price found{supplierName ? ` from ${supplierName}` : ''} for this item — cost reads as zero until a price is set in the supplier price list.</span>
-        </div>
-      )}
 
       {/* Monthly comparison: system usage vs what was booked out */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
@@ -314,7 +286,6 @@ export default function TreatmentChemicals() {
                   <th className="px-4 py-2.5 text-right">Booked out ({uom})</th>
                   <th className="px-4 py-2.5 text-right">Booked out (L)</th>
                   <th className="px-4 py-2.5 text-right">Difference (L)</th>
-                  <th className="px-4 py-2.5 text-right">Cost</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -329,7 +300,6 @@ export default function TreatmentChemicals() {
                       <td className={`px-4 py-2.5 text-right font-medium ${diff > 0 ? 'text-red-600' : diff < 0 ? 'text-amber-600' : 'text-gray-400'}`}>
                         {diff === 0 ? '—' : `${diff > 0 ? '+' : ''}${fmtL(diff)}`}
                       </td>
-                      <td className="px-4 py-2.5 text-right text-gray-600">{booked.cost ? fmtR(booked.cost) : '—'}</td>
                     </tr>
                   );
                 })}
@@ -343,7 +313,7 @@ export default function TreatmentChemicals() {
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
         <div className="px-4 py-3 border-b border-gray-100">
           <h2 className="text-sm font-semibold text-gray-900">Book-out log</h2>
-          <p className="text-xs text-gray-500 mt-0.5">Each book-out deducts from stock on hand.</p>
+          <p className="text-xs text-gray-500 mt-0.5">Each book-out deducts one {uom} from stock on hand.</p>
         </div>
         {bookouts.length === 0 ? (
           <div className="py-10 text-center text-sm text-gray-400">No book-outs recorded yet.</div>
@@ -356,7 +326,6 @@ export default function TreatmentChemicals() {
                   <th className="px-4 py-2.5">Booked out by</th>
                   <th className="px-4 py-2.5 text-right">{uom}</th>
                   <th className="px-4 py-2.5 text-right">Litres</th>
-                  <th className="px-4 py-2.5 text-right">Cost</th>
                   <th className="px-4 py-2.5 text-right">Actions</th>
                 </tr>
               </thead>
@@ -364,10 +333,9 @@ export default function TreatmentChemicals() {
                 {bookouts.map(b => (
                   <tr key={b.id} className="hover:bg-gray-50">
                     <td className="px-4 py-2.5 text-gray-600 whitespace-nowrap">{new Date(b.bookout_date).toLocaleDateString('en-ZA')}</td>
-                    <td className="px-4 py-2.5 text-gray-900">{b.employees ? `${b.employees.first_name} ${b.employees.surname}` : '—'}</td>
+                    <td className="px-4 py-2.5 text-gray-900">{b.booked_out_by || '—'}</td>
                     <td className="px-4 py-2.5 text-right font-medium text-gray-900">{fmtU(Number(b.units))}</td>
                     <td className="px-4 py-2.5 text-right text-gray-600">{fmtL(Number(b.litres))}</td>
-                    <td className="px-4 py-2.5 text-right text-gray-600">{fmtR(Number(b.total_cost))}</td>
                     <td className="px-4 py-2.5">
                       <div className="flex items-center justify-end gap-1.5">
                         {b.photo_path && (
@@ -394,8 +362,7 @@ export default function TreatmentChemicals() {
           existing={editBookout}
           uom={uom}
           litresPerUnit={litresPerUnit}
-          unitPrice={unitPrice}
-          employees={employees}
+          bookedOutByName={editBookout ? editBookout.booked_out_by : (profile?.display_name ?? '')}
           onClose={() => { setShowBookout(false); setEditBookout(null); }}
           onSubmit={editBookout ? handleEdit : handleCreate}
         />
@@ -405,7 +372,7 @@ export default function TreatmentChemicals() {
       )}
       {deleteTarget && (
         <DeleteConfirmModal
-          label={`book-out of ${fmtU(Number(deleteTarget.units))} ${uom} on ${new Date(deleteTarget.bookout_date).toLocaleDateString('en-ZA')}`}
+          label={`book-out of 1 ${uom} on ${new Date(deleteTarget.bookout_date).toLocaleDateString('en-ZA')}`}
           onConfirm={handleDelete}
           onClose={() => setDeleteTarget(null)}
           deleting={deleting}
@@ -414,8 +381,6 @@ export default function TreatmentChemicals() {
     </div>
   );
 }
-
-type BookoutValues = { bookout_date: string; booked_out_by_employee_id: string | null; notes: string; file: File | null };
 
 function Header({ canManage, hasChemical, onConfig, onBookout }: { canManage: boolean; hasChemical: boolean; onConfig: () => void; onBookout: () => void }) {
   return (

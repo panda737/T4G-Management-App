@@ -4,25 +4,20 @@ import Modal from '../../components/Modal';
 import { supabase, type TreatmentChemicalBookout } from '../../lib/supabase';
 import { CHEM_PHOTO_BUCKET, CHEM_PHOTO_MAX_BYTES, CHEM_PHOTO_ACCEPTED } from './constants';
 
-type EligibleEmployee = { id: string; first_name: string; surname: string; position: string };
-
 const fmtL = (n: number) => n.toLocaleString('en-ZA', { maximumFractionDigits: 0 });
-const fmtR = (n: number) => `R ${n.toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 interface Props {
   existing: TreatmentChemicalBookout | null;
   uom: string;
   litresPerUnit: number;
-  unitPrice: number;
-  employees: EligibleEmployee[];
+  bookedOutByName: string;
   onClose: () => void;
-  onSubmit: (values: { bookout_date: string; booked_out_by_employee_id: string | null; notes: string; file: File | null }) => Promise<void>;
+  onSubmit: (values: { bookout_date: string; notes: string; file: File | null }) => Promise<void>;
 }
 
-export default function BookOutModal({ existing, uom, litresPerUnit, unitPrice, employees, onClose, onSubmit }: Props) {
+export default function BookOutModal({ existing, uom, litresPerUnit, bookedOutByName, onClose, onSubmit }: Props) {
   const isEdit = !!existing;
   const [date, setDate] = useState(existing?.bookout_date?.substring(0, 10) ?? new Date().toISOString().substring(0, 10));
-  const [employeeId, setEmployeeId] = useState(existing?.booked_out_by_employee_id ?? '');
   const [notes, setNotes] = useState(existing?.notes ?? '');
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -32,7 +27,6 @@ export default function BookOutModal({ existing, uom, litresPerUnit, unitPrice, 
   const cameraRef = useRef<HTMLInputElement>(null);
   const libraryRef = useRef<HTMLInputElement>(null);
 
-  // Show the photo already on file when editing.
   useEffect(() => {
     if (!existing?.photo_path) return;
     let active = true;
@@ -61,8 +55,6 @@ export default function BookOutModal({ existing, uom, litresPerUnit, unitPrice, 
   }
 
   const litres = litresPerUnit; // exactly one IBC per book-out
-  const cost = unitPrice;
-  // A photo is required on a new book-out; on edit the existing one is kept unless replaced.
   const photoOk = isEdit ? (!!file || !!existing?.photo_path) : !!file;
   const inp = 'w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500';
 
@@ -72,7 +64,7 @@ export default function BookOutModal({ existing, uom, litresPerUnit, unitPrice, 
     if (!photoOk) { setError('A photo of the batch is required.'); return; }
     setSaving(true);
     try {
-      await onSubmit({ bookout_date: date, booked_out_by_employee_id: employeeId || null, notes, file });
+      await onSubmit({ bookout_date: date, notes, file });
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not save book-out.');
       setSaving(false);
@@ -91,7 +83,7 @@ export default function BookOutModal({ existing, uom, litresPerUnit, unitPrice, 
         <>
           <button onClick={onClose} className="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition">Cancel</button>
           <button onClick={save} disabled={saving || !photoOk} className="px-4 py-2 text-sm bg-cyan-600 text-white rounded-lg hover:bg-cyan-700 transition font-medium disabled:opacity-50 flex items-center gap-2">
-            {saving && <Loader size={14} className="animate-spin" />} {isEdit ? 'Save changes' : 'Book out 1 ' + uom}
+            {saving && <Loader size={14} className="animate-spin" />} {isEdit ? 'Save changes' : `Book out 1 ${uom}`}
           </button>
         </>
       }
@@ -109,7 +101,7 @@ export default function BookOutModal({ existing, uom, litresPerUnit, unitPrice, 
                 <button onClick={clearFile} className="absolute top-2 right-2 bg-black/60 text-white rounded-full p-1.5 hover:bg-black/80" title="Remove photo"><X size={16} /></button>
               )}
               <div className="absolute bottom-2 right-2 flex gap-1.5">
-                <button onClick={() => cameraRef.current?.click()} className="bg-white/90 text-gray-700 rounded-lg px-3 py-1.5 text-xs font-medium flex items-center gap-1.5 hover:bg-white"><Camera size={14} /> {isEdit ? 'Retake' : 'Retake'}</button>
+                <button onClick={() => cameraRef.current?.click()} className="bg-white/90 text-gray-700 rounded-lg px-3 py-1.5 text-xs font-medium flex items-center gap-1.5 hover:bg-white"><Camera size={14} /> Retake</button>
                 <button onClick={() => libraryRef.current?.click()} className="bg-white/90 text-gray-700 rounded-lg px-3 py-1.5 text-xs font-medium flex items-center gap-1.5 hover:bg-white"><ImagePlus size={14} /> Replace</button>
               </div>
             </div>
@@ -141,18 +133,8 @@ export default function BookOutModal({ existing, uom, litresPerUnit, unitPrice, 
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Booked out by</label>
-          <select value={employeeId} onChange={e => setEmployeeId(e.target.value)} className={inp}>
-            <option value="">— Select person —</option>
-            {employees.map(e => <option key={e.id} value={e.id}>{e.first_name} {e.surname} · {e.position}</option>)}
-          </select>
-          {employees.length === 0 && (
-            <p className="text-xs text-amber-600 mt-1">No eligible staff found (Stock Controller, Supervisor, Senior Operator, Maintenance, H&S Officer, Operations Manager).</p>
-          )}
-        </div>
-
-        <div className="bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
-          <p className="text-xs text-gray-500">Cost (1 {uom})</p>
-          <p className="text-sm font-semibold text-gray-900">{fmtR(cost)}</p>
+          <div className={`${inp} bg-gray-50 text-gray-700 flex items-center`}>{bookedOutByName || 'Logged-in user'}</div>
+          <p className="text-xs text-gray-400 mt-1">{isEdit ? 'Recorded when the book-out was created.' : 'Recorded as you.'}</p>
         </div>
 
         <div>

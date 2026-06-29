@@ -232,6 +232,7 @@ export type TreatmentChemicalBookout = {
   litres: number;
   unit_cost: number;
   total_cost: number;
+  booked_out_by: string;
   booked_out_by_employee_id: string | null;
   photo_path: string | null;
   movement_group_id: string | null;

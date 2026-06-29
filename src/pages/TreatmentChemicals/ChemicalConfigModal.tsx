@@ -98,7 +98,7 @@ export default function ChemicalConfigModal({ existing, stockItems, suppliers, s
           {supplierId && availableItems.length === 0 && (
             <p className="text-xs text-amber-600 mt-1">This supplier has no items in its price list yet — add the chemical to it in Commercial → Suppliers.</p>
           )}
-          <p className="text-xs text-gray-400 mt-1">Only items this supplier supplies. Stock on hand and unit cost are read from here.</p>
+          <p className="text-xs text-gray-400 mt-1">Only items this supplier supplies. Stock on hand is read from here.</p>
         </div>
 
         <div className="grid grid-cols-2 gap-3">
