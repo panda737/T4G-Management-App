@@ -38,4 +38,16 @@
     background-color: #d1d5db;
     border-radius: 2px;
   }
+
+  /* Scrollable, but with no visible scrollbar and no reserved gutter — so the
+     content keeps its full width (no layout shift when it overflows). */
+  .no-scrollbar {
+    scrollbar-width: none;        /* Firefox */
+    -ms-overflow-style: none;     /* old Edge / IE */
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    display: none;                /* Chromium, Safari */
+  }
 }
