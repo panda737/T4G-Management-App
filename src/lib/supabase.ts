@@ -233,6 +233,7 @@ export type TreatmentChemicalBookout = {
   unit_cost: number;
   total_cost: number;
   booked_out_by_employee_id: string | null;
+  photo_path: string | null;
   movement_group_id: string | null;
   notes: string;
   created_by: string | null;

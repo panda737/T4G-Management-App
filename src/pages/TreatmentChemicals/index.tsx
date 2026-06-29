@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
-import { Plus, Beaker, Droplets, Wallet, Activity, Settings, Pencil, Trash2, AlertTriangle, PackageSearch } from 'lucide-react';
+import { Plus, Beaker, Droplets, Wallet, Activity, Settings, Pencil, Trash2, AlertTriangle, PackageSearch, Camera } from 'lucide-react';
 import {
   supabase, getStockStatus,
   type TreatmentChemical, type TreatmentChemicalBookout, type StockItem, type Supplier,
@@ -12,6 +12,7 @@ import MobileNavButton from '../../components/MobileNavButton';
 import DeleteConfirmModal from '../../components/DeleteConfirmModal';
 import BookOutModal from './BookOutModal';
 import ChemicalConfigModal from './ChemicalConfigModal';
+import { CHEM_PHOTO_BUCKET } from './constants';
 
 // Employees eligible to be recorded as the person who booked chemical out.
 export const BOOKOUT_POSITIONS = [
@@ -148,24 +149,41 @@ export default function TreatmentChemicals() {
     if (error) throw error;
   }
 
+  async function uploadPhoto(file: File): Promise<string> {
+    const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+    const path = `${new Date().getFullYear()}/${crypto.randomUUID()}.${ext}`;
+    const { error } = await supabase.storage.from(CHEM_PHOTO_BUCKET).upload(path, file, { contentType: file.type || 'image/jpeg' });
+    if (error) throw error;
+    return path;
+  }
+
+  async function viewPhoto(path: string) {
+    const { data } = await supabase.storage.from(CHEM_PHOTO_BUCKET).createSignedUrl(path, 120);
+    if (data?.signedUrl) window.open(data.signedUrl, '_blank');
+  }
+
+  // Each book-out is exactly one IBC and must carry a batch photo.
   async function handleCreate(v: BookoutValues) {
-    if (!chemical) return;
+    if (!chemical || !v.file) throw new Error('A batch photo is required.');
+    const path = await uploadPhoto(v.file);
     const groupId = crypto.randomUUID();
     const { data, error } = await supabase.from('treatment_chemical_bookouts').insert({
       chemical_id: chemical.id,
       bookout_date: v.bookout_date,
-      units: v.units,
-      litres: v.units * litresPerUnit,
+      units: 1,
+      litres: litresPerUnit,
       unit_cost: unitPrice,
       booked_out_by_employee_id: v.booked_out_by_employee_id,
       notes: v.notes,
+      photo_path: path,
       movement_group_id: groupId,
     }).select('id').single();
-    if (error) throw error;
+    if (error) { await supabase.storage.from(CHEM_PHOTO_BUCKET).remove([path]); throw error; }
     try {
-      await postMovement(-v.units, 'Stock Issued', groupId);
+      await postMovement(-1, 'Stock Issued', groupId);
     } catch (e) {
       await supabase.from('treatment_chemical_bookouts').delete().eq('id', data.id);
+      await supabase.storage.from(CHEM_PHOTO_BUCKET).remove([path]);
       throw e;
     }
     addToast('Booked out & stock updated');
@@ -173,20 +191,24 @@ export default function TreatmentChemicals() {
     loadData();
   }
 
+  // Quantity is fixed at 1, so editing never moves stock — only the details/photo change.
   async function handleEdit(v: BookoutValues) {
     if (!editBookout) return;
-    const delta = -(v.units - Number(editBookout.units)); // adjust stock to the new amount
-    await postMovement(delta, 'Stock Adjusted', editBookout.movement_group_id ?? crypto.randomUUID());
+    let photo_path = editBookout.photo_path;
+    let oldPhoto: string | null = null;
+    if (v.file) { oldPhoto = editBookout.photo_path; photo_path = await uploadPhoto(v.file); }
     const { error } = await supabase.from('treatment_chemical_bookouts').update({
       bookout_date: v.bookout_date,
-      units: v.units,
-      litres: v.units * litresPerUnit,
-      unit_cost: unitPrice,
       booked_out_by_employee_id: v.booked_out_by_employee_id,
       notes: v.notes,
+      photo_path,
     }).eq('id', editBookout.id);
-    if (error) throw error;
-    addToast('Book-out updated & stock adjusted');
+    if (error) {
+      if (oldPhoto !== null && photo_path) await supabase.storage.from(CHEM_PHOTO_BUCKET).remove([photo_path]);
+      throw error;
+    }
+    if (oldPhoto) await supabase.storage.from(CHEM_PHOTO_BUCKET).remove([oldPhoto]);
+    addToast('Book-out updated');
     setEditBookout(null);
     loadData();
   }
@@ -198,6 +220,7 @@ export default function TreatmentChemicals() {
       await postMovement(Number(deleteTarget.units), 'Stock Adjusted', deleteTarget.movement_group_id ?? crypto.randomUUID());
       const { error } = await supabase.from('treatment_chemical_bookouts').delete().eq('id', deleteTarget.id);
       if (error) throw error;
+      if (deleteTarget.photo_path) await supabase.storage.from(CHEM_PHOTO_BUCKET).remove([deleteTarget.photo_path]);
       addToast('Book-out removed & stock restored');
       setDeleteTarget(null);
       loadData();
@@ -347,6 +370,9 @@ export default function TreatmentChemicals() {
                     <td className="px-4 py-2.5 text-right text-gray-600">{fmtR(Number(b.total_cost))}</td>
                     <td className="px-4 py-2.5">
                       <div className="flex items-center justify-end gap-1.5">
+                        {b.photo_path && (
+                          <button onClick={() => viewPhoto(b.photo_path!)} className="text-gray-500 hover:text-cyan-600 transition" title="View batch photo"><Camera size={15} /></button>
+                        )}
                         {canManage && (
                           <>
                             <button onClick={() => setEditBookout(b)} className="text-gray-500 hover:text-cyan-600 transition" title="Edit"><Pencil size={15} /></button>
@@ -389,7 +415,7 @@ export default function TreatmentChemicals() {
   );
 }
 
-type BookoutValues = { bookout_date: string; units: number; booked_out_by_employee_id: string | null; notes: string };
+type BookoutValues = { bookout_date: string; booked_out_by_employee_id: string | null; notes: string; file: File | null };
 
 function Header({ canManage, hasChemical, onConfig, onBookout }: { canManage: boolean; hasChemical: boolean; onConfig: () => void; onBookout: () => void }) {
   return (
