@@ -284,6 +284,21 @@ export type Spillage = {
   updated_at: string;
 };
 
+export type BiologicalIndicator = {
+  id: string;
+  bi_number: string;
+  captured_date: string;
+  captured_time: string | null;
+  compactor_no: number;
+  photo_path: string | null;
+  notes: string;
+  captured_by: string;
+  captured_by_id: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 export type SafetyInspection = {
   id: string;
   inspection_number: string;

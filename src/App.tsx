@@ -17,7 +17,6 @@ import Reports from './pages/Reports';
 import Settings from './pages/Settings';
 import EmployeeRegister from './pages/EmployeeRegister';
 import EmployeeProfile from './pages/EmployeeRegister/EmployeeProfile';
-import ComingSoon from './pages/ComingSoon';
 import TreatmentDashboard from './pages/TreatmentDashboard';
 import TreatmentDailyLog from './pages/TreatmentDailyLog';
 import TreatmentTransfers from './pages/TreatmentTransfers';
@@ -44,6 +43,8 @@ import PlantOverview from './pages/PlantOverview';
 import AdminUsers from './pages/AdminUsers';
 import DocumentLibrary from './pages/DocumentLibrary';
 import ComplianceExpiry from './pages/ComplianceExpiry';
+import ComplianceOverview from './pages/Compliance/ComplianceOverview';
+import BiologicalIndicators from './pages/Compliance/BiologicalIndicators';
 import AppointmentsRegister from './pages/EmployeeRegister/AppointmentsRegister';
 import Organogram from './pages/EmployeeRegister/Organogram';
 import VehicleRegister from './pages/Logistics/VehicleRegister';
@@ -200,6 +201,7 @@ const ROUTE_LABELS: Record<string, string> = {
   '/logistics/vehicles': 'Vehicle Register',
   '/logistics/drivers': 'Driver Compliance',
   '/compliance': 'Compliance',
+  '/compliance/biological-indicator': 'Biological Indicator',
   '/documents': 'Document Library',
   '/documents/expiry-dashboard': 'Expiry Dashboard',
   '/employees': 'Employee Register',
@@ -351,8 +353,9 @@ function StaffShell({ session }: { session: Session }) {
             <Route path="/logistics/vehicles" element={<VehicleRegister />} />
             <Route path="/logistics/drivers" element={<DriverCompliance />} />
 
-            {/* Compliance (Coming Soon) */}
-            <Route path="/compliance" element={<ComingSoon title="Compliance Overview" description="Unified compliance view across all modules -- SHEQ, training, treatment, and stock management." />} />
+            {/* Compliance */}
+            <Route path="/compliance" element={<ComplianceOverview />} />
+            <Route path="/compliance/biological-indicator" element={<BiologicalIndicators />} />
 
             {/* Documents */}
             <Route path="/documents" element={<DocumentLibrary />} />
