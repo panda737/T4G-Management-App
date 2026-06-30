@@ -109,7 +109,8 @@ const moduleGroups: ModuleGroup[] = [
     icon: CheckSquare,
     color: 'text-teal-400',
     items: [
-      { path: '/compliance', label: 'Compliance Overview', soon: true },
+      { path: '/compliance', label: 'Overview' },
+      { path: '/compliance/biological-indicator', label: 'Biological Indicator' },
     ],
   },
   {
@@ -281,6 +282,15 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
           items: [
             { path: '/safety/spillages', label: 'Spillages' },
             { path: '/safety/toolbox-talks', label: 'Toolbox Talks' },
+          ],
+        },
+        {
+          id: 'compliance',
+          label: 'Compliance',
+          icon: CheckSquare,
+          color: 'text-teal-400',
+          items: [
+            { path: '/compliance/biological-indicator', label: 'Biological Indicator' },
           ],
         },
       ]
