@@ -342,7 +342,7 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 py-3 overflow-y-auto">
+        <nav className="flex-1 py-3 overflow-y-auto no-scrollbar">
           {!isOperator && !isStockController && !isLogisticsManager && !isReceivingOfficer && (
             <>
               <button
