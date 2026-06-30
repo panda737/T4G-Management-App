@@ -12,7 +12,7 @@ import { Spinner } from '../../components/Spinner';
 import { supabase, SafetyToolboxTalk, ToolboxTalkTopic } from '../../lib/supabase';
 import Modal from '../../components/Modal';
 import AttendanceRegister from '../../components/AttendanceRegister';
-import EmployeeMultiSelect from '../../components/EmployeeMultiSelect';
+import EmployeeTogglePicker from '../../components/EmployeeTogglePicker';
 import SignaturePad from '../../components/SignaturePad';
 import { generateSequentialNumber } from '../../lib/numberGenerator';
 import { EMPTY_FORM, type FormData, type Tab } from './constants';
@@ -562,11 +562,10 @@ export default function SafetyToolboxTalks() {
             </div>
 
             <div className="col-span-2">
-              <EmployeeMultiSelect
-                label="Attendees"
+              <label className="block text-sm font-medium text-gray-700 mb-1">Attendees</label>
+              <EmployeeTogglePicker
                 value={formData.selected_attendee_ids}
                 onChange={(ids, names) => setFormData(prev => ({ ...prev, selected_attendee_ids: ids, selected_attendee_names: names }))}
-                placeholder="Select attendees..."
                 excludeNames={TOOLBOX_EXCLUDED_NAMES}
               />
             </div>

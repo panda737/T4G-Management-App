@@ -140,6 +140,8 @@ export default function OperatorShiftEntry() {
   const [saving, setSaving] = useState(false);
   const [submitError, setSubmitError] = useState('');
   const [copied, setCopied] = useState(false);
+  // Attendees of the most recent toolbox talk — pre-ticked on the shift team picker.
+  const [toolboxTeam, setToolboxTeam] = useState<{ ids: string[]; names: string[] }>({ ids: [], names: [] });
 
   // Fetch linked employee name and build team exclusion list
   useEffect(() => {
@@ -172,9 +174,42 @@ export default function OperatorShiftEntry() {
       });
   }, [profile?.employee_id, profile?.display_name]);
 
+  // Pull the attendees of the most recent toolbox talk so the shift team starts
+  // pre-ticked with whoever was at the talk done at the start of the shift.
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      const { data: talk } = await supabase
+        .from('safety_toolbox_talks')
+        .select('id')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (!active || !talk) return;
+      const { data: att } = await supabase
+        .from('toolbox_attendees')
+        .select('employee_id')
+        .eq('toolbox_id', talk.id);
+      const attIds = (att ?? []).map(a => a.employee_id);
+      if (!active || attIds.length === 0) return;
+      const { data: emps } = await supabase
+        .from('employees')
+        .select('id, first_name, surname')
+        .eq('status', 'active')
+        .in('id', attIds);
+      if (!active) return;
+      const nameById = new Map((emps ?? []).map(e => [e.id, `${e.first_name} ${e.surname}`]));
+      const ids = attIds.filter(id => nameById.has(id));
+      setToolboxTeam({ ids, names: ids.map(id => nameById.get(id) as string) });
+    })();
+    return () => { active = false; };
+  }, []);
+
   function selectShift(s: ShiftType) {
     setShift(s);
     setShiftDate(getShiftDate(s));
+    // Start the team pre-ticked with the most recent toolbox talk's attendees.
+    setForm(f => ({ ...f, team_ids: toolboxTeam.ids, team_names: toolboxTeam.names }));
     setStep('form');
   }
 
@@ -608,6 +643,7 @@ export default function OperatorShiftEntry() {
             value={form.team_ids}
             onChange={(ids, names) => setForm(f => ({ ...f, team_ids: ids, team_names: names }))}
             excludeIds={excludeIds}
+            priorityIds={toolboxTeam.ids}
           />
         </div>
 
