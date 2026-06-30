@@ -270,6 +270,7 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
           items: [
             { path: '/treatment', label: 'Plant Dashboard' },
             { path: '/shift-report', label: 'Add Shift Record' },
+            { path: '/treatment/chemicals', label: 'Chemicals' },
           ],
         },
         {

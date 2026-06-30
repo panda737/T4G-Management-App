@@ -12,6 +12,7 @@ import MobileNavButton from '../../components/MobileNavButton';
 import DeleteConfirmModal from '../../components/DeleteConfirmModal';
 import BookOutModal from './BookOutModal';
 import ChemicalConfigModal from './ChemicalConfigModal';
+import OperatorChemicals from './OperatorChemicals';
 import { CHEM_PHOTO_BUCKET } from './constants';
 
 type SupplierItemLink = { supplier_id: string; stock_item_id: string; unit_price: number };
@@ -23,7 +24,13 @@ const mLabel = (key: string) => { const [y, m] = key.split('-'); return `${MONTH
 
 type BookoutValues = { bookout_date: string; notes: string; file: File | null };
 
+// Operators get the focused single-action view; everyone else gets the full tab.
 export default function TreatmentChemicals() {
+  const { isOperator } = useUser();
+  return isOperator ? <OperatorChemicals /> : <ManagerChemicals />;
+}
+
+function ManagerChemicals() {
   usePageTitle('Treatment — Chemicals');
   const { canWrite, profile } = useUser();
   const { addToast } = useToast();
@@ -149,26 +156,16 @@ export default function TreatmentChemicals() {
   async function handleCreate(v: BookoutValues) {
     if (!chemical || !v.file) throw new Error('A batch photo is required.');
     const path = await uploadPhoto(v.file);
-    const groupId = crypto.randomUUID();
-    const { data, error } = await supabase.from('treatment_chemical_bookouts').insert({
-      chemical_id: chemical.id,
-      bookout_date: v.bookout_date,
-      units: 1,
-      litres: litresPerUnit,
-      booked_out_by: profile?.display_name ?? '',
-      booked_out_by_employee_id: profile?.employee_id ?? null,
-      notes: v.notes,
-      photo_path: path,
-      movement_group_id: groupId,
-    }).select('id').single();
+    // Atomic, role-scoped: inserts the book-out and deducts one container of the chemical.
+    const { error } = await supabase.rpc('record_chemical_bookout', {
+      p_chemical_id: chemical.id,
+      p_bookout_date: v.bookout_date,
+      p_booked_out_by: profile?.display_name ?? '',
+      p_booked_out_by_employee_id: profile?.employee_id ?? null,
+      p_notes: v.notes,
+      p_photo_path: path,
+    });
     if (error) { await supabase.storage.from(CHEM_PHOTO_BUCKET).remove([path]); throw error; }
-    try {
-      await postMovement(-1, 'Stock Issued', groupId);
-    } catch (e) {
-      await supabase.from('treatment_chemical_bookouts').delete().eq('id', data.id);
-      await supabase.storage.from(CHEM_PHOTO_BUCKET).remove([path]);
-      throw e;
-    }
     addToast('Booked out & stock updated');
     setShowBookout(false);
     loadData();
