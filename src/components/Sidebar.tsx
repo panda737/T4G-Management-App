@@ -29,6 +29,7 @@ const moduleGroups: ModuleGroup[] = [
       { path: '/treatment/daily-log', label: 'Daily Log' },
       { path: '/treatment/transfers', label: 'Transfers' },
       { path: '/treatment/waste-on-floor', label: 'Waste on Floor' },
+      { path: '/treatment/chemicals', label: 'Chemicals' },
     ],
   },
   {
@@ -269,6 +270,7 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
           items: [
             { path: '/treatment', label: 'Plant Dashboard' },
             { path: '/shift-report', label: 'Add Shift Record' },
+            { path: '/treatment/chemicals', label: 'Chemicals' },
           ],
         },
         {

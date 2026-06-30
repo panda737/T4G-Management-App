@@ -213,6 +213,35 @@ export type TreatmentMonthlySummary = {
   updated_at: string;
 };
 
+export type TreatmentChemical = {
+  id: string;
+  stock_item_id: string;
+  supplier_id: string | null;
+  name: string;
+  litres_per_unit: number;
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type TreatmentChemicalBookout = {
+  id: string;
+  chemical_id: string;
+  bookout_date: string;
+  units: number;
+  litres: number;
+  unit_cost: number;
+  total_cost: number;
+  booked_out_by: string;
+  booked_out_by_employee_id: string | null;
+  photo_path: string | null;
+  movement_group_id: string | null;
+  notes: string;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 export type SafetyIncident = {
   id: string;
   incident_number: string;
