@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
-import { Beaker, Plus } from 'lucide-react';
+import { Beaker, Plus, Menu } from 'lucide-react';
 import { supabase, type TreatmentChemical } from '../../lib/supabase';
 import { usePageTitle } from '../../lib/usePageTitle';
 import { useUser } from '../../lib/UserContext';
 import { useToast } from '../../lib/toast';
-import MobileNavButton from '../../components/MobileNavButton';
+import { useOpenNav } from '../../lib/mobileNav';
 import BookOutModal from './BookOutModal';
 import { CHEM_PHOTO_BUCKET } from './constants';
 
@@ -13,6 +13,7 @@ export default function OperatorChemicals() {
   usePageTitle('Treatment — Chemicals');
   const { profile } = useUser();
   const { addToast } = useToast();
+  const openNav = useOpenNav();
   const [chemical, setChemical] = useState<TreatmentChemical | null>(null);
   const [loading, setLoading] = useState(true);
   const [showBookout, setShowBookout] = useState(false);
@@ -51,12 +52,9 @@ export default function OperatorChemicals() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Chemicals</h1>
-          <p className="text-sm text-gray-500 mt-1">Book out a chemical container</p>
-        </div>
-        <MobileNavButton />
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900">Chemicals</h1>
+        <p className="text-sm text-gray-500 mt-1">Book out a chemical container</p>
       </div>
 
       {!chemical ? (
@@ -77,6 +75,14 @@ export default function OperatorChemicals() {
           </button>
         </div>
       )}
+
+      {/* Menu — opens the navigation drawer (mobile), mirroring the Shift Record page. */}
+      <button
+        onClick={openNav}
+        className="lg:hidden w-full flex items-center justify-center gap-2 p-4 rounded-xl border-2 border-gray-200 bg-white text-gray-700 font-semibold hover:bg-gray-50 active:scale-[0.99] transition-all"
+      >
+        <Menu size={20} /> Menu
+      </button>
 
       {showBookout && chemical && (
         <BookOutModal
