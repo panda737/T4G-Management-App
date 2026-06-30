@@ -1,23 +1,21 @@
 import { useState } from 'react';
-import { Camera, Plus } from 'lucide-react';
+import { Camera, Plus, Menu } from 'lucide-react';
 import { usePageTitle } from '../../lib/usePageTitle';
-import MobileNavButton from '../../components/MobileNavButton';
+import { useOpenNav } from '../../lib/mobileNav';
 import BiologicalIndicatorFormModal from './BiologicalIndicatorFormModal';
 
 // Operators get a single focused action — capture one biological indicator —
 // just like the shift record / chemical book-out views. No tabs, no log.
 export default function OperatorBiologicalIndicator() {
   usePageTitle('Compliance — Biological Indicator');
+  const openNav = useOpenNav();
   const [showForm, setShowForm] = useState(false);
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Biological Indicator</h1>
-          <p className="text-sm text-gray-500 mt-1">Photograph and log a compactor sterility check</p>
-        </div>
-        <MobileNavButton />
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900">Biological Indicator</h1>
+        <p className="text-sm text-gray-500 mt-1">Photograph and log a compactor sterility check</p>
       </div>
 
       <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-8 text-center">
@@ -30,6 +28,14 @@ export default function OperatorBiologicalIndicator() {
           <Plus size={18} /> Capture biological indicator
         </button>
       </div>
+
+      {/* Menu — opens the navigation drawer (mobile), mirroring the Shift Record page. */}
+      <button
+        onClick={openNav}
+        className="lg:hidden w-full flex items-center justify-center gap-2 p-4 rounded-xl border-2 border-gray-200 bg-white text-gray-700 font-semibold hover:bg-gray-50 active:scale-[0.99] transition-all"
+      >
+        <Menu size={20} /> Menu
+      </button>
 
       {showForm && (
         <BiologicalIndicatorFormModal

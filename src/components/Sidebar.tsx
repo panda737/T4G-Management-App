@@ -228,7 +228,7 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
   const isReceivingOfficer = role === 'receiving_officer';
 
   useEffect(() => {
-    if (isOperator) setExpandedGroups(new Set(['treatment', 'safety']));
+    if (isOperator) setExpandedGroups(new Set(['treatment', 'safety', 'compliance']));
   }, [isOperator]);
 
   useEffect(() => {
