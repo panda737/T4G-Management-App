@@ -28,7 +28,7 @@ function Badge({ b }: { b: EsgDataBasis | undefined }) {
 export default function EsgDashboard() {
   usePageTitle('Portal — ESG & Sustainability');
   const { clientId, siteId, siteScoped } = usePortalClient();
-  const { rows, loading: esgLoading } = usePortalEsg();
+  const { rows, loading: esgLoading, error: esgError } = usePortalEsg();
   const trendStart = useMemo(() => periodRange('12m').start, []);
   const d = usePortalDashboard(clientId, siteId, null, null, trendStart);
   const [month, setMonth] = useState('');
@@ -63,6 +63,12 @@ export default function EsgDashboard() {
           </div>
         )}
       </PageHeader>
+
+      {(esgError || d.error) && (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-2.5 text-sm text-amber-800">
+          Some data couldn’t load: {esgError || d.error}
+        </div>
+      )}
 
       {/* Summary wording — sets the expectation while results are awaiting */}
       <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3 flex items-start gap-2 text-sm text-emerald-900">

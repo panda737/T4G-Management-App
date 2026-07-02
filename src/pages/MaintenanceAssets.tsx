@@ -6,6 +6,7 @@ import { useUser } from '../lib/UserContext';
 import { useToast } from '../lib/toast';
 import type { Equipment } from '../lib/supabase';
 import Modal from '../components/Modal';
+import DashboardError from '../components/DashboardError';
 import { equipmentStatusColors as STATUS_COLORS } from '../lib/badgeColors';
 
 const STATUSES = ['Operational', 'Under Maintenance', 'Faulty', 'Decommissioned'];
@@ -16,6 +17,7 @@ export default function MaintenanceAssets() {
   usePageTitle('Maintenance — Equipment');
   const [equipment, setEquipment] = useState<Equipment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const { addToast } = useToast();
@@ -26,7 +28,9 @@ export default function MaintenanceAssets() {
 
   async function load() {
     setLoading(true);
-    const { data } = await supabase.from('equipment').select('*').order('name');
+    setLoadError('');
+    const { data, error } = await supabase.from('equipment').select('*').order('name');
+    if (error) setLoadError(error.message);
     setEquipment(data || []);
     setLoading(false);
   }
@@ -53,6 +57,8 @@ export default function MaintenanceAssets() {
     STATUSES.forEach(s => { c[s] = equipment.filter(e => e.status === s).length; });
     return c;
   }, [equipment]);
+
+  if (loadError) return <DashboardError title="Equipment Register" message={loadError} onRetry={load} />;
 
   return (
     <div className="space-y-5">

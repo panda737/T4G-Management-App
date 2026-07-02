@@ -6,6 +6,7 @@ import { useUser } from '../lib/UserContext';
 import { useToast } from '../lib/toast';
 import type { Part, Equipment } from '../lib/supabase';
 import Modal from '../components/Modal';
+import DashboardError from '../components/DashboardError';
 
 export default function MaintenanceParts() {
   const { canWrite } = useUser();
@@ -14,6 +15,7 @@ export default function MaintenanceParts() {
   const [parts, setParts] = useState<Part[]>([]);
   const [equipment, setEquipment] = useState<Equipment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
 
   const [search, setSearch] = useState('');
   const [filterEquipment, setFilterEquipment] = useState('');
@@ -27,10 +29,13 @@ export default function MaintenanceParts() {
 
   async function load() {
     setLoading(true);
+    setLoadError('');
     const [pt, eq] = await Promise.all([
       supabase.from('parts').select('*').order('name'),
       supabase.from('equipment').select('*').order('name'),
     ]);
+    const firstErr = [pt, eq].find(r => r.error)?.error;
+    if (firstErr) setLoadError(firstErr.message);
     setParts(pt.data || []);
     setEquipment(eq.data || []);
     setLoading(false);
@@ -55,6 +60,8 @@ export default function MaintenanceParts() {
   }, [parts, filterEquipment, filterLow, search]);
 
   const lowCount = parts.filter(p => p.qty_on_hand < p.qty_required).length;
+
+  if (loadError) return <DashboardError title="Spare Parts" message={loadError} onRetry={load} />;
 
   return (
     <div className="space-y-5">

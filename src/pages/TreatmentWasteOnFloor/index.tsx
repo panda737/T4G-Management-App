@@ -7,6 +7,7 @@ import { useUser } from '../../lib/UserContext';
 import { useToast } from '../../lib/toast';
 import WasteReceiptFormModal from './WasteReceiptFormModal';
 import WasteFlowChart, { type FlowDatum } from './WasteFlowChart';
+import DashboardError from '../../components/DashboardError';
 
 type TransferWithDate = TreatmentWasteTransfer & { log_date: string };
 
@@ -20,22 +21,31 @@ export default function WasteOnFloor() {
   const [transfers, setTransfers] = useState<TransferWithDate[]>([]);
   const [treatmentLogs, setTreatmentLogs] = useState<TreatmentDailyLog[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [showForm, setShowForm] = useState(false);
 
   useEffect(() => { loadData(); }, []);
 
   async function loadData() {
     setLoading(true);
-    const [rRes, tRes, logRes] = await Promise.all([
-      supabase.from('waste_receipts').select('*').order('date', { ascending: false }),
-      supabase.from('treatment_waste_transfers').select('*, treatment_daily_log(date)').order('created_at', { ascending: false }),
-      supabase.from('treatment_daily_log').select('id, date, total_treated_kg').order('date', { ascending: false }),
-    ]);
-    setReceipts((rRes.data ?? []) as WasteReceipt[]);
-    const raw = (tRes.data ?? []) as (TreatmentWasteTransfer & { treatment_daily_log?: { date: string } | null })[];
-    setTransfers(raw.map(t => ({ ...t, log_date: t.treatment_daily_log?.date ?? '' })));
-    setTreatmentLogs((logRes.data ?? []) as TreatmentDailyLog[]);
-    setLoading(false);
+    setLoadError('');
+    try {
+      const [rRes, tRes, logRes] = await Promise.all([
+        supabase.from('waste_receipts').select('*').order('date', { ascending: false }),
+        supabase.from('treatment_waste_transfers').select('*, treatment_daily_log(date)').order('created_at', { ascending: false }),
+        supabase.from('treatment_daily_log').select('id, date, total_treated_kg').order('date', { ascending: false }),
+      ]);
+      const firstErr = [rRes, tRes, logRes].find(r => r.error)?.error;
+      if (firstErr) throw new Error(firstErr.message);
+      setReceipts((rRes.data ?? []) as WasteReceipt[]);
+      const raw = (tRes.data ?? []) as (TreatmentWasteTransfer & { treatment_daily_log?: { date: string } | null })[];
+      setTransfers(raw.map(t => ({ ...t, log_date: t.treatment_daily_log?.date ?? '' })));
+      setTreatmentLogs((logRes.data ?? []) as TreatmentDailyLog[]);
+    } catch (e) {
+      setLoadError(e instanceof Error ? e.message : 'Failed to load waste-on-floor data');
+    } finally {
+      setLoading(false);
+    }
   }
 
   const totalReceived = useMemo(() => receipts.reduce((s, r) => s + Number(r.quantity_kg), 0), [receipts]);
@@ -61,6 +71,8 @@ export default function WasteOnFloor() {
       return { month: mo, inKg, outKg, balance: bal };
     });
   }, [receipts, treatmentLogs, transfers]);
+
+  if (loadError) return <DashboardError title="Waste on Floor" message={loadError} onRetry={loadData} />;
 
   return (
     <div className="space-y-5">

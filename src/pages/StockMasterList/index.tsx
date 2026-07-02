@@ -9,6 +9,7 @@ import StatusBadge from '../../components/StatusBadge';
 import { PageHeader, Button, Toolbar, SearchInput, FilterSelect, StatStrip } from '../../components/ui';
 import ItemFormModal from './ItemFormModal';
 import ManageCategoriesModal from './ManageCategoriesModal';
+import DashboardError from '../../components/DashboardError';
 
 const STATUSES = ['All', 'In Stock', 'Low Stock', 'Out of Stock'];
 
@@ -20,6 +21,7 @@ export default function StockMasterList() {
   const [items, setItems] = useState<StockItem[]>([]);
   const [activeCategories, setActiveCategories] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [search, setSearch] = useState('');
   const [filterCategory, setFilterCategory] = useState('All');
   const [filterStatus, setFilterStatus] = useState('All');
@@ -35,10 +37,13 @@ export default function StockMasterList() {
 
   async function load() {
     setLoading(true);
+    setLoadError('');
     const [itemsRes, catRes] = await Promise.all([
       supabase.from('stock_items').select('*').eq('active', true).order('category').order('stock_item'),
       supabase.from('stock_categories').select('category_name').eq('active', true),
     ]);
+    const firstErr = [itemsRes, catRes].find(r => r.error)?.error;
+    if (firstErr) setLoadError(firstErr.message);
     const data = itemsRes.data || [];
     setItems(data);
     setExistingCodes(data.map(i => i.stock_code).filter(Boolean));
@@ -89,6 +94,8 @@ export default function StockMasterList() {
       return next;
     });
   }
+
+  if (loadError) return <DashboardError title="Stock Master List" message={loadError} onRetry={load} />;
 
   return (
     <div className="space-y-4">

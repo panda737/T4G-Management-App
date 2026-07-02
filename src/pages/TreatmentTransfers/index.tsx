@@ -10,6 +10,7 @@ import LandfillContent from './LandfillContent';
 import TransferFormModal from './TransferFormModal';
 import LandfillFormModal from './LandfillFormModal';
 import DeleteConfirmModal from '../../components/DeleteConfirmModal';
+import DashboardError from '../../components/DashboardError';
 import { useUser } from '../../lib/UserContext';
 import { useToast } from '../../lib/toast';
 
@@ -32,6 +33,7 @@ export default function TreatmentTransfers() {
   const [landfillRecords, setLandfillRecords] = useState<TreatmentMonthlySummary[]>([]);
   const [dailyLogs, setDailyLogs] = useState<DailyLogRef[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [yearFilter, setYearFilter] = useState('');
   const [monthFilter, setMonthFilter] = useState('');
   const [showTransferForm, setShowTransferForm] = useState(false);
@@ -48,11 +50,14 @@ export default function TreatmentTransfers() {
 
   async function loadData() {
     setLoading(true);
+    setLoadError('');
     const [tRes, lRes, lfRes] = await Promise.all([
       supabase.from('treatment_waste_transfers').select('*, treatment_daily_log(date)').order('created_at', { ascending: false }),
       supabase.from('treatment_daily_log').select('id, date').order('date', { ascending: false }),
       supabase.from('treatment_monthly_summary').select('*').order('month', { ascending: false }),
     ]);
+    const firstErr = [tRes, lRes, lfRes].find(r => r.error)?.error;
+    if (firstErr) setLoadError(firstErr.message);
     const raw = (tRes.data || []) as (TreatmentWasteTransfer & { treatment_daily_log?: { date: string } | null })[];
     setTransfers(raw.map(t => ({ ...t, log_date: t.treatment_daily_log?.date || '' })));
     setDailyLogs(lRes.data || []);
@@ -132,6 +137,8 @@ export default function TreatmentTransfers() {
       <PageSpinner layout="h64" />
     );
   }
+
+  if (loadError) return <DashboardError title="Waste Dispatch" message={loadError} onRetry={loadData} />;
 
   return (
     <div className="space-y-6">
