@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { ClipboardCheck, Plus, Eye, Edit2, Trash2, AlertCircle, CheckCircle2, HardHat, Shield, Zap, Flame, Truck } from 'lucide-react';
 import { supabase, SafetyInspection } from '../../lib/supabase';
 import { usePageTitle } from '../../lib/usePageTitle';
+import { useUser } from '../../lib/UserContext';
 import { useToast } from '../../lib/toast';
 import { PageHeader, Button, Toolbar, SearchInput, FilterSelect, FilterTabs, StatStrip } from '../../components/ui';
 import DeleteConfirmModal from '../../components/DeleteConfirmModal';
@@ -23,6 +24,8 @@ const TYPE_ICONS: Record<string, React.ReactNode> = {
 };
 
 export default function SafetyInspections() {
+  const { canWrite } = useUser();
+  const canEdit = canWrite('safety');
   usePageTitle('Safety — Inspections');
   const [inspections, setInspections] = useState<SafetyInspection[]>([]);
   const [loading, setLoading] = useState(true);
@@ -153,11 +156,13 @@ export default function SafetyInspections() {
         icon={ClipboardCheck}
         accent="amber"
         actions={
-          <Button variant="primary" accent="amber" icon={Plus} onClick={() => {
-            setEditingId(null);
-            setFormData({ inspection_date: new Date().toISOString().split('T')[0] });
-            setShowAddModal(true);
-          }}>New Inspection</Button>
+          canEdit && (
+            <Button variant="primary" accent="amber" icon={Plus} onClick={() => {
+              setEditingId(null);
+              setFormData({ inspection_date: new Date().toISOString().split('T')[0] });
+              setShowAddModal(true);
+            }}>New Inspection</Button>
+          )
         }
       />
 
@@ -258,13 +263,13 @@ export default function SafetyInspections() {
                         </button>
                         <button
                           onClick={() => { setEditingId(inspection.id); setFormData(inspection); setShowAddModal(true); }}
-                          className="text-blue-600 hover:text-blue-700"
+                          className={canEdit ? 'text-blue-600 hover:text-blue-700' : 'hidden'}
                         >
                           <Edit2 className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => handleDelete(inspection.id, inspection.inspection_number || 'this inspection')}
-                          className="text-red-600 hover:text-red-700"
+                          className={canEdit ? 'text-red-600 hover:text-red-700' : 'hidden'}
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -303,8 +308,12 @@ export default function SafetyInspections() {
                     </div>
                     <div className="flex items-center gap-0.5 flex-shrink-0">
                       <button onClick={() => { setViewingId(inspection.id); setShowViewModal(true); }} className="p-2 text-amber-600 hover:bg-amber-50 rounded"><Eye size={15} /></button>
-                      <button onClick={() => { setEditingId(inspection.id); setFormData(inspection); setShowAddModal(true); }} className="p-2 text-blue-600 hover:bg-blue-50 rounded"><Edit2 size={15} /></button>
-                      <button onClick={() => handleDelete(inspection.id, inspection.inspection_number || 'this inspection')} className="p-2 text-red-500 hover:bg-red-50 rounded"><Trash2 size={15} /></button>
+                      {canEdit && (
+                        <>
+                          <button onClick={() => { setEditingId(inspection.id); setFormData(inspection); setShowAddModal(true); }} className="p-2 text-blue-600 hover:bg-blue-50 rounded"><Edit2 size={15} /></button>
+                          <button onClick={() => handleDelete(inspection.id, inspection.inspection_number || 'this inspection')} className="p-2 text-red-500 hover:bg-red-50 rounded"><Trash2 size={15} /></button>
+                        </>
+                      )}
                     </div>
                   </div>
                 ))}

@@ -24,7 +24,8 @@ const MONTHS = [
 
 export default function TreatmentTransfers() {
   usePageTitle('Treatment — Transfers');
-  const { isAdmin } = useUser();
+  const { isAdmin, canWrite } = useUser();
+  const canEdit = canWrite('treatment');
   const { addToast } = useToast();
   const [activeTab, setActiveTab] = useState<ActiveTab>('Transfers');
   const [transfers, setTransfers] = useState<TransferWithDate[]>([]);
@@ -139,23 +140,25 @@ export default function TreatmentTransfers() {
           <h1 className="text-2xl font-bold text-gray-900">Waste Dispatch</h1>
           <p className="text-sm text-gray-500 mt-1">Transfers to treatment facilities and treated waste dispatched to landfill</p>
         </div>
-        <div className="flex items-center gap-2">
-          {activeTab === 'Transfers' ? (
-            <button
-              onClick={() => { setEditTransfer(null); setShowTransferForm(true); }}
-              className="flex items-center justify-center gap-1.5 text-sm bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg font-medium transition-colors shadow-sm whitespace-nowrap"
-            >
-              <Plus size={16} /> <span className="hidden sm:inline">Record Transfer</span><span className="sm:hidden">Transfer</span>
-            </button>
-          ) : (
-            <button
-              onClick={() => { setEditLandfill(null); setShowLandfillForm(true); }}
-              className="flex items-center justify-center gap-1.5 text-sm bg-slate-600 hover:bg-slate-700 text-white px-4 py-2 rounded-lg font-medium transition-colors shadow-sm whitespace-nowrap"
-            >
-              <Plus size={16} /> <span className="hidden sm:inline">Add Landfill Record</span><span className="sm:hidden">Add Record</span>
-            </button>
-          )}
-        </div>
+        {canEdit && (
+          <div className="flex items-center gap-2">
+            {activeTab === 'Transfers' ? (
+              <button
+                onClick={() => { setEditTransfer(null); setShowTransferForm(true); }}
+                className="flex items-center justify-center gap-1.5 text-sm bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg font-medium transition-colors shadow-sm whitespace-nowrap"
+              >
+                <Plus size={16} /> <span className="hidden sm:inline">Record Transfer</span><span className="sm:hidden">Transfer</span>
+              </button>
+            ) : (
+              <button
+                onClick={() => { setEditLandfill(null); setShowLandfillForm(true); }}
+                className="flex items-center justify-center gap-1.5 text-sm bg-slate-600 hover:bg-slate-700 text-white px-4 py-2 rounded-lg font-medium transition-colors shadow-sm whitespace-nowrap"
+              >
+                <Plus size={16} /> <span className="hidden sm:inline">Add Landfill Record</span><span className="sm:hidden">Add Record</span>
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="flex items-center justify-between gap-3 flex-wrap">

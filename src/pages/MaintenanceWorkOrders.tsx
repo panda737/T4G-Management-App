@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { Plus, Search, X, Save, Calendar, ChevronDown } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { usePageTitle } from '../lib/usePageTitle';
+import { useUser } from '../lib/UserContext';
 import { useToast } from '../lib/toast';
 import type { MaintenanceHistory, Equipment } from '../lib/supabase';
 import Modal from '../components/Modal';
@@ -10,6 +11,8 @@ import { maintenanceTypeColors as TYPE_COLORS } from '../lib/badgeColors';
 const TYPES = ['Scheduled', 'Corrective', 'Preventive', 'Emergency'];
 
 export default function MaintenanceWorkOrders() {
+  const { canWrite } = useUser();
+  const canEdit = canWrite('maintenance');
   usePageTitle('Maintenance — Service History');
   const [history, setHistory] = useState<MaintenanceHistory[]>([]);
   const [equipment, setEquipment] = useState<Equipment[]>([]);
@@ -61,12 +64,14 @@ export default function MaintenanceWorkOrders() {
           <h1 className="text-2xl font-bold text-gray-900">Maintenance History</h1>
           <p className="text-sm text-gray-500 mt-1">All service and maintenance records for plant equipment</p>
         </div>
-        <button
-          onClick={() => { setEditItem(null); setShowModal(true); }}
-          className="flex items-center gap-1.5 text-sm bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg font-medium transition-colors shadow-sm"
-        >
-          <Plus size={16} /> Log Service
-        </button>
+        {canEdit && (
+          <button
+            onClick={() => { setEditItem(null); setShowModal(true); }}
+            className="flex items-center gap-1.5 text-sm bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg font-medium transition-colors shadow-sm"
+          >
+            <Plus size={16} /> Log Service
+          </button>
+        )}
       </div>
 
       {/* Filters */}
@@ -110,7 +115,7 @@ export default function MaintenanceWorkOrders() {
               <>
                 <p className="text-sm font-medium text-gray-500">No service records yet</p>
                 <p className="text-xs text-gray-400 mt-1">Log your first maintenance or service event.</p>
-                <button onClick={() => { setEditItem(null); setShowModal(true); }} className="mt-4 text-sm text-orange-600 hover:text-orange-700 font-medium">+ Log Service</button>
+                {canEdit && <button onClick={() => { setEditItem(null); setShowModal(true); }} className="mt-4 text-sm text-orange-600 hover:text-orange-700 font-medium">+ Log Service</button>}
               </>
             ) : (
               <>

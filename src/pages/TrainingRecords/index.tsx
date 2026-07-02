@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { ClipboardList, Plus, Eye, Edit2, Trash2, User, BookOpen, AlertCircle, Download } from 'lucide-react';
 import { supabase, TrainingRecord, TrainingCourse, TrainingModule, TrainingAssessment, Employee } from '../../lib/supabase';
 import { usePageTitle } from '../../lib/usePageTitle';
+import { useUser } from '../../lib/UserContext';
 import { useToast } from '../../lib/toast';
 import { downloadCSV } from '../../lib/csvExport';
 import DeleteConfirmModal from '../../components/DeleteConfirmModal';
@@ -28,6 +29,8 @@ const EMPTY_FORM: RecordFormData = {
 
 export default function TrainingRecords() {
   usePageTitle('Training — Records');
+  const { canWrite } = useUser();
+  const canEdit = canWrite('training');
   const [records, setRecords] = useState<TrainingRecord[]>([]);
   const [courses, setCourses] = useState<TrainingCourse[]>([]);
   const [modules, setModules] = useState<TrainingModule[]>([]);
@@ -194,12 +197,14 @@ export default function TrainingRecords() {
           >
             <Download size={14} /> <span className="hidden sm:inline">Export</span>
           </button>
-          <button
-            onClick={() => { setFormData(EMPTY_FORM); setSelectedRecord(null); setShowAddModal(true); }}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition flex-1 sm:flex-none justify-center"
-          >
-            <Plus size={18} /> <span className="hidden sm:inline">Add Record</span><span className="sm:hidden">Add</span>
-          </button>
+          {canEdit && (
+            <button
+              onClick={() => { setFormData(EMPTY_FORM); setSelectedRecord(null); setShowAddModal(true); }}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition flex-1 sm:flex-none justify-center"
+            >
+              <Plus size={18} /> <span className="hidden sm:inline">Add Record</span><span className="sm:hidden">Add</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -310,8 +315,12 @@ export default function TrainingRecords() {
                       <td className="px-4 py-3 text-sm"><span className={`px-2.5 py-1 rounded-full text-xs font-medium ${badgeColor(trainingStatusColors, record.status)}`}>{record.status}</span></td>
                       <td className="px-4 py-3 text-sm flex gap-2">
                         <button onClick={() => { setSelectedRecord(record); setShowViewModal(true); }} className="p-1.5 hover:bg-gray-100 rounded transition"><Eye size={16} className="text-gray-600" /></button>
-                        <button onClick={() => openEdit(record)} className="p-1.5 hover:bg-gray-100 rounded transition"><Edit2 size={16} className="text-gray-600" /></button>
-                        <button onClick={() => handleDelete(record.id, `${record.employee_name} — ${record.course_name}`)} className="p-1.5 hover:bg-red-50 rounded transition"><Trash2 size={16} className="text-red-600" /></button>
+                        {canEdit && (
+                          <>
+                            <button onClick={() => openEdit(record)} className="p-1.5 hover:bg-gray-100 rounded transition"><Edit2 size={16} className="text-gray-600" /></button>
+                            <button onClick={() => handleDelete(record.id, `${record.employee_name} — ${record.course_name}`)} className="p-1.5 hover:bg-red-50 rounded transition"><Trash2 size={16} className="text-red-600" /></button>
+                          </>
+                        )}
                       </td>
                     </tr>
                   ))}

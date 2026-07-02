@@ -2,11 +2,14 @@ import { useEffect, useState, useMemo } from 'react';
 import { Plus, Search, X, Save, Package, ChevronDown, AlertTriangle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { usePageTitle } from '../lib/usePageTitle';
+import { useUser } from '../lib/UserContext';
 import { useToast } from '../lib/toast';
 import type { Part, Equipment } from '../lib/supabase';
 import Modal from '../components/Modal';
 
 export default function MaintenanceParts() {
+  const { canWrite } = useUser();
+  const canEdit = canWrite('maintenance');
   usePageTitle('Maintenance — Spare Parts');
   const [parts, setParts] = useState<Part[]>([]);
   const [equipment, setEquipment] = useState<Equipment[]>([]);
@@ -60,12 +63,14 @@ export default function MaintenanceParts() {
           <h1 className="text-2xl font-bold text-gray-900">Spare Parts</h1>
           <p className="text-sm text-gray-500 mt-1">Parts catalogue linked to each piece of equipment</p>
         </div>
-        <button
-          onClick={() => { setEditPart(null); setShowModal(true); }}
-          className="flex items-center gap-1.5 text-sm bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg font-medium transition-colors shadow-sm"
-        >
-          <Plus size={16} /> Add Part
-        </button>
+        {canEdit && (
+          <button
+            onClick={() => { setEditPart(null); setShowModal(true); }}
+            className="flex items-center gap-1.5 text-sm bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg font-medium transition-colors shadow-sm"
+          >
+            <Plus size={16} /> Add Part
+          </button>
+        )}
       </div>
 
       {lowCount > 0 && (
@@ -122,7 +127,7 @@ export default function MaintenanceParts() {
               <>
                 <p className="text-sm font-medium text-gray-500">No spare parts catalogued yet</p>
                 <p className="text-xs text-gray-400 mt-1">Add parts and link them to your equipment.</p>
-                <button onClick={() => { setEditPart(null); setShowModal(true); }} className="mt-4 text-sm text-orange-600 hover:text-orange-700 font-medium">+ Add Part</button>
+                {canEdit && <button onClick={() => { setEditPart(null); setShowModal(true); }} className="mt-4 text-sm text-orange-600 hover:text-orange-700 font-medium">+ Add Part</button>}
               </>
             ) : (
               <>

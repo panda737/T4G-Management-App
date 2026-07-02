@@ -79,7 +79,7 @@ import PortalDataAudit from './pages/Commercial/PortalDataAudit';
 import GlobalSearch from './components/crm/GlobalSearch';
 import PortalShell from './pages/Portal/PortalShell';
 
-class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
+class ErrorBoundary extends Component<{ children: ReactNode; resetKey?: string }, { error: Error | null }> {
   state = { error: null };
 
   static getDerivedStateFromError(error: Error) {
@@ -88,6 +88,14 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | 
 
   componentDidCatch(error: Error, info: { componentStack: string }) {
     console.error('Page error:', error, info.componentStack);
+  }
+
+  // Clear a tripped error when the route changes (without remounting children),
+  // so navigating away recovers instead of pinning the error screen everywhere.
+  componentDidUpdate(prevProps: { resetKey?: string }) {
+    if (this.state.error && prevProps.resetKey !== this.props.resetKey) {
+      this.setState({ error: null });
+    }
   }
 
   render() {
@@ -115,9 +123,9 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | 
 }
 
 function RootRedirect() {
-  const { isOperator, isStockController, isLogisticsManager, isReceivingOfficer, isCustomer, loading } = useUser();
+  // (customers never reach StaffShell — RoleShell renders PortalShell for them first)
+  const { isOperator, isStockController, isLogisticsManager, isReceivingOfficer, loading } = useUser();
   if (loading) return null;
-  if (isCustomer) return <Navigate to="/portal/dashboard" replace />;
   if (isOperator) return <Navigate to="/shift-report" replace />;
   if (isStockController) return <Navigate to="/stock/master-list" replace />;
   if (isLogisticsManager) return <Navigate to="/logistics/vehicles" replace />;
@@ -229,6 +237,7 @@ function StaffShell({ session }: { session: Session }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const pageLabel = usePageLabel();
   const { isAdmin } = useUser();
+  const { pathname } = useLocation();
 
   return (
     <OpenNavContext.Provider value={() => setMobileOpen(true)}>
@@ -270,7 +279,7 @@ function StaffShell({ session }: { session: Session }) {
         className={`flex-1 min-w-0 overflow-x-hidden transition-all duration-300 print:ml-0 pt-14 lg:pt-0 ${sidebarCollapsed ? 'lg:ml-16' : 'lg:ml-64'}`}
       >
         <div className={`min-h-screen p-3 sm:p-4 lg:px-6 lg:pb-6 max-w-screen-2xl mx-auto ${isAdmin ? 'lg:pt-[4.5rem]' : 'lg:pt-6'}`}>
-          <ErrorBoundary>
+          <ErrorBoundary resetKey={pathname}>
           <StockControllerGuard>
           <Routes>
             <Route path="/" element={<RootRedirect />} />
@@ -397,9 +406,11 @@ function RoleShell({ session }: { session: Session }) {
       </div>
     );
   }
-  if (isCustomer) return <PortalShell session={session} />;
+  // Wrap the portal in a boundary too — a throw in a portal page previously
+  // white-screened the customer (the staff shell already has one inside).
+  if (isCustomer) return <ErrorBoundary resetKey={pathname}><PortalShell session={session} /></ErrorBoundary>;
   // Admins can preview the customer portal as any client.
-  if (isAdmin && pathname.startsWith('/portal')) return <PortalShell session={session} adminPreview />;
+  if (isAdmin && pathname.startsWith('/portal')) return <ErrorBoundary resetKey={pathname}><PortalShell session={session} adminPreview /></ErrorBoundary>;
   return <StaffShell session={session} />;
 }
 

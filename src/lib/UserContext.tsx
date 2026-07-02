@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useEffect, ReactNode } from 'react
 import type { Session } from '@supabase/supabase-js';
 import { supabase, UserProfile, AppRole } from './supabase';
 
-type WriteModule = 'stock' | 'treatment' | 'safety' | 'training' | 'admin' | 'commercial' | 'logistics' | 'spillage';
+type WriteModule = 'stock' | 'treatment' | 'safety' | 'training' | 'maintenance' | 'admin' | 'commercial' | 'logistics' | 'spillage';
 
 interface UserContextValue {
   profile: UserProfile | null;
@@ -41,7 +41,7 @@ export function useUser() {
 /*
   Write permissions by role and module:
   - admin:            all modules ✓
-  - management:       all except admin ✓
+  - management:       all except admin ✓ (incl. maintenance)
   - stock_controller: stock only ✓
   - logistics_manager: logistics only ✓
   - production:       treatment only ✓

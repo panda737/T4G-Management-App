@@ -7,6 +7,7 @@ import {
 import { Spinner, PageSpinner } from '../../components/Spinner';
 import { supabase } from '../../lib/supabase';
 import { usePageTitle } from '../../lib/usePageTitle';
+import { useUser } from '../../lib/UserContext';
 import type { Equipment, Part, MaintenanceHistory } from '../../lib/supabase';
 import { PLANT_STEPS, STEP_COLORS } from '../../data/plantEquipment';
 import type { PlantStep } from '../../data/plantEquipment';
@@ -363,13 +364,16 @@ function EquipRow({ label, value }: { label: string; value: string }) {
 }
 
 function PartsTab({ parts, onAdd, onEdit }: { parts: Part[]; onAdd: () => void; onEdit: (p: Part) => void }) {
+  const canEdit = useUser().canWrite('maintenance');
   return (
     <div className="p-4 space-y-2.5">
-      <div className="flex justify-end">
-        <button onClick={onAdd} className="inline-flex items-center gap-1 text-xs bg-orange-500 text-white px-3 py-1.5 rounded-lg hover:bg-orange-600 transition-colors shadow-sm">
-          <Plus size={12} /> Add Part
-        </button>
-      </div>
+      {canEdit && (
+        <div className="flex justify-end">
+          <button onClick={onAdd} className="inline-flex items-center gap-1 text-xs bg-orange-500 text-white px-3 py-1.5 rounded-lg hover:bg-orange-600 transition-colors shadow-sm">
+            <Plus size={12} /> Add Part
+          </button>
+        </div>
+      )}
       {parts.length === 0 ? (
         <div className="py-6 text-center">
           <Package size={20} className="mx-auto text-gray-300 mb-1.5" />
@@ -384,7 +388,7 @@ function PartsTab({ parts, onAdd, onEdit }: { parts: Part[]; onAdd: () => void; 
                 <p className="text-xs font-semibold text-gray-900 truncate">{p.name}</p>
                 {p.part_number && <p className="text-[10px] text-gray-400 font-mono">{p.part_number}</p>}
               </div>
-              <button onClick={() => onEdit(p)} className="text-[10px] text-orange-600 hover:underline flex-shrink-0 font-medium">Edit</button>
+              {canEdit && <button onClick={() => onEdit(p)} className="text-[10px] text-orange-600 hover:underline flex-shrink-0 font-medium">Edit</button>}
             </div>
             <div className="flex items-center gap-2 mt-1.5">
               <span className={`text-xs font-bold ${low ? 'text-red-600' : 'text-gray-700'}`}>{p.qty_on_hand}/{p.qty_required}</span>
@@ -400,13 +404,16 @@ function PartsTab({ parts, onAdd, onEdit }: { parts: Part[]; onAdd: () => void; 
 }
 
 function HistoryTab({ logs, onLog }: { logs: MaintenanceHistory[]; onLog: () => void }) {
+  const canEdit = useUser().canWrite('maintenance');
   return (
     <div className="p-4 space-y-2.5">
-      <div className="flex justify-end">
-        <button onClick={onLog} className="inline-flex items-center gap-1 text-xs bg-orange-500 text-white px-3 py-1.5 rounded-lg hover:bg-orange-600 transition-colors shadow-sm">
-          <Wrench size={12} /> Log Service
-        </button>
-      </div>
+      {canEdit && (
+        <div className="flex justify-end">
+          <button onClick={onLog} className="inline-flex items-center gap-1 text-xs bg-orange-500 text-white px-3 py-1.5 rounded-lg hover:bg-orange-600 transition-colors shadow-sm">
+            <Wrench size={12} /> Log Service
+          </button>
+        </div>
+      )}
       {logs.length === 0 ? (
         <div className="py-6 text-center">
           <Clock size={20} className="mx-auto text-gray-300 mb-1.5" />

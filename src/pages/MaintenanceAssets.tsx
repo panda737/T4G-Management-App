@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { Plus, Search, X, Save, Settings, ChevronDown } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { usePageTitle } from '../lib/usePageTitle';
+import { useUser } from '../lib/UserContext';
 import { useToast } from '../lib/toast';
 import type { Equipment } from '../lib/supabase';
 import Modal from '../components/Modal';
@@ -10,6 +11,8 @@ import { equipmentStatusColors as STATUS_COLORS } from '../lib/badgeColors';
 const STATUSES = ['Operational', 'Under Maintenance', 'Faulty', 'Decommissioned'];
 
 export default function MaintenanceAssets() {
+  const { canWrite } = useUser();
+  const canEdit = canWrite('maintenance');
   usePageTitle('Maintenance — Equipment');
   const [equipment, setEquipment] = useState<Equipment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -58,12 +61,14 @@ export default function MaintenanceAssets() {
           <h1 className="text-2xl font-bold text-gray-900">Equipment Register</h1>
           <p className="text-sm text-gray-500 mt-1">All plant machinery and equipment</p>
         </div>
-        <button
-          onClick={() => { setEditItem(null); setShowModal(true); }}
-          className="flex items-center gap-1.5 text-sm bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg font-medium transition-colors shadow-sm"
-        >
-          <Plus size={16} /> Add Equipment
-        </button>
+        {canEdit && (
+          <button
+            onClick={() => { setEditItem(null); setShowModal(true); }}
+            className="flex items-center gap-1.5 text-sm bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg font-medium transition-colors shadow-sm"
+          >
+            <Plus size={16} /> Add Equipment
+          </button>
+        )}
       </div>
 
       {/* Status summary chips */}

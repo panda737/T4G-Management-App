@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom';
 import { Plus, ChevronRight, CheckCheck } from 'lucide-react';
 import { supabase, StockItem, StockTakeSession } from '../../lib/supabase';
 import { usePageTitle } from '../../lib/usePageTitle';
+import { useUser } from '../../lib/UserContext';
 import Modal from '../../components/Modal';
 import { PageSpinner } from '../../components/Spinner';
 import { STATUS_STYLE, STATUS_ICON } from './constants';
@@ -12,6 +13,8 @@ import StockTakeReport from './StockTakeReport';
 type View = 'list' | 'count' | 'report';
 
 export default function StockTake() {
+  const { canWrite } = useUser();
+  const canEdit = canWrite('stock');
   usePageTitle('Stock — Stock Take');
   const [sessions, setSessions] = useState<StockTakeSession[]>([]);
   const [loading, setLoading] = useState(true);
@@ -77,12 +80,14 @@ export default function StockTake() {
           <h1 className="text-2xl font-bold text-gray-900">Stock Take</h1>
           <p className="text-sm text-gray-500 mt-1">Create and manage physical count sessions</p>
         </div>
-        <button
-          onClick={() => setShowNew(true)}
-          className="flex items-center justify-center sm:justify-start gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm"
-        >
-          <Plus size={16} /> <span className="hidden sm:inline">New Stock Take</span>
-        </button>
+        {canEdit && (
+          <button
+            onClick={() => setShowNew(true)}
+            className="flex items-center justify-center sm:justify-start gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm"
+          >
+            <Plus size={16} /> <span className="hidden sm:inline">New Stock Take</span>
+          </button>
+        )}
       </div>
 
       {loading ? (

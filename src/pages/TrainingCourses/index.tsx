@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { BookOpen, Plus, Eye, Edit2, Trash2, Search } from 'lucide-react';
 import { supabase, TrainingCourse } from '../../lib/supabase';
 import { usePageTitle } from '../../lib/usePageTitle';
+import { useUser } from '../../lib/UserContext';
 import { useToast } from '../../lib/toast';
 import DeleteConfirmModal from '../../components/DeleteConfirmModal';
 import CourseFormModal, { CourseFormData } from './CourseFormModal';
@@ -37,6 +38,8 @@ const EMPTY_FORM: CourseFormData = {
 
 export default function TrainingCourses() {
   usePageTitle('Training — Courses');
+  const { canWrite } = useUser();
+  const canEdit = canWrite('training');
   const [courses, setCourses] = useState<TrainingCourse[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -139,13 +142,15 @@ export default function TrainingCourses() {
             <p className="text-sm text-gray-500 mt-0.5">{filtered.length} course{filtered.length !== 1 ? 's' : ''}</p>
           </div>
         </div>
-        <button
-          onClick={() => { setFormData(EMPTY_FORM); setSelectedCourse(null); setShowAdd(true); }}
-          className="flex items-center gap-2 bg-sky-600 text-white px-4 py-2 rounded-lg hover:bg-sky-700 transition text-sm font-medium shadow-sm w-full sm:w-auto justify-center"
-        >
-          <Plus size={16} />
-          <span className="hidden sm:inline">Add Course</span><span className="sm:hidden">Add</span>
-        </button>
+        {canEdit && (
+          <button
+            onClick={() => { setFormData(EMPTY_FORM); setSelectedCourse(null); setShowAdd(true); }}
+            className="flex items-center gap-2 bg-sky-600 text-white px-4 py-2 rounded-lg hover:bg-sky-700 transition text-sm font-medium shadow-sm w-full sm:w-auto justify-center"
+          >
+            <Plus size={16} />
+            <span className="hidden sm:inline">Add Course</span><span className="sm:hidden">Add</span>
+          </button>
+        )}
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -259,10 +264,10 @@ export default function TrainingCourses() {
                         status: course.status || 'Active',
                       });
                       setShowEdit(true);
-                    }} className="p-1.5 hover:bg-gray-100 rounded transition">
+                    }} className={canEdit ? 'p-1.5 hover:bg-gray-100 rounded transition' : 'hidden'}>
                       <Edit2 size={14} className="text-gray-500" />
                     </button>
-                    <button onClick={() => handleDelete(course.id!, course.course_name)} className="p-1.5 hover:bg-red-50 rounded transition">
+                    <button onClick={() => handleDelete(course.id!, course.course_name)} className={canEdit ? 'p-1.5 hover:bg-red-50 rounded transition' : 'hidden'}>
                       <Trash2 size={14} className="text-red-500" />
                     </button>
                   </div>
