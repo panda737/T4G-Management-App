@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { Award, Plus, Eye, Edit2, Trash2, Search, Download } from 'lucide-react';
 import { supabase, TrainingCertificate } from '../../lib/supabase';
 import { usePageTitle } from '../../lib/usePageTitle';
+import { useUser } from '../../lib/UserContext';
 import { useToast } from '../../lib/toast';
 import { downloadCSV } from '../../lib/csvExport';
 import DeleteConfirmModal from '../../components/DeleteConfirmModal';
@@ -59,6 +60,8 @@ const EMPTY_FORM: CertFormData = {
 };
 
 export default function TrainingCertificates() {
+  const { canWrite } = useUser();
+  const canEdit = canWrite('training');
   usePageTitle('Training — Certificates');
   const [certificates, setCertificates] = useState<TrainingCertificate[]>([]);
   const [loading, setLoading] = useState(true);
@@ -186,14 +189,16 @@ export default function TrainingCertificates() {
           >
             <Download size={14} /> <span className="hidden sm:inline">Export</span>
           </button>
-          <button
-            onClick={handleAddClick}
-            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition text-sm font-medium shadow-sm flex-1 sm:flex-none justify-center"
-          >
-            <Plus size={16} />
-            <span className="hidden sm:inline">Add Certificate</span>
-            <span className="sm:hidden">Add</span>
-          </button>
+          {canEdit && (
+            <button
+              onClick={handleAddClick}
+              className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition text-sm font-medium shadow-sm flex-1 sm:flex-none justify-center"
+            >
+              <Plus size={16} />
+              <span className="hidden sm:inline">Add Certificate</span>
+              <span className="sm:hidden">Add</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -303,12 +308,16 @@ export default function TrainingCertificates() {
                       <button onClick={() => { setSelectedCert(cert); setShowView(true); }} className="p-1.5 hover:bg-gray-100 rounded transition">
                         <Eye size={14} className="text-gray-500" />
                       </button>
-                      <button onClick={() => handleEditClick(cert)} className="p-1.5 hover:bg-gray-100 rounded transition">
-                        <Edit2 size={14} className="text-gray-500" />
-                      </button>
-                      <button onClick={() => handleDelete(cert.id, `${cert.employee_name} — ${cert.course_name}`)} className="p-1.5 hover:bg-red-50 rounded transition">
-                        <Trash2 size={14} className="text-red-500" />
-                      </button>
+                      {canEdit && (
+                        <>
+                          <button onClick={() => handleEditClick(cert)} className="p-1.5 hover:bg-gray-100 rounded transition">
+                            <Edit2 size={14} className="text-gray-500" />
+                          </button>
+                          <button onClick={() => handleDelete(cert.id, `${cert.employee_name} — ${cert.course_name}`)} className="p-1.5 hover:bg-red-50 rounded transition">
+                            <Trash2 size={14} className="text-red-500" />
+                          </button>
+                        </>
+                      )}
                     </div>
                   </td>
                 </tr>

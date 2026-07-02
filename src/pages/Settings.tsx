@@ -1,12 +1,15 @@
 import { useState, useEffect } from 'react';
+import { Navigate } from 'react-router-dom';
 import { Plus, CreditCard as Edit2, Power, AlertTriangle } from 'lucide-react';
 import { supabase, StockCategory } from '../lib/supabase';
 import { usePageTitle } from '../lib/usePageTitle';
+import { useUser } from '../lib/UserContext';
 import Modal from '../components/Modal';
 import { Spinner } from '../components/Spinner';
 
 export default function Settings() {
   usePageTitle('Stock Categories');
+  const { isAdmin, loading: userLoading } = useUser();
   const [categories, setCategories] = useState<StockCategory[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -31,6 +34,10 @@ export default function Settings() {
     setConfirmToggle(null);
     reloadCategories();
   }
+
+  // Admin-only page: stock-category CRUD backs the whole stock module.
+  if (userLoading) return null;
+  if (!isAdmin) return <Navigate to="/" replace />;
 
   return (
     <div className="space-y-5">

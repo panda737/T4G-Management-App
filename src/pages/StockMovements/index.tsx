@@ -22,7 +22,8 @@ function GroupTypeIcon({ type }: { type: string }) {
 export default function StockMovements() {
   usePageTitle('Stock — Movements');
   const { addToast } = useToast();
-  const { isAdmin } = useUser();
+  const { canWrite } = useUser();
+  const canEdit = canWrite('stock');
   const navigate = useNavigate();
   const [movements, setMovements] = useState<MovementWithItem[]>([]);
   const [items, setItems] = useState<StockItem[]>([]);
@@ -159,7 +160,7 @@ export default function StockMovements() {
               hideLabelOnMobile
               onClick={handleExport}
             >Export</Button>
-            {isAdmin && (
+            {canEdit && (
               <Button variant="primary" accent="emerald" icon={SlidersHorizontal} hideLabelOnMobile onClick={() => setShowAdjust(true)}>Adjust Stock</Button>
             )}
           </>

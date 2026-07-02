@@ -3,6 +3,7 @@ import { Plus, Search, ChevronDown, ChevronRight, AlertTriangle } from 'lucide-r
 import { supabase, TreatmentDailyLog as TDL, Employee } from '../../lib/supabase';
 import { useToast } from '../../lib/toast';
 import { usePageTitle } from '../../lib/usePageTitle';
+import { useUser } from '../../lib/UserContext';
 import DailyLogFormModal from './DailyLogFormModal';
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -22,6 +23,8 @@ function fmtHM(min: number): string {
 export default function TreatmentDailyLog() {
   usePageTitle('Treatment — Daily Log');
   const { addToast } = useToast();
+  const { canWrite } = useUser();
+  const canEdit = canWrite('treatment');
   const [logs, setLogs] = useState<TDL[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
@@ -112,12 +115,14 @@ export default function TreatmentDailyLog() {
           <h1 className="text-2xl font-bold text-gray-900">Treatment Daily Log</h1>
           <p className="text-sm text-gray-500 mt-1">Record daily treatment shift data, downtime, and waste transfers</p>
         </div>
-        <button
-          onClick={() => { setEditLog(null); setShowForm(true); }}
-          className="flex items-center gap-1.5 text-sm bg-cyan-600 hover:bg-cyan-700 text-white px-4 py-2 rounded-lg font-medium transition-colors shadow-sm"
-        >
-          <Plus size={16} /> Add Shift Treatment Record
-        </button>
+        {canEdit && (
+          <button
+            onClick={() => { setEditLog(null); setShowForm(true); }}
+            className="flex items-center gap-1.5 text-sm bg-cyan-600 hover:bg-cyan-700 text-white px-4 py-2 rounded-lg font-medium transition-colors shadow-sm"
+          >
+            <Plus size={16} /> Add Shift Treatment Record
+          </button>
+        )}
       </div>
 
       {/* Filters */}
@@ -203,8 +208,8 @@ export default function TreatmentDailyLog() {
                             return (
                               <tr
                                 key={l.id}
-                                className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'} ${isZero ? 'opacity-50' : ''} hover:bg-cyan-50/30 transition-colors cursor-pointer`}
-                                onClick={() => { setEditLog(l); setShowForm(true); }}
+                                className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'} ${isZero ? 'opacity-50' : ''} hover:bg-cyan-50/30 transition-colors ${canEdit ? 'cursor-pointer' : ''}`}
+                                onClick={() => { if (canEdit) { setEditLog(l); setShowForm(true); } }}
                               >
                                 <td className="px-4 py-2.5 whitespace-nowrap font-medium text-gray-800">
                                   {new Date(l.date).toLocaleDateString('en-ZA', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
@@ -236,12 +241,14 @@ export default function TreatmentDailyLog() {
                                   )}
                                 </td>
                                 <td className="px-3 py-2.5 text-center">
-                                  <button
-                                    onClick={e => { e.stopPropagation(); setEditLog(l); setShowForm(true); }}
-                                    className="text-xs text-gray-400 hover:text-cyan-600 font-medium"
-                                  >
-                                    Edit
-                                  </button>
+                                  {canEdit && (
+                                    <button
+                                      onClick={e => { e.stopPropagation(); setEditLog(l); setShowForm(true); }}
+                                      className="text-xs text-gray-400 hover:text-cyan-600 font-medium"
+                                    >
+                                      Edit
+                                    </button>
+                                  )}
                                 </td>
                               </tr>
                             );
@@ -258,8 +265,8 @@ export default function TreatmentDailyLog() {
                         return (
                           <div
                             key={l.id}
-                            className={`px-3 py-2 cursor-pointer transition-colors ${isZero ? 'opacity-50' : 'hover:bg-cyan-50/30'}`}
-                            onClick={() => { setEditLog(l); setShowForm(true); }}
+                            className={`px-3 py-2 transition-colors ${canEdit ? 'cursor-pointer' : ''} ${isZero ? 'opacity-50' : 'hover:bg-cyan-50/30'}`}
+                            onClick={() => { if (canEdit) { setEditLog(l); setShowForm(true); } }}
                           >
                             <div className="flex items-center gap-1.5 mb-1.5">
                               <span className="text-sm font-bold text-gray-800 flex-1 min-w-0 truncate">
@@ -268,12 +275,14 @@ export default function TreatmentDailyLog() {
                               <span className="text-[10px] text-gray-500 flex-shrink-0">
                                 {l.total_cycles} cyc · {Number(l.total_treated_kg).toLocaleString('en-ZA', { maximumFractionDigits: 0 })} kg
                               </span>
-                              <button
-                                onClick={e => { e.stopPropagation(); setEditLog(l); setShowForm(true); }}
-                                className="text-xs text-cyan-600 hover:text-cyan-700 font-medium flex-shrink-0 pl-1.5"
-                              >
-                                Edit
-                              </button>
+                              {canEdit && (
+                                <button
+                                  onClick={e => { e.stopPropagation(); setEditLog(l); setShowForm(true); }}
+                                  className="text-xs text-cyan-600 hover:text-cyan-700 font-medium flex-shrink-0 pl-1.5"
+                                >
+                                  Edit
+                                </button>
+                              )}
                             </div>
                             <div className="grid grid-cols-3 gap-1">
                               <ShiftMini label="Day" cycles={l.day_shift_cycles} kg={l.day_shift_treated_kg} supervisorName={empName(l.day_shift_supervisor_id)} downtimeMin={dtMin(l.day_shift_downtimes)} />

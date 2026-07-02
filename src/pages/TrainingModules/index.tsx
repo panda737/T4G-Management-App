@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { BookOpen, Plus, Eye, Trash2, Search, Users, AlertTriangle, Clock, Award } from 'lucide-react';
 import { supabase, TrainingModule, TrainingModuleQuestion, TrainingAssessment } from '../../lib/supabase';
 import { usePageTitle } from '../../lib/usePageTitle';
+import { useUser } from '../../lib/UserContext';
 import { useToast } from '../../lib/toast';
 import DeleteConfirmModal from '../../components/DeleteConfirmModal';
 import ModuleFormModal from './ModuleFormModal';
@@ -26,6 +27,8 @@ function StatCard({ icon: Icon, label, value, color }: { icon: typeof BookOpen; 
 }
 
 export default function TrainingModules() {
+  const { canWrite } = useUser();
+  const canEdit = canWrite('training');
   usePageTitle('Training — Modules');
   const navigate = useNavigate();
   const [modules, setModules] = useState<TrainingModule[]>([]);
@@ -121,9 +124,11 @@ export default function TrainingModules() {
             <p className="text-gray-500 text-sm mt-0.5">Create and manage assessment-based training with multiple-choice quizzes</p>
           </div>
         </div>
-        <button onClick={() => setShowCreate(true)} className="flex items-center gap-2 px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-900 transition text-sm w-full sm:w-auto justify-center">
-          <Plus size={16} /> <span className="hidden sm:inline">Create Module</span><span className="sm:hidden">Create</span>
-        </button>
+        {canEdit && (
+          <button onClick={() => setShowCreate(true)} className="flex items-center gap-2 px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-900 transition text-sm w-full sm:w-auto justify-center">
+            <Plus size={16} /> <span className="hidden sm:inline">Create Module</span><span className="sm:hidden">Create</span>
+          </button>
+        )}
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -229,9 +234,11 @@ export default function TrainingModules() {
                     >
                       Take Quiz
                     </button>
-                    <button onClick={() => handleDelete(mod.id, mod.title)} className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded transition-colors" title="Delete">
-                      <Trash2 size={16} />
-                    </button>
+                    {canEdit && (
+                      <button onClick={() => handleDelete(mod.id, mod.title)} className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded transition-colors" title="Delete">
+                        <Trash2 size={16} />
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>

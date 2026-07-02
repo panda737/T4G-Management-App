@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Shield, Plus, Eye, Edit2, Trash2 } from 'lucide-react';
 import { supabase, SafetyRiskAssessment } from '../../lib/supabase';
 import { usePageTitle } from '../../lib/usePageTitle';
+import { useUser } from '../../lib/UserContext';
 import { useToast } from '../../lib/toast';
 import { PageHeader, Button, Toolbar, SearchInput, FilterSelect, FilterTabs, StatStrip } from '../../components/ui';
 import DeleteConfirmModal from '../../components/DeleteConfirmModal';
@@ -12,6 +13,8 @@ import RiskAssessmentFormModal from './RiskAssessmentFormModal';
 import RiskAssessmentViewModal from './RiskAssessmentViewModal';
 
 export default function SafetyRiskAssessments() {
+  const { canWrite } = useUser();
+  const canEdit = canWrite('safety');
   usePageTitle('Safety — Risk Assessments');
   const [assessments, setAssessments] = useState<SafetyRiskAssessment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -137,7 +140,7 @@ export default function SafetyRiskAssessments() {
         icon={Shield}
         accent="amber"
         actions={
-          <Button variant="primary" accent="amber" icon={Plus} onClick={openAddModal}>New Assessment</Button>
+          canEdit && <Button variant="primary" accent="amber" icon={Plus} onClick={openAddModal}>New Assessment</Button>
         }
       />
 
@@ -234,12 +237,16 @@ export default function SafetyRiskAssessments() {
                         <button onClick={() => { setSelectedAssessment(assessment); setShowViewModal(true); }} className="text-gray-600 hover:text-gray-900" title="View">
                           <Eye className="w-4 h-4" />
                         </button>
-                        <button onClick={() => openEditModal(assessment)} className="text-gray-600 hover:text-gray-900" title="Edit">
-                          <Edit2 className="w-4 h-4" />
-                        </button>
-                        <button onClick={() => handleDelete(assessment.id, `${assessment.area} — ${assessment.activity}`)} className="text-gray-600 hover:text-red-600" title="Delete">
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        {canEdit && (
+                          <>
+                            <button onClick={() => openEditModal(assessment)} className="text-gray-600 hover:text-gray-900" title="Edit">
+                              <Edit2 className="w-4 h-4" />
+                            </button>
+                            <button onClick={() => handleDelete(assessment.id, `${assessment.area} — ${assessment.activity}`)} className="text-gray-600 hover:text-red-600" title="Delete">
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </>
+                        )}
                       </td>
                     </tr>
                   ))
@@ -281,12 +288,16 @@ export default function SafetyRiskAssessments() {
                       <button onClick={() => { setSelectedAssessment(assessment); setShowViewModal(true); }} className="p-2 text-gray-600 hover:bg-gray-50 rounded">
                         <Eye className="w-4 h-4" />
                       </button>
-                      <button onClick={() => openEditModal(assessment)} className="p-2 text-gray-600 hover:bg-gray-50 rounded">
-                        <Edit2 className="w-4 h-4" />
-                      </button>
-                      <button onClick={() => handleDelete(assessment.id, `${assessment.area} — ${assessment.activity}`)} className="p-2 text-red-600 hover:bg-red-50 rounded">
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      {canEdit && (
+                        <>
+                          <button onClick={() => openEditModal(assessment)} className="p-2 text-gray-600 hover:bg-gray-50 rounded">
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                          <button onClick={() => handleDelete(assessment.id, `${assessment.area} — ${assessment.activity}`)} className="p-2 text-red-600 hover:bg-red-50 rounded">
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </>
+                      )}
                     </div>
                   </div>
                 ))}

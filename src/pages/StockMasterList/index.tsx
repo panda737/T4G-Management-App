@@ -15,7 +15,8 @@ const STATUSES = ['All', 'In Stock', 'Low Stock', 'Out of Stock'];
 export default function StockMasterList() {
   usePageTitle('Stock — Master List');
   const { addToast } = useToast();
-  const { isAdmin } = useUser();
+  const { canWrite } = useUser();
+  const canEdit = canWrite('stock');
   const [items, setItems] = useState<StockItem[]>([]);
   const [activeCategories, setActiveCategories] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -98,10 +99,12 @@ export default function StockMasterList() {
         accent="emerald"
         actions={
           <>
-            {isAdmin && (
+            {canEdit && (
               <Button variant="secondary" icon={Tags} hideLabelOnMobile onClick={() => setShowCategories(true)}>Manage Categories</Button>
             )}
-            <Button variant="primary" accent="emerald" icon={Plus} hideLabelOnMobile onClick={() => setShowAdd(true)}>Add Item</Button>
+            {canEdit && (
+              <Button variant="primary" accent="emerald" icon={Plus} hideLabelOnMobile onClick={() => setShowAdd(true)}>Add Item</Button>
+            )}
           </>
         }
       />

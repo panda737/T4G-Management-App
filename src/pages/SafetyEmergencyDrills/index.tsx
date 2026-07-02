@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Siren, Plus, Flame, Droplets, Heart, Lock, AlertCircle, Eye, Edit2, Trash2, CheckCircle, XCircle } from 'lucide-react';
 import { supabase, SafetyEmergencyDrill } from '../../lib/supabase';
 import { usePageTitle } from '../../lib/usePageTitle';
+import { useUser } from '../../lib/UserContext';
 import { useToast } from '../../lib/toast';
 import { PageHeader, Button, Toolbar, SearchInput, FilterSelect, FilterTabs, StatStrip } from '../../components/ui';
 import DeleteConfirmModal from '../../components/DeleteConfirmModal';
@@ -46,6 +47,8 @@ function formatEvacTime(seconds: number | null, target: number | null) {
 }
 
 export default function SafetyEmergencyDrills() {
+  const { canWrite } = useUser();
+  const canEdit = canWrite('safety');
   usePageTitle('Safety — Emergency Drills');
   const [drills, setDrills] = useState<SafetyEmergencyDrill[]>([]);
   const [search, setSearch] = useState('');
@@ -180,7 +183,7 @@ export default function SafetyEmergencyDrills() {
         icon={Siren}
         accent="amber"
         actions={
-          <Button variant="primary" accent="amber" icon={Plus} onClick={() => setShowAddModal(true)}>Schedule Drill</Button>
+          canEdit && <Button variant="primary" accent="amber" icon={Plus} onClick={() => setShowAddModal(true)}>Schedule Drill</Button>
         }
       />
 
@@ -280,12 +283,16 @@ export default function SafetyEmergencyDrills() {
                         <button onClick={() => { setViewingDrill(drill); setShowViewModal(true); }} className="p-2 hover:bg-gray-100 rounded">
                           <Eye className="w-4 h-4 text-gray-600" />
                         </button>
-                        <button onClick={() => handleOpenEdit(drill)} className="p-2 hover:bg-gray-100 rounded">
-                          <Edit2 className="w-4 h-4 text-gray-600" />
-                        </button>
-                        <button onClick={() => handleDelete(drill.id, drill.drill_number || drill.drill_type)} className="p-2 hover:bg-gray-100 rounded">
-                          <Trash2 className="w-4 h-4 text-red-600" />
-                        </button>
+                        {canEdit && (
+                          <>
+                            <button onClick={() => handleOpenEdit(drill)} className="p-2 hover:bg-gray-100 rounded">
+                              <Edit2 className="w-4 h-4 text-gray-600" />
+                            </button>
+                            <button onClick={() => handleDelete(drill.id, drill.drill_number || drill.drill_type)} className="p-2 hover:bg-gray-100 rounded">
+                              <Trash2 className="w-4 h-4 text-red-600" />
+                            </button>
+                          </>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -312,8 +319,12 @@ export default function SafetyEmergencyDrills() {
                   </div>
                   <div className="flex items-center gap-0.5 flex-shrink-0">
                     <button onClick={() => { setViewingDrill(drill); setShowViewModal(true); }} className="p-2 text-gray-600 hover:bg-gray-50 rounded"><Eye size={15} /></button>
-                    <button onClick={() => handleOpenEdit(drill)} className="p-2 text-gray-600 hover:bg-gray-50 rounded"><Edit2 size={15} /></button>
-                    <button onClick={() => handleDelete(drill.id, drill.drill_number || drill.drill_type)} className="p-2 text-red-500 hover:bg-red-50 rounded"><Trash2 size={15} /></button>
+                    {canEdit && (
+                      <>
+                        <button onClick={() => handleOpenEdit(drill)} className="p-2 text-gray-600 hover:bg-gray-50 rounded"><Edit2 size={15} /></button>
+                        <button onClick={() => handleDelete(drill.id, drill.drill_number || drill.drill_type)} className="p-2 text-red-500 hover:bg-red-50 rounded"><Trash2 size={15} /></button>
+                      </>
+                    )}
                   </div>
                 </div>
               ))}

@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { CalendarDays, Plus, Search, Eye, Edit2, Trash2 } from 'lucide-react';
 import { supabase, TrainingSchedule, TrainingCourse } from '../../lib/supabase';
 import { usePageTitle } from '../../lib/usePageTitle';
+import { useUser } from '../../lib/UserContext';
 import { useToast } from '../../lib/toast';
 import DeleteConfirmModal from '../../components/DeleteConfirmModal';
 import SessionFormModal, { SessionFormData, SESSION_STATUS_COLORS } from './SessionFormModal';
@@ -22,6 +23,8 @@ const EMPTY_FORM: SessionFormData = {
 };
 
 export default function TrainingSchedulePage() {
+  const { canWrite } = useUser();
+  const canEdit = canWrite('training');
   usePageTitle('Training — Schedule');
   const [sessions, setSessions] = useState<TrainingSchedule[]>([]);
   const [courses, setCourses] = useState<TrainingCourse[]>([]);
@@ -217,13 +220,15 @@ export default function TrainingSchedulePage() {
             <p className="text-sm text-gray-500 mt-0.5">{filtered.length} session{filtered.length !== 1 ? 's' : ''}</p>
           </div>
         </div>
-        <button
-          onClick={() => { setEditingId(null); setFormData(EMPTY_FORM); setShowForm(true); }}
-          className="flex items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition text-sm font-medium shadow-sm w-full sm:w-auto justify-center"
-        >
-          <Plus size={16} />
-          <span className="hidden sm:inline">Schedule Session</span><span className="sm:hidden">Schedule</span>
-        </button>
+        {canEdit && (
+          <button
+            onClick={() => { setEditingId(null); setFormData(EMPTY_FORM); setShowForm(true); }}
+            className="flex items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition text-sm font-medium shadow-sm w-full sm:w-auto justify-center"
+          >
+            <Plus size={16} />
+            <span className="hidden sm:inline">Schedule Session</span><span className="sm:hidden">Schedule</span>
+          </button>
+        )}
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -330,12 +335,16 @@ export default function TrainingSchedulePage() {
                           <button onClick={() => { setSelectedSession(session); setShowView(true); }} className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors">
                             <Eye size={14} />
                           </button>
-                          <button onClick={() => openEdit(session)} className="p-1.5 text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 rounded transition-colors">
-                            <Edit2 size={14} />
-                          </button>
-                          <button onClick={() => handleDelete(session.id, session.course_name)} className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded transition-colors">
-                            <Trash2 size={14} />
-                          </button>
+                          {canEdit && (
+                            <>
+                              <button onClick={() => openEdit(session)} className="p-1.5 text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 rounded transition-colors">
+                                <Edit2 size={14} />
+                              </button>
+                              <button onClick={() => handleDelete(session.id, session.course_name)} className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded transition-colors">
+                                <Trash2 size={14} />
+                              </button>
+                            </>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -369,18 +378,22 @@ export default function TrainingSchedulePage() {
                     <span className="text-xs text-gray-500 whitespace-nowrap">{session.enrolled_count}/{session.capacity}</span>
                   </div>
                   <div className="flex justify-end gap-1 mt-3 pt-2 border-t border-gray-100">
-                    <button
-                      onClick={e => { e.stopPropagation(); openEdit(session); }}
-                      className="p-2 text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 rounded transition-colors"
-                    >
-                      <Edit2 size={14} />
-                    </button>
-                    <button
-                      onClick={e => { e.stopPropagation(); handleDelete(session.id, session.course_name); }}
-                      className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
-                    >
-                      <Trash2 size={14} />
-                    </button>
+                    {canEdit && (
+                      <>
+                        <button
+                          onClick={e => { e.stopPropagation(); openEdit(session); }}
+                          className="p-2 text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 rounded transition-colors"
+                        >
+                          <Edit2 size={14} />
+                        </button>
+                        <button
+                          onClick={e => { e.stopPropagation(); handleDelete(session.id, session.course_name); }}
+                          className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </>
+                    )}
                   </div>
                 </div>
               ))}
