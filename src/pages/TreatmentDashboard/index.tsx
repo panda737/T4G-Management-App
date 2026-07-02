@@ -263,17 +263,13 @@ export default function TreatmentDashboard() {
       return monthlySummaries
         .filter(s => s.month.startsWith(selectedYear))
         .map(s => {
-          const monthPrefix = s.month.substring(0, 7);
-          const treated = logs
-            .filter(l => l.date.startsWith(monthPrefix))
-            .reduce((sum, l) => sum + Number(l.total_treated_kg), 0);
-          const landfillTotal = Number(s.total_sent_for_landfill_kg);
-          const water = Math.max(0, landfillTotal - treated);
+          const waste = Number(s.total_sent_for_landfill_kg);
+          const water = Number(s.total_water_to_landfill_kg);
           return {
             label: MONTHS_SHORT[new Date(s.month).getMonth()],
-            waste: treated,
+            waste,
             water,
-            landfillTotal,
+            landfillTotal: waste + water,
             summary: s,
           };
         });
@@ -281,14 +277,13 @@ export default function TreatmentDashboard() {
     if (period === 'month') {
       const summary = monthlySummaries.find(s => s.month.startsWith(selectedMonth));
       if (summary) {
-        const treated = periodLogs.reduce((sum, l) => sum + Number(l.total_treated_kg), 0);
-        const landfillTotal = Number(summary.total_sent_for_landfill_kg);
-        const water = Math.max(0, landfillTotal - treated);
-        return [{ label: 'Treated', waste: treated, water, landfillTotal, summary }];
+        const waste = Number(summary.total_sent_for_landfill_kg);
+        const water = Number(summary.total_water_to_landfill_kg);
+        return [{ label: 'Treated', waste, water, landfillTotal: waste + water, summary }];
       }
     }
     return [];
-  }, [period, monthlySummaries, selectedMonth, selectedYear, logs, periodLogs]);
+  }, [period, monthlySummaries, selectedMonth, selectedYear]);
 
   const landfillTotal = useMemo(() => landfillData.reduce((s, d) => s + (d.landfillTotal ?? d.waste + d.water), 0), [landfillData]);
 
