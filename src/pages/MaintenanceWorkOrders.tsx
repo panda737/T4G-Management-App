@@ -8,6 +8,7 @@ import type { MaintenanceHistory, Equipment } from '../lib/supabase';
 import Modal from '../components/Modal';
 import DashboardError from '../components/DashboardError';
 import { maintenanceTypeColors as TYPE_COLORS } from '../lib/badgeColors';
+import { localToday } from '../lib/formatters';
 
 const TYPES = ['Scheduled', 'Corrective', 'Preventive', 'Emergency'];
 
@@ -229,7 +230,7 @@ function HistoryModal({
 }) {
   const [form, setForm] = useState({
     equipment_id: item?.equipment_id || '',
-    service_date: item?.service_date || new Date().toISOString().split('T')[0],
+    service_date: item?.service_date || localToday(),
     type: item?.type || 'Scheduled',
     technician: item?.technician || '',
     description: item?.description || '',

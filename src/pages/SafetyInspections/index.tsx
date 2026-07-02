@@ -10,6 +10,7 @@ import { inspectionStatusColors, badgeColor } from '../../lib/badgeColors';
 import { generateSequentialNumber } from '../../lib/numberGenerator';
 import InspectionFormModal from './InspectionFormModal';
 import InspectionViewModal from './InspectionViewModal';
+import { localToday } from '../../lib/formatters';
 
 const INSPECTION_TYPES = ['Site Walk', 'PPE Check', 'Equipment', 'Fire Safety', 'Housekeeping', 'Vehicle'];
 const STATUS_OPTIONS = ['Scheduled', 'Completed', 'Requires Action'];
@@ -37,7 +38,7 @@ export default function SafetyInspections() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [viewingId, setViewingId] = useState<string | null>(null);
   const [formData, setFormData] = useState<Partial<SafetyInspection>>({
-    inspection_date: new Date().toISOString().split('T')[0],
+    inspection_date: localToday(),
     items_checked: 0,
     items_passed: 0,
   });
@@ -94,7 +95,7 @@ export default function SafetyInspections() {
       addToast('Inspection saved');
       setShowAddModal(false);
       setEditingId(null);
-      setFormData({ inspection_date: new Date().toISOString().split('T')[0] });
+      setFormData({ inspection_date: localToday() });
       loadInspections();
     } catch (error) {
       console.error('Error saving inspection:', error);
@@ -159,7 +160,7 @@ export default function SafetyInspections() {
           canEdit && (
             <Button variant="primary" accent="amber" icon={Plus} onClick={() => {
               setEditingId(null);
-              setFormData({ inspection_date: new Date().toISOString().split('T')[0] });
+              setFormData({ inspection_date: localToday() });
               setShowAddModal(true);
             }}>New Inspection</Button>
           )

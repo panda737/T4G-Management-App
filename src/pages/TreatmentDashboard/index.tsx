@@ -7,7 +7,7 @@ import { PageSpinner } from '../../components/Spinner';
 import DashboardError from '../../components/DashboardError';
 import { supabase, TreatmentDailyLog, TreatmentMonthlySummary, Employee } from '../../lib/supabase';
 import { usePageTitle } from '../../lib/usePageTitle';
-import { fmtKgTons as fmtKg, fmtKgRaw } from '../../lib/formatters';
+import { fmtKgTons as fmtKg, fmtKgRaw, toLocalISO } from '../../lib/formatters';
 
 type EmployeeName = Pick<Employee, 'id' | 'first_name' | 'surname' | 'position'>;
 import { MONTHS, MONTHS_SHORT, type Period, type BarDatum, categorizeDowntime } from './constants';
@@ -123,7 +123,7 @@ export default function TreatmentDashboard() {
   const yesterday = useMemo(() => {
     const d = new Date();
     d.setDate(d.getDate() - 1);
-    return d.toISOString().split('T')[0];
+    return toLocalISO(d);
   }, []);
 
   const yesterdayLog = useMemo(() => logs.find(l => l.date === yesterday), [logs, yesterday]);
@@ -177,9 +177,9 @@ export default function TreatmentDashboard() {
 
   const prevPeriodLogs = useMemo(() => {
     if (period === 'day') {
-      const d = new Date(yesterday);
+      const d = new Date(yesterday + 'T00:00:00');
       d.setDate(d.getDate() - 1);
-      return logs.filter(l => l.date === d.toISOString().split('T')[0]);
+      return logs.filter(l => l.date === toLocalISO(d));
     }
     if (period === 'month') {
       const [y, m] = selectedMonth.split('-').map(Number);

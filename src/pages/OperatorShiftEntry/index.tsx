@@ -8,6 +8,7 @@ import { useToast } from '../../lib/toast';
 import { useOpenNav } from '../../lib/mobileNav';
 import { useBackClose } from '../../lib/useBackClose';
 import { SHIFT_TEAM_EXCLUDED_NAMES } from '../../lib/excludedEmployees';
+import { toLocalISO } from '../../lib/formatters';
 import EmployeeTogglePicker from '../../components/EmployeeTogglePicker';
 import SignaturePad from '../../components/SignaturePad';
 
@@ -51,14 +52,6 @@ const EMPTY_FORM: FormState = {
   team_ids: [],
   team_names: [],
 };
-
-// Format a Date as YYYY-MM-DD using local calendar components (avoids UTC drift).
-function toLocalISO(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
-}
 
 function getShiftDate(shift: ShiftType): string {
   const now = new Date();

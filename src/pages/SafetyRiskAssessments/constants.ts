@@ -1,11 +1,12 @@
 import type { SafetyRiskAssessment } from '../../lib/supabase';
+import { localToday } from '../../lib/formatters';
 
 export type RiskStatus = 'Draft' | 'Active' | 'Under Review' | 'Archived';
 
 export const STATUS_TABS = ['All', 'Active', 'Draft', 'Under Review', 'Archived'] as const;
 
 export const EMPTY_FORM: Partial<SafetyRiskAssessment> = {
-  assessment_date: new Date().toISOString().split('T')[0],
+  assessment_date: localToday(),
   area: '',
   activity: '',
   hazard: '',

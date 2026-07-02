@@ -7,6 +7,7 @@ import { useToast } from '../../lib/toast';
 import DeleteConfirmModal from '../../components/DeleteConfirmModal';
 import SessionFormModal, { SessionFormData, SESSION_STATUS_COLORS } from './SessionFormModal';
 import SessionViewModal from './SessionViewModal';
+import { localToday } from '../../lib/formatters';
 
 const EMPTY_FORM: SessionFormData = {
   course_name: '',
@@ -187,7 +188,7 @@ export default function TrainingSchedulePage() {
     setShowForm(true);
   }
 
-  const today = new Date().toISOString().split('T')[0];
+  const today = localToday();
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();

@@ -6,6 +6,7 @@ import { useOnClickOutside } from '../../lib/useOnClickOutside';
 import Modal from '../../components/Modal';
 import StockItemSearch from '../../components/StockItemSearch';
 import { ORDER_SOURCES } from './constants';
+import { localToday } from '../../lib/formatters';
 
 /** One-line site sub-label: code · province · group, with the address appended. */
 function siteSubLabel(s: ClientSite): string {
@@ -67,7 +68,7 @@ export default function OrderFormModal({ items, clients, sites, order, orderItem
   useOnClickOutside(siteRef, () => setSiteDropdown(false), siteDropdown);
   const [source, setSource] = useState<OrderSource>(order?.source || 'OrderCo');
   const [customerRef, setCustomerRef] = useState(order?.customer_reference || '');
-  const [orderDate, setOrderDate] = useState(order?.order_date || new Date().toISOString().slice(0, 10));
+  const [orderDate, setOrderDate] = useState(order?.order_date || localToday());
   const [deliveryDate, setDeliveryDate] = useState(order?.delivery_date || tomorrowLocalISO());
   const [notes, setNotes] = useState(order?.notes || '');
   const [saving, setSaving] = useState(false);

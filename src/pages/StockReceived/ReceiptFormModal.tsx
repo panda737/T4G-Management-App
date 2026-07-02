@@ -5,6 +5,7 @@ import { generateSequentialNumber } from '../../lib/numberGenerator';
 import { useUser } from '../../lib/UserContext';
 import Modal from '../../components/Modal';
 import StockItemSearch from '../../components/StockItemSearch';
+import { localToday } from '../../lib/formatters';
 
 interface ReceiptLine {
   id: number;
@@ -27,7 +28,7 @@ export default function ReceiptFormModal({ items, suppliers, onClose, onSave }: 
   const [lines, setLines] = useState<ReceiptLine[]>([{ id: 1, itemId: '', quantity: 1 }]);
   const [supplierId, setSupplierId] = useState('');
   const [supplierRef, setSupplierRef] = useState('');
-  const [receivedDate, setReceivedDate] = useState(new Date().toISOString().slice(0, 10));
+  const [receivedDate, setReceivedDate] = useState(localToday());
   // Captured By is always the logged-in user — recorded, not editable.
   const capturedBy = profile?.display_name || '';
   const [notes, setNotes] = useState('');

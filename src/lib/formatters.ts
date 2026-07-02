@@ -16,6 +16,23 @@ export function fmtKgRaw(n: number): string {
   return Math.round(n).toLocaleString('en-ZA') + ' kg';
 }
 
+/**
+ * Formats a Date as YYYY-MM-DD from its LOCAL calendar parts.
+ * `toISOString()` converts to UTC first, which in SAST (UTC+2) yields
+ * yesterday's date between 00:00 and 02:00 — never use it for "today".
+ */
+export function toLocalISO(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+/** Today's date as YYYY-MM-DD in the user's local timezone. */
+export function localToday(): string {
+  return toLocalISO(new Date());
+}
+
 /** Formats a YYYY-MM string as "Jan 2026". */
 export function fmtMonth(monthStr: string): string {
   const [y, mo] = monthStr.split('-').map(Number);

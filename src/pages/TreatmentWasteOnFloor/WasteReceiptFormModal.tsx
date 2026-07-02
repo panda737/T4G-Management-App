@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Loader } from 'lucide-react';
 import { supabase, WasteReceipt, WasteReceiptWasteType, Employee } from '../../lib/supabase';
 import Modal from '../../components/Modal';
+import { localToday } from '../../lib/formatters';
 
 const WASTE_TYPES: WasteReceiptWasteType[] = ['Medical', 'Sharps', 'Pharmaceutical', 'Anatomical', 'Other'];
 
@@ -29,7 +30,7 @@ async function nextReceiptNumber(): Promise<string> {
 export default function WasteReceiptFormModal({ receipt, onClose, onSave }: Props) {
   const isEdit = !!receipt;
   const [form, setForm] = useState({
-    date: receipt?.date ?? new Date().toISOString().slice(0, 10),
+    date: receipt?.date ?? localToday(),
     client_name: receipt?.client_name ?? '',
     waste_type: (receipt?.waste_type ?? 'Medical') as WasteReceiptWasteType,
     quantity_kg: receipt?.quantity_kg?.toString() ?? '',

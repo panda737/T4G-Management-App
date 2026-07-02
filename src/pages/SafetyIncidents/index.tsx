@@ -12,6 +12,7 @@ import { generateSequentialNumber } from '../../lib/numberGenerator';
 import { useBackClose } from '../../lib/useBackClose';
 import IncidentFormModal, { IncidentFormData } from './IncidentFormModal';
 import IncidentDetailView from './IncidentDetailView';
+import { localToday } from '../../lib/formatters';
 
 const INCIDENT_TYPES = ['Injury', 'Near Miss', 'Property Damage', 'Environmental', 'Unsafe Act', 'Unsafe Condition'];
 const SEVERITIES = ['Minor', 'Moderate', 'Serious', 'Critical'];
@@ -30,7 +31,7 @@ const getTypeIcon = (type: string) => {
 };
 
 const EMPTY_FORM: IncidentFormData = {
-  incident_date: new Date().toISOString().split('T')[0],
+  incident_date: localToday(),
   incident_time: null,
   incident_type: 'Injury',
   severity: 'Minor',
@@ -189,7 +190,7 @@ export default function SafetyIncidents() {
   const handleCloseIncident = async (incident: SafetyIncident) => {
     const { error } = await supabase
       .from('safety_incidents')
-      .update({ status: 'Closed', closed_date: new Date().toISOString().split('T')[0], updated_at: new Date().toISOString() })
+      .update({ status: 'Closed', closed_date: localToday(), updated_at: new Date().toISOString() })
       .eq('id', incident.id);
     if (error) { addToast('Could not close incident', 'error'); return; }
     addToast('Incident closed');
@@ -219,7 +220,7 @@ export default function SafetyIncidents() {
 
   const openAddModal = () => {
     setEditingId(null);
-    setFormData({ ...EMPTY_FORM, incident_date: new Date().toISOString().split('T')[0] });
+    setFormData({ ...EMPTY_FORM, incident_date: localToday() });
     setShowAddModal(true);
   };
 
@@ -231,7 +232,7 @@ export default function SafetyIncidents() {
       const { error } = await supabase.from('safety_incidents').insert([{
         ...EMPTY_FORM,
         incident_number,
-        incident_date: new Date().toISOString().split('T')[0],
+        incident_date: localToday(),
         incident_type: quickForm.incident_type,
         location: quickForm.location.trim(),
         description: quickForm.description.trim(),

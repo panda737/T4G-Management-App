@@ -21,6 +21,7 @@ import TopicLibraryPicker from './TopicLibraryPicker';
 import TopicFormModal from './TopicFormModal';
 import MobileNavButton from '../../components/MobileNavButton';
 import { TOOLBOX_EXCLUDED_NAMES } from '../../lib/excludedEmployees';
+import { localToday } from '../../lib/formatters';
 
 export default function SafetyToolboxTalks() {
   usePageTitle('Safety — Toolbox Talks');
@@ -43,7 +44,7 @@ export default function SafetyToolboxTalks() {
   const [selectedCategory, setSelectedCategory] = useState('');
   const [selectedSubcategory, setSelectedSubcategory] = useState('');
   const [librarySearch, setLibrarySearch] = useState('');
-  const [formData, setFormData] = useState<FormData>({ ...EMPTY_FORM, talk_date: new Date().toISOString().split('T')[0] });
+  const [formData, setFormData] = useState<FormData>({ ...EMPTY_FORM, talk_date: localToday() });
   const { addToast } = useToast();
   const [opError, setOpError] = useState('');
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; label: string } | null>(null);
@@ -222,7 +223,7 @@ export default function SafetyToolboxTalks() {
   }
 
   function resetForm() {
-    setFormData({ ...EMPTY_FORM, talk_date: new Date().toISOString().split('T')[0] });
+    setFormData({ ...EMPTY_FORM, talk_date: localToday() });
     setTalkSignature(null);
     setShowSignaturePad(false);
     setModalStep('details');

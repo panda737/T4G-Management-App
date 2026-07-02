@@ -9,6 +9,7 @@ import { PageSpinner } from '../../components/Spinner';
 import { STATUS_STYLE, STATUS_ICON } from './constants';
 import StockTakeCount from './StockTakeCount';
 import StockTakeReport from './StockTakeReport';
+import { localToday } from '../../lib/formatters';
 
 type View = 'list' | 'count' | 'report';
 
@@ -171,7 +172,7 @@ export default function StockTake() {
 
 function NewSessionModal({ onClose, onSave }: { onClose: () => void; onSave: (s: StockTakeSession) => void }) {
   const [name, setName] = useState(`Stock Take ${new Date().toLocaleDateString()}`);
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState(localToday());
   const [conductedBy, setConductedBy] = useState('');
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
