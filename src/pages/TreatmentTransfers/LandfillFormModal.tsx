@@ -22,11 +22,20 @@ export default function LandfillFormModal({
     ? (Number(record.total_sent_for_landfill_kg) / 1000).toString()
     : '';
 
+  const defaultWaterTons = record && Number(record.total_water_to_landfill_kg) > 0
+    ? (Number(record.total_water_to_landfill_kg) / 1000).toString()
+    : '';
+
   const [month, setMonth] = useState(defaultMonth);
   const [tons, setTons] = useState(defaultTons);
+  const [waterTons, setWaterTons] = useState(defaultWaterTons);
   const [notes, setNotes] = useState(record?.notes || '');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+
+  const wasteKg = Number(tons) * 1000 || 0;
+  const waterKg = Number(waterTons) * 1000 || 0;
+  const waterPct = wasteKg + waterKg > 0 ? (waterKg / (wasteKg + waterKg)) * 100 : 0;
 
   async function handleSave() {
     if (!month || !tons || Number(tons) <= 0) {
@@ -36,19 +45,18 @@ export default function LandfillFormModal({
     setSaving(true);
     setError('');
 
-    const kg = Number(tons) * 1000;
     const monthDate = `${month}-01`;
 
     if (record) {
       const { error: err } = await supabase
         .from('treatment_monthly_summary')
-        .update({ total_sent_for_landfill_kg: kg, notes, updated_at: new Date().toISOString() })
+        .update({ month: monthDate, total_sent_for_landfill_kg: wasteKg, total_water_to_landfill_kg: waterKg, notes, updated_at: new Date().toISOString() })
         .eq('id', record.id);
       if (err) { setError(err.message); setSaving(false); return; }
     } else {
       const { error: err } = await supabase
         .from('treatment_monthly_summary')
-        .upsert({ month: monthDate, total_sent_for_landfill_kg: kg, notes, updated_at: new Date().toISOString() }, { onConflict: 'month' });
+        .upsert({ month: monthDate, total_sent_for_landfill_kg: wasteKg, total_water_to_landfill_kg: waterKg, notes, updated_at: new Date().toISOString() }, { onConflict: 'month' });
       if (err) { setError(err.message); setSaving(false); return; }
     }
 
@@ -85,11 +93,14 @@ export default function LandfillFormModal({
               type="month"
               value={month}
               onChange={e => setMonth(e.target.value)}
-              disabled={!!record}
-              className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-500 disabled:bg-gray-50 disabled:text-gray-500"
+              className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-500"
             />
           </div>
-          {!record && <p className="text-[11px] text-gray-400 mt-1">If a record for this month already exists, it will be updated.</p>}
+          <p className="text-[11px] text-gray-400 mt-1">
+            {record
+              ? 'Changing the month moves this record — pick a month that doesn’t already have one.'
+              : 'If a record for this month already exists, it will be updated.'}
+          </p>
         </div>
         <div>
           <label className="block text-xs font-medium text-gray-700 mb-1">Tons Sent to Landfill *</label>
@@ -103,7 +114,24 @@ export default function LandfillFormModal({
             className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-500"
           />
           {tons && Number(tons) > 0 && (
-            <p className="text-[11px] text-gray-400 mt-1">= {(Number(tons) * 1000).toLocaleString('en-ZA', { maximumFractionDigits: 0 })} kg</p>
+            <p className="text-[11px] text-gray-400 mt-1">= {wasteKg.toLocaleString('en-ZA', { maximumFractionDigits: 0 })} kg</p>
+          )}
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-700 mb-1">Water / Liquid Waste to Landfill</label>
+          <input
+            type="number"
+            min="0"
+            step="0.01"
+            value={waterTons}
+            onChange={e => setWaterTons(e.target.value)}
+            placeholder="e.g. 3.2"
+            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-500"
+          />
+          {waterTons && Number(waterTons) > 0 && (
+            <p className="text-[11px] text-gray-400 mt-1">
+              = {waterKg.toLocaleString('en-ZA', { maximumFractionDigits: 0 })} kg · {waterPct.toFixed(1)}% of total sent to landfill
+            </p>
           )}
         </div>
         <div>

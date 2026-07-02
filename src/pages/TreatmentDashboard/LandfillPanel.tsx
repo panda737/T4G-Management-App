@@ -12,11 +12,12 @@ interface LandfillDatum {
   summary?: TreatmentMonthlySummary;
 }
 
-function LandfillRow({ label, value, color }: { label: string; value: number; color: string }) {
+function LandfillRow({ label, value, color, pct }: { label: string; value: number; color: string; pct?: number }) {
   return (
     <div className="flex items-center gap-3 py-1.5 border-b border-gray-50 last:border-0">
       <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
       <span className="text-xs font-medium text-gray-700 flex-1">{label}</span>
+      {pct != null && <span className="text-xs text-gray-400">{pct.toFixed(1)}%</span>}
       <span className="text-xs font-semibold text-gray-900">{fmtKg(value)}</span>
     </div>
   );
@@ -59,8 +60,8 @@ export default function LandfillPanel({
             centerSub="Total to Landfill"
           />
           <div className="mt-4 space-y-2">
-            <LandfillRow label="Treated" value={landfillData[0]?.waste || 0} color="#10b981" />
-            <LandfillRow label="Water" value={landfillData[0]?.water || 0} color="#94a3b8" />
+            <LandfillRow label="Treated" value={landfillData[0]?.waste || 0} color="#10b981" pct={landfillTotal > 0 ? ((landfillData[0]?.waste || 0) / landfillTotal) * 100 : undefined} />
+            <LandfillRow label="Water" value={landfillData[0]?.water || 0} color="#94a3b8" pct={landfillTotal > 0 ? ((landfillData[0]?.water || 0) / landfillTotal) * 100 : undefined} />
           </div>
           {isAdmin && landfillData[0]?.summary && (
             <div className="mt-3 pt-3 border-t border-gray-100 flex gap-2">
@@ -117,7 +118,7 @@ export default function LandfillPanel({
                   </div>
                   <div className="flex justify-between mt-0.5 text-[10px] text-gray-400">
                     <span>Treated: {fmtKg(d.waste)}</span>
-                    <span>Water: {fmtKg(d.water)}</span>
+                    <span>Water: {fmtKg(d.water)} ({((d.water / denom) * 100).toFixed(1)}%)</span>
                   </div>
                 </div>
               );

@@ -99,6 +99,7 @@ export default function TreatmentTransfers() {
   }, [landfillRecords, yearFilter, monthFilter]);
 
   const totalLandfillTons = useMemo(() => filteredLandfill.reduce((s, r) => s + Number(r.total_sent_for_landfill_kg) / 1000, 0), [filteredLandfill]);
+  const totalLandfillWaterTons = useMemo(() => filteredLandfill.reduce((s, r) => s + Number(r.total_water_to_landfill_kg) / 1000, 0), [filteredLandfill]);
 
   const availableYears = activeTab === 'Transfers' ? availableTransferYears : availableLandfillYears;
 
@@ -208,6 +209,7 @@ export default function TreatmentTransfers() {
         <LandfillContent
           records={filteredLandfill}
           totalTons={totalLandfillTons}
+          totalWaterTons={totalLandfillWaterTons}
           periodLabel={periodLabel}
           onEdit={r => { setEditLandfill(r); setShowLandfillForm(true); }}
         />
