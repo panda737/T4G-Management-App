@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { Plus, ChevronDown } from 'lucide-react';
 import { supabase, TreatmentWasteTransfer, TreatmentMonthlySummary } from '../../lib/supabase';
 import { usePageTitle } from '../../lib/usePageTitle';
+import { fmtMonth } from '../../lib/formatters';
 import { PageSpinner } from '../../components/Spinner';
 import { type ActiveTab, type TransferWithDate, type DailyLogRef } from './constants';
 import TransfersContent from './TransfersContent';
@@ -39,6 +40,8 @@ export default function TreatmentTransfers() {
   const [opError, setOpError] = useState('');
   const [showLandfillForm, setShowLandfillForm] = useState(false);
   const [editLandfill, setEditLandfill] = useState<TreatmentMonthlySummary | null>(null);
+  const [deletingLandfill, setDeletingLandfill] = useState<TreatmentMonthlySummary | null>(null);
+  const [deletingLandfillBusy, setDeletingLandfillBusy] = useState(false);
 
   useEffect(() => { loadData(); }, []);
 
@@ -65,6 +68,18 @@ export default function TreatmentTransfers() {
     if (error) { setOpError(error.message); return; }
     setDeletingTransfer(null);
     addToast('Transfer deleted');
+    loadData();
+  }
+
+  async function handleDeleteLandfill() {
+    if (!deletingLandfill) return;
+    setDeletingLandfillBusy(true);
+    setOpError('');
+    const { error } = await supabase.from('treatment_monthly_summary').delete().eq('id', deletingLandfill.id);
+    setDeletingLandfillBusy(false);
+    if (error) { setOpError(error.message); return; }
+    setDeletingLandfill(null);
+    addToast('Landfill record deleted');
     loadData();
   }
 
@@ -244,6 +259,16 @@ export default function TreatmentTransfers() {
           record={editLandfill}
           onClose={() => { setShowLandfillForm(false); setEditLandfill(null); }}
           onSave={() => { setShowLandfillForm(false); setEditLandfill(null); addToast('Landfill record saved'); loadData(); }}
+          onDelete={r => { setShowLandfillForm(false); setEditLandfill(null); setDeletingLandfill(r); }}
+        />
+      )}
+
+      {deletingLandfill && (
+        <DeleteConfirmModal
+          label={`landfill record for ${fmtMonth(deletingLandfill.month.substring(0, 7))}`}
+          onConfirm={handleDeleteLandfill}
+          onClose={() => setDeletingLandfill(null)}
+          deleting={deletingLandfillBusy}
         />
       )}
     </div>

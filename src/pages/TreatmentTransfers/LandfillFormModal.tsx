@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Save, X, Calendar } from 'lucide-react';
+import { Save, X, Calendar, Trash2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import type { TreatmentMonthlySummary } from '../../lib/supabase';
 import Modal from '../../components/Modal';
@@ -9,10 +9,12 @@ export default function LandfillFormModal({
   record,
   onClose,
   onSave,
+  onDelete,
 }: {
   record: TreatmentMonthlySummary | null;
   onClose: () => void;
   onSave: () => void;
+  onDelete?: (record: TreatmentMonthlySummary) => void;
 }) {
   const defaultMonth = record
     ? record.month.substring(0, 7)
@@ -66,6 +68,15 @@ export default function LandfillFormModal({
 
   const modalFooter = (
     <>
+      {record && onDelete && (
+        <button
+          onClick={() => onDelete(record)}
+          disabled={saving}
+          className="flex items-center gap-1.5 px-4 py-2 text-sm text-red-600 border border-red-200 rounded-lg hover:bg-red-50 disabled:opacity-50 font-medium transition-colors mr-auto"
+        >
+          <Trash2 size={14} /> Delete
+        </button>
+      )}
       <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
         Cancel
       </button>
