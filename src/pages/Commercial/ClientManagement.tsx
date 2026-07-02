@@ -9,6 +9,7 @@ import { CLIENT_TABS } from './commercialTabs';
 import { ListView, type Column, type FilterDef } from '../../components/crm';
 import { fmtNum } from '../../components/crm/crmUtils';
 import AccountFormModal from './AccountFormModal';
+import DashboardError from '../../components/DashboardError';
 
 const STATUS_OPTIONS = [
   { value: 'active', label: 'Active' },
@@ -41,18 +42,22 @@ export default function ClientManagement() {
   const [recCounts, setRecCounts] = useState<Record<string, { n: number; kg: number }>>({});
   const [portalLinked, setPortalLinked] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [modal, setModal] = useState<'new' | Client | null>(null);
 
   useEffect(() => { load(); }, []);
 
   async function load() {
     setLoading(true);
+    setLoadError('');
     const [cRes, sRes, rRes, uRes] = await Promise.all([
       supabase.from('clients').select('*').order('client_name'),
       supabase.from('client_sites').select('client_id'),
       supabase.from('received_waste_records').select('client_id, nett_weight_kg'),
       supabase.from('user_profiles').select('client_id').eq('role', 'customer').not('client_id', 'is', null),
     ]);
+    const firstErr = [cRes, sRes, rRes, uRes].find(r => r.error)?.error;
+    if (firstErr) setLoadError(firstErr.message);
     setClients((cRes.data ?? []) as Client[]);
 
     const sc: Record<string, number> = {};
@@ -173,6 +178,8 @@ export default function ClientManagement() {
     setModal(null);
     addToast(modal === 'new' ? 'Account created' : 'Account updated');
   }
+
+  if (loadError) return <DashboardError title="Accounts" message={loadError} onRetry={load} />;
 
   return (
     <div className="space-y-5">

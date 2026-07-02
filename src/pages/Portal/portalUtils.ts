@@ -86,11 +86,13 @@ export function usePortalEsg() {
   const { clientId, siteScoped, adminPreview } = usePortalClient();
   const [rows, setRows] = useState<EsgResultCustomerRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       setLoading(true);
+      setError('');
       try {
       // ESG is account-level only; a site-scoped login/preview sees none.
       if (siteScoped) {
@@ -114,6 +116,7 @@ export function usePortalEsg() {
           supabase.from('carbon_credit_evidence').select('period_month, verified').eq('client_id', clientId!),
         ]);
         if (cancelled) return;
+        if (esgRes.error) throw new Error(esgRes.error.message);
 
         // Mirror v_esg_results.credits_verified: any verified evidence for that month, or month-less.
         const evidence = (ccRes.data ?? []) as Array<{ period_month: string | null; verified: boolean }>;
@@ -145,12 +148,17 @@ export function usePortalEsg() {
           credits_verified: anyMonthless || verifiedMonths.has(r.period_month as string),
         })));
       } else {
-        const { data } = await supabase.from('v_esg_results').select('*').order('period_month', { ascending: false });
+        const { data, error: qErr } = await supabase.from('v_esg_results').select('*').order('period_month', { ascending: false });
         if (cancelled) return;
+        if (qErr) throw new Error(qErr.message);
         setRows((data ?? []) as EsgResultCustomerRow[]);
       }
-      } catch {
-        if (!cancelled) setRows([]);
+      } catch (e) {
+        // Surface the failure — an error must not render as "no approved results yet".
+        if (!cancelled) {
+          setRows([]);
+          setError(e instanceof Error ? e.message : 'Failed to load ESG results');
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -158,7 +166,7 @@ export function usePortalEsg() {
     return () => { cancelled = true; };
   }, [clientId, siteScoped, adminPreview]);
 
-  return { rows, loading };
+  return { rows, loading, error };
 }
 
 export const kg = (n: number) => n.toLocaleString('en-ZA', { maximumFractionDigits: 0 });

@@ -6,6 +6,7 @@ import { useUser } from '../lib/UserContext';
 import { useToast } from '../lib/toast';
 import type { MaintenanceHistory, Equipment } from '../lib/supabase';
 import Modal from '../components/Modal';
+import DashboardError from '../components/DashboardError';
 import { maintenanceTypeColors as TYPE_COLORS } from '../lib/badgeColors';
 
 const TYPES = ['Scheduled', 'Corrective', 'Preventive', 'Emergency'];
@@ -17,6 +18,7 @@ export default function MaintenanceWorkOrders() {
   const [history, setHistory] = useState<MaintenanceHistory[]>([]);
   const [equipment, setEquipment] = useState<Equipment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
 
   const [search, setSearch] = useState('');
   const [filterEquipment, setFilterEquipment] = useState('');
@@ -30,10 +32,13 @@ export default function MaintenanceWorkOrders() {
 
   async function load() {
     setLoading(true);
+    setLoadError('');
     const [ht, eq] = await Promise.all([
       supabase.from('maintenance_history').select('*').order('service_date', { ascending: false }),
       supabase.from('equipment').select('*').order('name'),
     ]);
+    const firstErr = [ht, eq].find(r => r.error)?.error;
+    if (firstErr) setLoadError(firstErr.message);
     setHistory(ht.data || []);
     setEquipment(eq.data || []);
     setLoading(false);
@@ -56,6 +61,8 @@ export default function MaintenanceWorkOrders() {
       return true;
     });
   }, [history, filterEquipment, filterType, search, equipMap]);
+
+  if (loadError) return <DashboardError title="Service History" message={loadError} onRetry={load} />;
 
   return (
     <div className="space-y-5">
