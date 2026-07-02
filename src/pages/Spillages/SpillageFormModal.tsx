@@ -21,6 +21,38 @@ interface Props {
 const inputClass =
   'w-full border border-gray-300 rounded-lg px-3 py-2.5 text-base focus:outline-none focus:ring-2 focus:ring-amber-500';
 
+const UPLOAD_ATTEMPTS = 3;
+const RETRY_DELAY_MS = 1200;
+
+// Browsers throw this for a dropped/blocked connection, not for a real server
+// error — worth a couple of quick retries before bothering the user (a weak
+// signal on-site is more likely than a real config problem).
+function isNetworkError(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err);
+  return /failed to fetch|networkerror|load failed/i.test(msg);
+}
+
+function sleep(ms: number) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function friendlyError(err: unknown): string {
+  if (isNetworkError(err)) {
+    return 'Network connection issue — check your signal and tap Submit again. Your entries are still here.';
+  }
+  return err instanceof Error ? err.message : 'Could not save the spillage.';
+}
+
+async function withRetry<T>(fn: () => Promise<{ data: T; error: unknown }>): Promise<{ data: T; error: unknown }> {
+  let result: { data: T; error: unknown };
+  for (let attempt = 1; attempt <= UPLOAD_ATTEMPTS; attempt++) {
+    result = await fn();
+    if (!result.error || !isNetworkError(result.error) || attempt === UPLOAD_ATTEMPTS) return result;
+    await sleep(RETRY_DELAY_MS * attempt);
+  }
+  return result!;
+}
+
 export default function SpillageFormModal({ onClose, onSaved }: Props) {
   const { profile } = useUser();
   const { addToast } = useToast();
@@ -39,6 +71,7 @@ export default function SpillageFormModal({ onClose, onSaved }: Props) {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+  const [status, setStatus] = useState('');
   const cameraRef = useRef<HTMLInputElement>(null);
   const libraryRef = useRef<HTMLInputElement>(null);
 
@@ -73,42 +106,53 @@ export default function SpillageFormModal({ onClose, onSaved }: Props) {
     }
     setSaving(true);
     setError('');
+    setStatus('Uploading photo…');
 
     // 1. Upload the photo first so a failure never leaves a record without one.
+    //    A weak signal on-site can drop this mid-transfer, so a network blip
+    //    gets a couple of quick retries before we bother the user.
     const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
     const year = new Date().getFullYear();
     const path = `${year}/${crypto.randomUUID()}.${ext}`;
-    const { error: upErr } = await supabase.storage
-      .from(SPILLAGE_PHOTO_BUCKET)
-      .upload(path, file, { contentType: file.type || 'image/jpeg' });
+    const { error: upErr } = await withRetry(() =>
+      // upsert: true makes a retry idempotent — if the first attempt actually
+      // landed but the confirmation was lost to the same network blip, a
+      // retry overwrites the identical bytes instead of failing as a conflict.
+      supabase.storage.from(SPILLAGE_PHOTO_BUCKET).upload(path, file, { contentType: file.type || 'image/jpeg', upsert: true })
+    );
     if (upErr) {
-      setError(upErr.message);
+      setError(friendlyError(upErr));
       setSaving(false);
+      setStatus('');
       return;
     }
 
     // 2. Insert the record. If it fails, remove the orphaned upload.
+    setStatus('Saving record…');
     try {
       const spillage_number = await generateSequentialNumber('spillages', 'spillage_number', 'SPL');
-      const { error: dbErr } = await supabase.from('spillages').insert([{
-        spillage_number,
-        spillage_date: localDate,
-        spillage_time: localTime,
-        party,
-        spillage_type: type,
-        location: location.trim(),
-        description: description.trim(),
-        photo_path: path,
-        reported_by: profile?.display_name ?? '',
-        reported_by_id: profile?.employee_id ?? null,
-      }]);
+      const { error: dbErr } = await withRetry(async () =>
+        supabase.from('spillages').insert([{
+          spillage_number,
+          spillage_date: localDate,
+          spillage_time: localTime,
+          party,
+          spillage_type: type,
+          location: location.trim(),
+          description: description.trim(),
+          photo_path: path,
+          reported_by: profile?.display_name ?? '',
+          reported_by_id: profile?.employee_id ?? null,
+        }])
+      );
       if (dbErr) throw dbErr;
       addToast('Spillage reported');
       onSaved();
     } catch (err) {
       await supabase.storage.from(SPILLAGE_PHOTO_BUCKET).remove([path]);
-      setError(err instanceof Error ? err.message : 'Could not save the spillage.');
+      setError(friendlyError(err));
       setSaving(false);
+      setStatus('');
     }
   }
 
@@ -126,7 +170,7 @@ export default function SpillageFormModal({ onClose, onSaved }: Props) {
             disabled={!canSubmit}
             className="px-5 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition text-sm font-semibold disabled:opacity-50"
           >
-            {saving ? 'Saving…' : 'Submit'}
+            {saving ? (status || 'Saving…') : 'Submit'}
           </button>
         </>
       }
