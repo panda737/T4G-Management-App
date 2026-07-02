@@ -276,18 +276,33 @@ export default function OperatorShiftEntry() {
       .single();
 
     if (reportErr || !report) {
-      setSubmitError(reportErr?.message ?? 'Failed to save. Please try again.');
+      // 23505 = the new UNIQUE (shift_date, shift) — this shift is already recorded.
+      setSubmitError(
+        reportErr?.code === '23505'
+          ? `A report for the ${shift} shift on ${shiftDate} has already been submitted. Ask a supervisor to correct it if the numbers are wrong.`
+          : reportErr?.message ?? 'Failed to save. Please try again.'
+      );
       setSaving(false);
       return;
     }
 
+    // If any follow-up write fails, remove the report we just created (children
+    // cascade) so the operator can retry cleanly instead of hitting the
+    // one-report-per-shift constraint on a half-saved submission.
+    async function failSubmit(message: string) {
+      await supabase.from('treatment_shift_reports').delete().eq('id', report!.id);
+      setSubmitError(`${message} Nothing was saved — please try again.`);
+      setSaving(false);
+    }
+
     if (form.team_ids.length > 0) {
-      await supabase.from('treatment_shift_team_members').insert(
+      const { error: teamErr } = await supabase.from('treatment_shift_team_members').insert(
         form.team_ids.map(employee_id => ({
           shift_report_id: report.id,
           employee_id,
         }))
       );
+      if (teamErr) { await failSubmit(teamErr.message); return; }
     }
 
     if (form.has_downtime) {
@@ -299,7 +314,8 @@ export default function OperatorShiftEntry() {
           minutes: entryTotalMin(d),
         }));
       if (downtimeRows.length > 0) {
-        await supabase.from('treatment_shift_downtimes').insert(downtimeRows);
+        const { error: downtimeErr } = await supabase.from('treatment_shift_downtimes').insert(downtimeRows);
+        if (downtimeErr) { await failSubmit(downtimeErr.message); return; }
       }
     }
 
@@ -331,9 +347,10 @@ export default function OperatorShiftEntry() {
           night_shift_wheelie_bins:  Number(form.wheelie_bins) || 0,
           night_shift_supervisor_id: employeeId,
         };
-    await supabase
+    const { error: logErr } = await supabase
       .from('treatment_daily_log')
       .upsert({ date: shiftDate, updated_at: new Date().toISOString(), ...shiftUpdate }, { onConflict: 'date' });
+    if (logErr) { await failSubmit(logErr.message); return; }
 
     setSaving(false);
     addToast('Shift report submitted successfully');
