@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Calendar, Factory, Save, AlertTriangle, Check, X, Plus } from 'lucide-react';
 import { supabase, TreatmentDailyLog as TDL, Employee } from '../../lib/supabase';
 import Modal from '../../components/Modal';
+import { localToday } from '../../lib/formatters';
 
 interface Props {
   log: TDL | null;
@@ -41,7 +42,7 @@ export default function DailyLogFormModal({ log, onClose, onSave }: Props) {
   const [supervisors, setSupervisors] = useState<Pick<Employee, 'id' | 'first_name' | 'surname' | 'position'>[]>([]);
 
   const [form, setForm] = useState({
-    date: log?.date || new Date().toISOString().split('T')[0],
+    date: log?.date || localToday(),
     day_shift_cycles: log?.day_shift_cycles ?? 0,
     day_shift_treated_kg: log?.day_shift_treated_kg ?? 0,
     day_shift_ruc_washed: log?.day_shift_ruc_washed ?? 0,

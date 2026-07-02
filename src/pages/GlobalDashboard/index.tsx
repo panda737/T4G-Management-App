@@ -15,6 +15,7 @@ import PlantPerformanceHero, { type YesterdayLog } from './PlantPerformanceHero'
 import StockAlertsWidget, { type StockAlertItem } from './StockAlertsWidget';
 import UpcomingEventsWidget from './UpcomingEventsWidget';
 import ComplianceExpiriesWidget from './ComplianceExpiriesWidget';
+import { toLocalISO } from '../../lib/formatters';
 
 export default function GlobalDashboard() {
   usePageTitle('Dashboard');
@@ -55,14 +56,14 @@ export default function GlobalDashboard() {
     if (!silent) { setLoading(true); setError(''); }
     try {
     const now = new Date();
-    const todayStr = now.toISOString().split('T')[0];
+    const todayStr = toLocalISO(now);
     const yDate = new Date(now);
     yDate.setDate(yDate.getDate() - 1);
-    const yesterdayStr = yDate.toISOString().split('T')[0];
-    const in30Days = new Date(now.getTime() + 30 * 86400000).toISOString().split('T')[0];
-    const in14Days = new Date(now.getTime() + 14 * 86400000).toISOString().split('T')[0];
-    const in7Days = new Date(now.getTime() + 7 * 86400000).toISOString().split('T')[0];
-    const twelveMonthsAgo = new Date(now.getFullYear() - 1, now.getMonth(), 1).toISOString().split('T')[0];
+    const yesterdayStr = toLocalISO(yDate);
+    const in30Days = toLocalISO(new Date(now.getTime() + 30 * 86400000));
+    const in14Days = toLocalISO(new Date(now.getTime() + 14 * 86400000));
+    const in7Days = toLocalISO(new Date(now.getTime() + 7 * 86400000));
+    const twelveMonthsAgo = toLocalISO(new Date(now.getFullYear() - 1, now.getMonth(), 1));
 
     const [
       itemsRes, recentMovRes, empRes, treatAllRes,

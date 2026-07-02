@@ -1,3 +1,5 @@
+import { localToday } from '../../lib/formatters';
+
 export const PRESENTER_POSITIONS = ['Supervisor', 'Senior Operator', 'Logistics Manager', 'Health & Safety Officer'];
 
 export interface AttendeeOption {
@@ -27,7 +29,7 @@ export interface FormData {
 }
 
 export const EMPTY_FORM: FormData = {
-  talk_date: new Date().toISOString().split('T')[0],
+  talk_date: localToday(),
   topic: '',
   description: '',
   presented_by: '',

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Wrench, X } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { localToday } from '../../lib/formatters';
 
 const inp = 'w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400';
 
@@ -12,7 +13,7 @@ interface Props {
 
 export default function MaintenanceFormModal({ equipmentId, onClose, onSave }: Props) {
   const [form, setForm] = useState({
-    service_date: new Date().toISOString().split('T')[0],
+    service_date: localToday(),
     type: 'Scheduled',
     technician: '',
     description: '',

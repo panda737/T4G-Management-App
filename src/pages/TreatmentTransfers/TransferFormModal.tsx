@@ -3,9 +3,10 @@ import { Save, X, Calendar } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import Modal from '../../components/Modal';
 import { WASTE_CATEGORIES, TRANSFER_DESTINATIONS, type DailyLogRef, type TransferWithDate } from './constants';
+import { localToday } from '../../lib/formatters';
 
 function getDateFromLogs(dailyLogs: DailyLogRef[], id: string) {
-  return dailyLogs.find(l => l.id === id)?.date || new Date().toISOString().split('T')[0];
+  return dailyLogs.find(l => l.id === id)?.date || localToday();
 }
 
 export default function TransferFormModal({ transfer, dailyLogs, onClose, onSave }: {
@@ -15,7 +16,7 @@ export default function TransferFormModal({ transfer, dailyLogs, onClose, onSave
   onSave: () => void;
 }) {
   const [form, setForm] = useState({
-    date: transfer ? getDateFromLogs(dailyLogs, transfer.daily_log_id) : new Date().toISOString().split('T')[0],
+    date: transfer ? getDateFromLogs(dailyLogs, transfer.daily_log_id) : localToday(),
     waste_category: transfer?.waste_category || 'Infectious',
     quantity_kg: transfer ? String(transfer.quantity_kg) : '',
     destination: transfer?.destination || TRANSFER_DESTINATIONS[0],

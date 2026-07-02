@@ -3,6 +3,7 @@ import { Loader, Camera, ImagePlus, X } from 'lucide-react';
 import Modal from '../../components/Modal';
 import { supabase, type TreatmentChemicalBookout } from '../../lib/supabase';
 import { CHEM_PHOTO_BUCKET, CHEM_PHOTO_MAX_BYTES, CHEM_PHOTO_ACCEPTED } from './constants';
+import { localToday } from '../../lib/formatters';
 
 const fmtL = (n: number) => n.toLocaleString('en-ZA', { maximumFractionDigits: 0 });
 
@@ -17,7 +18,7 @@ interface Props {
 
 export default function BookOutModal({ existing, uom, litresPerUnit, bookedOutByName, onClose, onSubmit }: Props) {
   const isEdit = !!existing;
-  const [date, setDate] = useState(existing?.bookout_date?.substring(0, 10) ?? new Date().toISOString().substring(0, 10));
+  const [date, setDate] = useState(existing?.bookout_date?.substring(0, 10) ?? localToday());
   const [notes, setNotes] = useState(existing?.notes ?? '');
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);

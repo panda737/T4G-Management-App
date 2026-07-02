@@ -7,6 +7,7 @@ import { useUser } from '../../lib/UserContext';
 import { PageHeader, Button, Toolbar, SearchInput, FilterSelect, FilterTabs, StatStrip } from '../../components/ui';
 import ActionFormModal from './ActionFormModal';
 import ActionViewModal from './ActionViewModal';
+import { localToday } from '../../lib/formatters';
 
 type FilterState = {
   search: string;
@@ -51,7 +52,7 @@ export default function SafetyCorrectiveActions() {
   async function handleComplete(action: SafetyCorrectiveAction) {
     const { error } = await supabase
       .from('safety_corrective_actions')
-      .update({ status: 'Completed', completed_date: new Date().toISOString().split('T')[0], updated_at: new Date().toISOString() })
+      .update({ status: 'Completed', completed_date: localToday(), updated_at: new Date().toISOString() })
       .eq('id', action.id);
     if (error) { addToast('Could not complete action', 'error'); return; }
     addToast('Action marked complete');
