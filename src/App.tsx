@@ -21,6 +21,7 @@ import TreatmentDashboard from './pages/TreatmentDashboard';
 import TreatmentDailyLog from './pages/TreatmentDailyLog';
 import TreatmentTransfers from './pages/TreatmentTransfers';
 import TreatmentChemicals from './pages/TreatmentChemicals';
+import TreatmentReport from './pages/TreatmentReport';
 import SheqDashboard from './pages/SheqDashboard';
 import SafetyIncidents from './pages/SafetyIncidents';
 import Spillages from './pages/Spillages';
@@ -180,6 +181,7 @@ const ROUTE_LABELS: Record<string, string> = {
   '/treatment/transfers': 'Transfers',
   '/treatment/waste-on-floor': 'Waste on Floor',
   '/treatment/chemicals': 'Chemicals',
+  '/treatment/report': 'Treatment Report',
   '/safety': 'Health & Safety',
   '/safety/incidents': 'Incidents',
   '/safety/spillages': 'Spillages',
@@ -321,6 +323,7 @@ function StaffShell({ session }: { session: Session }) {
             <Route path="/treatment/transfers" element={<TreatmentTransfers />} />
             <Route path="/treatment/waste-on-floor" element={<WasteOnFloor />} />
             <Route path="/treatment/chemicals" element={<TreatmentChemicals />} />
+            <Route path="/treatment/report" element={<TreatmentReport />} />
 
             {/* Health & Safety */}
             <Route path="/safety" element={<SheqDashboard />} />
